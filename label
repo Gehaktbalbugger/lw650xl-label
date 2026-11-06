@@ -1,0 +1,239 @@
+#!/usr/bin/env python3
+"""label - print labels on the LW650XL PRO (Aimo 650, TSPL over TCP 9100).
+
+Examples:
+  label "Anna de Bakker\nKeukenstraat 12\n1011 AB Amsterdam"
+  label "Pakket #1234" --size 104x159 --font 60 --qr "https://track.example/1234"
+  label "Sale" --barcode "CODE128:ABC123" --copies 3
+  label "Test" --preview out.png        # render only, do not print
+"""
+import argparse
+import math
+import socket
+import sys
+
+DEFAULT_HOST = "172.16.1.20"
+DEFAULT_PORT = 9100
+DEFAULT_SIZE = "102x59"   # mm, the 123inkt large shipping labels
+DEFAULT_DPI = 300
+
+FONT_CANDIDATES = [
+    "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+    "/System/Library/Fonts/Supplemental/Arial.ttf",
+    "/System/Library/Fonts/Helvetica.ttc",
+]
+
+
+def parse_size(s):
+    try:
+        w, h = s.lower().split("x")
+        return float(w), float(h)
+    except ValueError:
+        sys.exit(f"bad --size {s!r}, expected like 102x59 (mm)")
+
+
+def load_font(pt):
+    from PIL import ImageFont
+    for path in FONT_CANDIDATES:
+        try:
+            return ImageFont.truetype(path, pt)
+        except OSError:
+            continue
+    return ImageFont.load_default()
+
+
+def wrap_lines(draw, text, font, max_px):
+    """Wrap text to width, honouring explicit \n."""
+    lines = []
+    for para in text.split("\n"):
+        words = para.split()
+        if not words:
+            lines.append("")
+            continue
+        cur = words[0]
+        for w in words[1:]:
+            trial = cur + " " + w
+            if draw.textlength(trial, font=font) <= max_px:
+                cur = trial
+            else:
+                lines.append(cur)
+                cur = w
+        lines.append(cur)
+    return lines
+
+
+def fit_font(draw, text, font_pt, max_w, max_h, line_spacing=1.15):
+    """Shrink font until the wrapped text block fits the box."""
+    pt = font_pt
+    while pt > 6:
+        font = load_font(pt)
+        lines = wrap_lines(draw, text, font, max_w)
+        asc, desc = font.getmetrics()
+        lh = int((asc + desc) * line_spacing)
+        if len(lines) * lh <= max_h and all(draw.textlength(l, font=font) <= max_w for l in lines):
+            return font, lines, lh
+        pt = int(pt * 0.9)
+    font = load_font(12)
+    asc, desc = font.getmetrics()
+    return font, wrap_lines(draw, text, font, max_w), int((asc + desc) * 1.15)
+
+
+def render_label(args, dots_mm):
+    """Render text (+optional logo) to a 1-bit PIL image covering the label."""
+    from PIL import Image, ImageDraw
+    w_px = int(round(args.size_w * dots_mm))
+    h_px = int(round(args.size_h * dots_mm))
+    img = Image.new("1", (w_px, h_px), 1)  # 1 = white
+    draw = ImageDraw.Draw(img)
+    margin = int(args.margin * dots_mm)
+
+    # optional logo in the top-right corner
+    logo_w = 0
+    if args.logo:
+        logo = Image.open(args.logo).convert("L").point(lambda p: 0 if p < 128 else 255)
+        max_h = int(args.logo_h * dots_mm)
+        max_w = int(args.logo_w * dots_mm)
+        scale = min(max_w / logo.width, max_h / logo.height, 1.0)
+        logo = logo.resize((max(1, int(logo.width * scale)), max(1, int(logo.height * scale))))
+        img.paste(logo, (w_px - margin - logo.width, margin))
+        logo_w = logo.width + margin
+
+    # text area: leave room on the right for a native QR, and at the bottom for a barcode
+    qr_w = int(30 * dots_mm) + margin if args.qr else 0
+    bar_h = int(15 * dots_mm) + margin if args.barcode else 0
+    box_w = w_px - 2 * margin - qr_w - logo_w
+    box_h = h_px - 2 * margin - bar_h
+    font_pt = max(12, int(args.font * 2.835))  # mm -> pt (1 mm = 2.835 pt)
+    font, lines, lh = fit_font(draw, args.text, font_pt, box_w, box_h)
+
+    asc, desc = font.getmetrics()
+    y = margin
+    if args.top:
+        y = int(args.top * dots_mm)
+    for line in lines:
+        draw.text((margin, y), line, font=font, fill=0)  # 0 = black = print
+        y += lh
+
+    return img
+
+
+def to_preview_png(img, path):
+    img.convert("L").save(path)
+
+
+def bitmap_bytes(img):
+    """Pack PIL '1' image to TSPL BITMAP data.
+
+    PIL '1' packs white=1; this printer family wants bit 1 = dark/print,
+    so invert every byte.
+    """
+    raw = img.tobytes("raw", "1")
+    return bytes(~b & 0xFF for b in raw)
+
+
+def build_tspl(args, img, dots_mm):
+    from PIL import Image
+    import lzo
+
+    w_px = img.width
+    h_px = img.height
+    bpr = (w_px + 7) // 8
+    # pad width to byte boundary by extending white margin
+    if bpr * 8 != w_px:
+        padded = Image.new("1", (bpr * 8, h_px), 1)
+        padded.paste(img, (0, 0))
+        img = padded
+    raw = bitmap_bytes(img)
+    packed = lzo.compress(raw)
+
+    parts = [
+        f"DENSITY {args.density}",
+        f"SPEED {args.speed}",
+        "REFERENCE 0,0",
+        "OFFSET 0 mm",
+        f"SIZE {args.size_w:g} mm,{args.size_h:g} mm",
+        f"GAP {args.gap:g} mm,0 mm",
+        "DIRECTION 0,0",
+        "CLS",
+    ]
+    # the BITMAP payload must start directly after the trailing comma:
+    # no CRLF between the header line and the binary data
+    payload = ("\r\n".join(parts) + "\r\n" +
+               f"BITMAP 0,0,{bpr},{h_px},3,{len(packed)},").encode("ascii")
+    payload += packed + b"\r\n"
+
+    if args.qr:
+        x = int((args.size_w - 32) * dots_mm)
+        y = int((args.size_h - 32) * dots_mm)
+        payload += f'QRCODE {x},{y},L,8,A,0,"{args.qr}"\r\n'.encode("ascii")
+    if args.barcode:
+        kind, _, code = args.barcode.partition(":")
+        if not code:
+            sys.exit("bad --barcode, use --barcode CODE128:YOURDATA")
+        x = int(4 * dots_mm)
+        y = int((args.size_h - 18) * dots_mm)
+        payload += (
+            f'BARCODE {x},{y},"{kind}",{int(12 * dots_mm)},2,4,0,1,100,"{code}"\r\n'
+        ).encode("ascii")
+    payload += f"PRINT {args.copies},1\r\n".encode("ascii")
+    return payload
+
+
+def send(host, port, payload):
+    with socket.create_connection((host, port), timeout=10) as s:
+        s.sendall(b"\r\n" + payload)  # leading \r\n clears any stale partial line
+        s.settimeout(4)
+        chunks = []
+        try:
+            while True:
+                b = s.recv(4096)
+                if not b:
+                    break
+                chunks.append(b)
+        except socket.timeout:
+            pass
+        resp = b"".join(chunks)
+        if resp:
+            print("printer:", resp.decode("latin-1")[:500])
+
+
+def main():
+    p = argparse.ArgumentParser(description="Print a label on the LW650XL PRO.")
+    p.add_argument("text", help="label text; use \\n for new lines")
+    p.add_argument("--host", default=DEFAULT_HOST)
+    p.add_argument("--port", type=int, default=DEFAULT_PORT)
+    p.add_argument("--size", default=DEFAULT_SIZE, help="WxH in mm (default 102x59)")
+    p.add_argument("--font", type=float, default=8.0, help="max text height in mm (default 8)")
+    p.add_argument("--margin", type=float, default=2.0, help="margin in mm")
+    p.add_argument("--top", type=float, default=0, help="start text N mm from top")
+    p.add_argument("--qr", help="QR code data, printed bottom-right")
+    p.add_argument("--barcode", help='barcode, e.g. "CODE128:ABC123", bottom-left')
+    p.add_argument("--logo", help="PNG path, top-right corner")
+    p.add_argument("--logo-w", type=float, default=25, help="max logo width mm")
+    p.add_argument("--logo-h", type=float, default=25, help="max logo height mm")
+    p.add_argument("--copies", type=int, default=1)
+    p.add_argument("--density", type=int, default=8, help="0-15, higher = darker")
+    p.add_argument("--speed", type=int, default=4, help="labels per minute-ish")
+    p.add_argument("--gap", type=float, default=2.0, help="label gap in mm")
+    p.add_argument("--dpi", type=int, default=DEFAULT_DPI, help="head resolution")
+    p.add_argument("--preview", metavar="FILE.png", help="render to PNG instead of printing")
+    args = p.parse_args()
+
+    args.text = args.text.replace("\\n", "\n")
+    args.size_w, args.size_h = parse_size(args.size)
+    dots_mm = round(args.dpi / 25.4)  # 300 dpi -> 12 dots/mm
+
+    img = render_label(args, dots_mm)
+
+    if args.preview:
+        to_preview_png(img, args.preview)
+        print(f"preview written: {args.preview}")
+        return
+
+    payload = build_tspl(args, img, dots_mm)
+    send(args.host, args.port, payload)
+    print(f"sent: {args.text.splitlines()[0]!r}... ({args.size_w}x{args.size_h} mm)")
+
+
+if __name__ == "__main__":
+    main()
