@@ -156,10 +156,12 @@ def build_tspl(args, img, dots_mm):
         "DIRECTION 0,0",
         "CLS",
     ]
-    # the BITMAP payload must start directly after the trailing comma:
-    # no CRLF between the header line and the binary data
+    # This firmware REQUIRES a CRLF between the BITMAP header line and the
+    # binary payload (verified by physical prints — removing it makes the
+    # printer silently swallow the job). The declared length counts only the
+    # LZO payload bytes, not that CRLF.
     payload = ("\r\n".join(parts) + "\r\n" +
-               f"BITMAP 0,0,{bpr},{h_px},3,{len(packed)},").encode("ascii")
+               f"BITMAP 0,0,{bpr},{h_px},3,{len(packed)},\r\n").encode("ascii")
     payload += packed + b"\r\n"
 
     if args.qr:

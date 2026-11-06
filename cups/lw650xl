@@ -189,7 +189,9 @@ def convert(input_bytes, opts=None):
         else:
             out += b"CLS\r\n"  # clear between pages
         pages += 1
-        out += (f"BITMAP 0,0,{bpr},{h},3,{len(packed)},").encode("ascii")
+        # This firmware REQUIRES a CRLF between the BITMAP header line and
+        # the binary payload; the declared length counts only payload bytes.
+        out += (f"BITMAP 0,0,{bpr},{h},3,{len(packed)},\r\n").encode("ascii")
         out += packed
         out += b"\r\nPRINT 1,1\r\n"
     if not out.strip():

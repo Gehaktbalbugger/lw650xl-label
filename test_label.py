@@ -57,17 +57,22 @@ def main():
     wb, hpx, mode, ln = (int(x) for x in m.groups())
     assert mode == 3, "BITMAP must be mode 3"
     packed = data[start + m.end():]
+    assert data[start + m.end():start + m.end() + 2] == b"\r\n", \
+        "CRLF must separate BITMAP header from payload"
     print(f"BITMAP {wb * 8}x{hpx} dots, mode {mode}, lzo payload {ln} bytes")
     # The payload is binary and may itself contain CRLF bytes, so the
     # trailing framing is located from the end of the stream, not by
     # scanning for the first CRLF.
     trailer = b"\r\nPRINT 1,1\r\n"
     assert packed.endswith(trailer), "PRINT must close the stream"
-    payload = packed[:-len(trailer)]  # raw LZO data, ends with LZO EOF marker
-    assert payload.endswith(b"\x11\x00\x00"), "LZO EOF marker must end the payload"
-    assert len(payload) == ln, f"declared {ln} bytes, got {len(payload)}"
+    raw_lzo = packed[:-len(trailer)]              # bitmap payload ...
+    assert raw_lzo.endswith(b"\x11\x00\x00"), "LZO EOF marker must end the payload"
+    # ... which is preceded by the CRLF after the header comma (firmware
+    # requires it; declared length counts only the payload itself)
+    lzo_payload = raw_lzo[2:]
+    assert len(lzo_payload) == ln, f"declared {ln} bytes, got {len(lzo_payload)}"
 
-    raw = lzo.decompress(payload, wb * hpx)
+    raw = lzo.decompress(lzo_payload, wb * hpx)
     assert len(raw) == wb * hpx, "raster size mismatch"
     assert any(raw), "raster must contain printed (dark) pixels"
     rows = [raw[r * wb:(r + 1) * wb] for r in range(hpx)]
