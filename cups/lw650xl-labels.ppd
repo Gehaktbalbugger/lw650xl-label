@@ -1,0 +1,96 @@
+*PPD-Adobe: "4.3"
+*%
+*%  LW650XL PRO (Aimo 650, TSPL via socket 9100) — CUPS PPD with label sizes.
+*%  Filter chain: PDF -> cgpdftoraster (system) -> rastertolabeltspl (system).
+*%
+*FormatVersion: "4.3"
+*FileVersion: "1.0"
+*LanguageVersion: English
+*LanguageEncoding: ISOLatin1
+*PCFileName: "LW650LAB.PPD"
+*Manufacturer: "Aimo"
+*cupsModelNumber: 105
+*Product: "(LW650XL PRO Labels)"
+*ModelName: "LW650XL PRO Labels"
+*ShortNickName: "LW650XL Labels"
+*NickName: "LW650XL PRO Labels (TSPL)"
+*PSVersion: "(3010.000) 550"
+*LanguageLevel: "3"
+*ColorDevice: False
+*DefaultColorSpace: Gray
+*FileSystem: False
+*Throughput: "1"
+*LandscapeOrientation: Plus90
+*TTRasterizer: Type42
+*cupsVersion: 1.2
+*cupsManualCopies: True
+*cupsFilter: "application/vnd.cups-raster 0 rastertolabeltspl"
+*cupsLanguages: "en"
+
+*OpenUI *PageSize/Media Size: PickOne
+*OrderDependency: 10 AnySetup *PageSize
+*DefaultPageSize: LW_102x59
+*PageSize LW_104x159/Verzendetiket XL 104x159 mm: "<</PageSize[294.80 450.71]/ImagingBBox null>>setpagedevice"
+*PageSize LW_102x59/Verzendetiket 102x59 mm: "<</PageSize[289.13 167.24]/ImagingBBox null>>setpagedevice"
+*PageSize LW_101x54/Naambadge 101x54 mm: "<</PageSize[286.30 153.07]/ImagingBBox null>>setpagedevice"
+*PageSize LW_89x36/Adres breed 89x36 mm: "<</PageSize[252.28 102.05]/ImagingBBox null>>setpagedevice"
+*PageSize LW_89x28/Adres 89x28 mm: "<</PageSize[252.28 79.37]/ImagingBBox null>>setpagedevice"
+*PageSize LW_54x25/Retour 54x25 mm: "<</PageSize[153.07 70.87]/ImagingBBox null>>setpagedevice"
+*PageSize LW_50x12/Hangmap 50x12 mm: "<</PageSize[141.73 34.02]/ImagingBBox null>>setpagedevice"
+*PageSize LW_57x57/CD/DVD 57x57 mm: "<</PageSize[161.57 161.57]/ImagingBBox null>>setpagedevice"
+*PageSize LW_62x100/Continu 62x100 mm: "<</PageSize[175.75 283.46]/ImagingBBox null>>setpagedevice"
+*CloseUI: *PageSize
+
+*OpenUI *PageRegion/Media Size: PickOne
+*OrderDependency: 10 AnySetup *PageRegion
+*DefaultPageRegion: LW_102x59
+*PageRegion LW_104x159/Verzendetiket XL 104x159 mm: "<</PageSize[294.80 450.71]/ImagingBBox null>>setpagedevice"
+*PageRegion LW_102x59/Verzendetiket 102x59 mm: "<</PageSize[289.13 167.24]/ImagingBBox null>>setpagedevice"
+*PageRegion LW_101x54/Naambadge 101x54 mm: "<</PageSize[286.30 153.07]/ImagingBBox null>>setpagedevice"
+*PageRegion LW_89x36/Adres breed 89x36 mm: "<</PageSize[252.28 102.05]/ImagingBBox null>>setpagedevice"
+*PageRegion LW_89x28/Adres 89x28 mm: "<</PageSize[252.28 79.37]/ImagingBBox null>>setpagedevice"
+*PageRegion LW_54x25/Retour 54x25 mm: "<</PageSize[153.07 70.87]/ImagingBBox null>>setpagedevice"
+*PageRegion LW_50x12/Hangmap 50x12 mm: "<</PageSize[141.73 34.02]/ImagingBBox null>>setpagedevice"
+*PageRegion LW_57x57/CD/DVD 57x57 mm: "<</PageSize[161.57 161.57]/ImagingBBox null>>setpagedevice"
+*PageRegion LW_62x100/Continu 62x100 mm: "<</PageSize[175.75 283.46]/ImagingBBox null>>setpagedevice"
+*CloseUI: *PageRegion
+
+*DefaultImageableArea: LW_102x59
+*ImageableArea LW_104x159/Verzendetiket XL 104x159 mm: "0 0 294.80 450.71"
+*ImageableArea LW_102x59/Verzendetiket 102x59 mm: "0 0 289.13 167.24"
+*ImageableArea LW_101x54/Naambadge 101x54 mm: "0 0 286.30 153.07"
+*ImageableArea LW_89x36/Adres breed 89x36 mm: "0 0 252.28 102.05"
+*ImageableArea LW_89x28/Adres 89x28 mm: "0 0 252.28 79.37"
+*ImageableArea LW_54x25/Retour 54x25 mm: "0 0 153.07 70.87"
+*ImageableArea LW_50x12/Hangmap 50x12 mm: "0 0 141.73 34.02"
+*ImageableArea LW_57x57/CD/DVD 57x57 mm: "0 0 161.57 161.57"
+*ImageableArea LW_62x100/Continu 62x100 mm: "0 0 175.75 283.46"
+
+*DefaultPaperDimension: LW_102x59
+*PaperDimension LW_104x159/Verzendetiket XL 104x159 mm: "294.80 450.71"
+*PaperDimension LW_102x59/Verzendetiket 102x59 mm: "289.13 167.24"
+*PaperDimension LW_101x54/Naambadge 101x54 mm: "286.30 153.07"
+*PaperDimension LW_89x36/Adres breed 89x36 mm: "252.28 102.05"
+*PaperDimension LW_89x28/Adres 89x28 mm: "252.28 79.37"
+*PaperDimension LW_54x25/Retour 54x25 mm: "153.07 70.87"
+*PaperDimension LW_50x12/Hangmap 50x12 mm: "141.73 34.02"
+*PaperDimension LW_57x57/CD/DVD 57x57 mm: "161.57 161.57"
+*PaperDimension LW_62x100/Continu 62x100 mm: "175.75 283.46"
+
+*DefaultResolution: 300x300dpi
+*OpenUI *Resolution/Resolution: PickOne
+*OrderDependency: 10 AnySetup *Resolution
+*DefaultResolution: 300x300dpi
+*Resolution 300x300dpi/300 dpi x 300 dpi: "<</HWResolution[300 300]/cupsBitsPerColor 8/cupsRowCount 8/cupsRowFeed 0/cupsRowStep 0/cupsColorSpace 0>>setpagedevice"
+*CloseUI: *Resolution
+
+*% Custom sizes (Word's Manage Custom Sizes) — usable head area:
+*CustomPageSize True: "pop pop pop <</PageSize[5 -2 roll]/ImagingBBox null>>setpagedevice"
+*ParamCustomPageSize Width: 1 points 28 341
+*ParamCustomPageSize Height: 2 points 14 652
+*ParamCustomPageSize WidthOffset: 3 points 0 0
+*ParamCustomPageSize HeightOffset: 4 points 0 0
+*ParamCustomPageSize Orientation: 5 int 0 0
+
+*DefaultFont: Courier
+*Font Courier: "(001.004)" Standard ROM
