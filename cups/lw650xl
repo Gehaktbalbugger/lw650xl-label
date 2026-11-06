@@ -134,27 +134,38 @@ def read_raster(input_bytes):
         pos = data_start + data_len
 
 
-def pack_bits(gray, w, h, threshold=128):
-    """8-bit gray -> 1-bit rows, MSB first, bit 1 = dark (printed)."""
-    bpr = (w + 7) // 8
-    out = bytearray(bpr * h)
+def pack_bits_canvas(gray, w, h, canv_w_dots, canv_h_dots):
+    """8-bit gray -> 1-bit rows in a white CLI-style dot canvas.
+
+    The verified-working CLI builds its bitmap as round(mm * 12) dots in
+    both directions. Rasterized pages come at dpi dots/inch (e.g. 1205 px
+    for 102 mm at 300 dpi), so paste the raster rows 1:1 into the top-left
+    of the CLI-sized canvas and pad white right/bottom. Bit 1 = dark,
+    MSB-first (CLI convention).
+    """
+    bpr = (canv_w_dots + 7) // 8
+    out = bytearray(bpr * canv_h_dots)
     for y in range(h):
-        row = gray[y * w:(y + 1) * w]
+        if y >= canv_h_dots:
+            break
         ob = bpr * y
         for x in range(w):
-            if row[x] <= threshold:
+            if x < canv_w_dots and gray[y * w + x] <= 128:
                 out[ob + (x >> 3)] |= 0x80 >> (x & 7)
-    return bpr, bytes(out)
+    return bpr, canv_h_dots, bytes(out)
 
 
 # ------------------------------------------------------------------ TSPL ---
 def tspl_header(w_mm, h_mm, gap_mm=2.0, density=8, speed=4):
+    # Byte-for-byte the style of the verified-working label CLI: plain %g
+    # numbers, no decimals (e.g. "SIZE 102 mm,59 mm"). Avoid anything the
+    # CLI never used.
     return (
         f"DENSITY {density}\r\n"
         f"SPEED {speed}\r\n"
         "REFERENCE 0,0\r\n"
         "OFFSET 0 mm\r\n"
-        f"SIZE {w_mm:.2f} mm,{h_mm:.2f} mm\r\n"
+        f"SIZE {round(w_mm):g} mm,{round(h_mm):g} mm\r\n"
         f"GAP {gap_mm:g} mm,0 mm\r\n"
         "DIRECTION 0,0\r\n"
         "CLS\r\n"
@@ -179,19 +190,23 @@ def convert(input_bytes, opts=None):
     out = bytearray(b"\r\n")  # clear any stale partial line at the printer
     pages = 0
     for dpi_x, dpi_y, w, h, gray in read_raster(input_bytes):
-        bpr, bits = pack_bits(gray, w, h)
-        packed = lzo_compress(bits)
-        # label size: pixels / dpi * 25.4 mm (use horizontal dpi)
+        # physical label size from the raster resolution
         w_mm = w * 25.4 / dpi_x
         h_mm = h * 25.4 / dpi_y
+        dots_mm = round(dpi_x / 25.4)          # 300 dpi -> 12 dots/mm
+        cw = round(w_mm * dots_mm)             # CLI-style canvas (e.g. 1224)
+        ch = round(h_mm * dots_mm)             # (e.g. 719)
+        bpr, ch, bits = pack_bits_canvas(gray, w, h, cw, ch)
+        packed = lzo_compress(bits)
         if pages == 0:
             out += tspl_header(w_mm, h_mm, gap_mm, density, speed).encode("ascii")
         else:
             out += b"CLS\r\n"  # clear between pages
         pages += 1
-        # This firmware REQUIRES a CRLF between the BITMAP header line and
-        # the binary payload; the declared length counts only payload bytes.
-        out += (f"BITMAP 0,0,{bpr},{h},3,{len(packed)},\r\n").encode("ascii")
+        # CRLF between BITMAP header and payload is REQUIRED by the
+        # firmware (without it jobs are silently swallowed); declared
+        # length counts only the payload bytes.
+        out += (f"BITMAP 0,0,{bpr},{ch},3,{len(packed)},\r\n").encode("ascii")
         out += packed
         out += b"\r\nPRINT 1,1\r\n"
     if not out.strip():
