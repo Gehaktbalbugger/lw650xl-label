@@ -1,0 +1,164 @@
+#!/usr/bin/env python3
+"""Regression tests for the CUPS filter (cups/lw650xl.py).
+
+No printer needed: the raster is synthesised exactly the way Apple's
+cgpdftoraster writes it, and the TSPL output is checked and decoded back
+into an image.
+
+Covers the bugs that made a Word print job fail:
+  - multi-page rasters: the 4-byte sync word appears ONLY before page 1,
+    every page header is 1796 bytes (assuming 1800 desynchronises page 2)
+  - Word sends media=Custom.90.71x161.57 and puts the PPD name in
+    com.apple.print.PageToPaperMappingMediaName
+  - Word's landscape label arrives as a PORTRAIT raster and must be rotated
+    back clockwise
+
+Run: python3 test_filter.py
+"""
+import importlib.util
+import os
+import re
+import struct
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+FILTER_PATH = os.path.join(HERE, "cups", "lw650xl.py")
+
+HEADER_BYTES = 1796
+MAGIC = b"3SaR"
+
+
+def load_filter():
+    spec = importlib.util.spec_from_file_location("lw650xl", FILTER_PATH)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def make_page(w, h, dpi=300, mark=None):
+    """One raster page: 1796-byte header + W*H bytes of 8-bit gray.
+
+    `mark` is a list of (x, y) dark pixels, used to check orientation.
+    """
+    hdr = bytearray(HEADER_BYTES)
+    struct.pack_into("<II", hdr, 0x114, dpi, dpi)
+    struct.pack_into("<II", hdr, 0x174, w, h)
+    gray = bytearray(b"\xff" * (w * h))
+    for (x, y) in (mark or []):
+        gray[y * w + x] = 0
+    return bytes(hdr) + bytes(gray)
+
+
+def raster(*pages):
+    return MAGIC + b"".join(pages)
+
+
+def decode_bitmaps(payload):
+    """Return [(width, height, bytes)] of every BITMAP in the job."""
+    out = []
+    for m in re.finditer(rb"BITMAP 0,0,(\d+),(\d+),(\d+),", payload):
+        bpr, rows, mode = (int(m.group(i)) for i in (1, 2, 3))
+        assert mode == 0, "BITMAP must be mode 0 (uncompressed)"
+        body = payload[m.end():m.end() + bpr * rows]
+        assert len(body) == bpr * rows, "truncated BITMAP payload"
+        out.append((bpr * 8, rows, body))
+    return out
+
+
+def dark_pixels(width, rows, body):
+    """Coordinates of printed dots (bit 0 = printed)."""
+    pts = []
+    for y in range(rows):
+        row = body[y * (width // 8):(y + 1) * (width // 8)]
+        for x in range(width):
+            if not row[x >> 3] & (0x80 >> (x & 7)):
+                pts.append((x, y))
+    return pts
+
+
+def check(name, cond):
+    print(("  ok   " if cond else "  FAIL ") + name)
+    return bool(cond)
+
+
+def main():
+    lw = load_filter()
+    ok = True
+
+    # --- 1. raster layout ---------------------------------------------------
+    data = raster(make_page(60, 40), make_page(60, 40), make_page(60, 40))
+    pages = list(lw.read_raster(data))
+    ok &= check("3-page raster: 3 pages parsed", len(pages) == 3)
+    ok &= check("3-page raster: sizes read", all(p[2:4] == (60, 40) for p in pages))
+    ok &= check("3-page raster: no desynchronisation",
+                all(p[4].count(0) == 0 for p in pages))
+
+    # --- 2. options Word/macOS actually sends ------------------------------
+    opts = lw.parse_options(
+        r"ColorModel=Gray com.apple.print.PageToPaperMappingMediaName=LW_57x32 "
+        r"media=Custom.90.71x161.57 orientation-requested=4 "
+        r"PageSize=Custom.90x161 job-name=Microsoft\ Word\ -\ Regel\ 1.docx")
+    ok &= check("job-name with escaped spaces kept whole",
+                opts.get("job-name") == "Microsoft Word - Regel 1.docx")
+    geo = lw.media_geometry(opts, 31.75, 56.81)
+    ok &= check("Custom media falls back to the PPD name: %r" % (geo,),
+                geo == (57.0, 32.0, 38.6, 3.0))
+    geo = lw.media_geometry(lw.parse_options("media=LW_57x32"), 57.0, 32.0)
+    ok &= check("media=LW_57x32 honoured", geo == (57.0, 32.0, 38.6, 3.0))
+    geo = lw.media_geometry(lw.parse_options("media=Custom.90.71x161.57"),
+                            31.75, 56.81)
+    ok &= check("unknown media: long side becomes label width", geo[0] > geo[1])
+
+    # --- 3. rotation --------------------------------------------------------
+    # A mark in the top-left of the label: in the portrait raster it is in the
+    # bottom-left, so after rotating clockwise it must return to the top-left.
+    w_px, h_px = 375, 671
+    blank = bytes([0xff] * (w_px * h_px))
+    rotated, rw, rh = lw.rotate_cw(blank, w_px, h_px)
+    ok &= check("rotate_cw swaps dimensions", (rw, rh) == (h_px, w_px))
+    ok &= check("rotate_cw keeps the pixel count", len(rotated) == w_px * h_px)
+    gray = bytearray(b"\xff" * (w_px * h_px))
+    gray[(h_px - 20) * w_px + 5] = 0          # bottom-left of the portrait page
+    rotated, rw, rh = lw.rotate_cw(bytes(gray), w_px, h_px)
+    ok &= check("rotate_cw moves bottom-left to top-left",
+                rotated[5 * rw + 19] == 0)
+
+    # --- 4. full conversion, two pages -------------------------------------
+    # Landscape 57x32 label: a dark pixel at (10, 70) in the page must end up
+    # inside the print window at the same place.
+    lw_opts = lw.parse_options("media=LW_57x32")
+    payload = lw.convert(raster(make_page(673, 378, mark=[(10, 70)]),
+                                make_page(673, 378, mark=[(600, 300)])),
+                         lw_opts)
+    ok &= check("two pages -> two PRINT commands", payload.count(b"PRINT 1,1\r\n") == 2)
+    ok &= check("header once: SIZE 57 mm,38.6 mm", payload.count(b"SIZE 57 mm,38.6 mm") == 1)
+    ok &= check("header once: DENSITY/SPEED/CLS",
+                payload.count(b"DENSITY 15") == 1 and payload.count(b"CLS") == 2)
+    bits = decode_bitmaps(payload)
+    ok &= check("bitmaps span the head at full feed height",
+                all((w, h) == (1280, 444) for w, h, _ in bits))
+    pts1 = dark_pixels(*bits[0])
+    ok &= check("page 1 dot lands in the print window: %r" % (pts1[:1],),
+                pts1 and 0 <= pts1[0][0] <= 640 and 60 <= pts1[0][1] <= 430)
+    pts2 = dark_pixels(*bits[1])
+    ok &= check("page 2 keeps its own content", len(pts2) == 1 and pts2[0] > pts1[0])
+
+    # portrait raster for a landscape label must be rotated back
+    payload = lw.convert(raster(make_page(375, 671, mark=[(300, 20)])), lw_opts)
+    pts = dark_pixels(*decode_bitmaps(payload)[0])
+    ok &= check("portrait page is rotated (single dot at %r)" % (pts[:1],),
+                len(pts) == 1 and pts[0][0] > pts[0][1])
+
+    # --- 5. garbage in, error out ------------------------------------------
+    try:
+        lw.convert(b"not a raster at all", lw_opts)
+        ok &= check("bad input raises", False)
+    except ValueError:
+        ok &= check("bad input raises ValueError", True)
+
+    print("OK" if ok else "FAILED")
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

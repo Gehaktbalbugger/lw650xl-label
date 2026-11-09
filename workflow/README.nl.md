@@ -58,6 +58,11 @@ Dit is de belangrijkste stap: **de pagina in Word moet precies zo groot
 zijn als het etiket**. Anders schaalt de printer het beeld of weigert de
 watcher het bestand.
 
+Tip: direct printen vanaf Word naar de printer **LW650XL PRO Labels (TSPL)**
+mag ook, mits je bij papierformaat hetzelfde etiket kiest (bijv.
+*Etiket 57x32 mm*). De filter corrigeert de staande pagina en het
+`Custom`-formaat dat Word doorgeeft; elk documentpagina wordt één etiket.
+
 In Word:
 
 1. **Indeling → Grootte → Meer papierformaten…**

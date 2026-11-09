@@ -27,8 +27,13 @@ It contains three ways to print:
   ruler/edge test prints on an AM11354 57 × 32 mm roll.
 - **End-to-end**: PDF in the shared inbox → watcher → CUPS → printer
   produces a correctly aligned label (job `LW650XL_Labels-148`).
+- **Word directly**: printing straight to the queue from Word — including a
+  multi-page landscape label document — produces one aligned label per page.
 - **CLI tests**: `python3 test_label.py` (framing + geometry check via a
   fake TCP printer) and `python3 lzo.py` (legacy LZO round-trip) pass.
+- **Filter tests**: `python3 test_filter.py` builds real cgpdftoraster
+  layouts (multi-page, Word's portrait raster, Custom media) and decodes
+  the TSPL back; printing a 2-page Word document works end to end.
 
 ## Part 1: terminal tool
 
@@ -129,6 +134,16 @@ Custom CUPS options understood by the filter: `lw-gap` (gap mm,
 default 3), `lw-pitch` (feed height mm, default 38.6 for 57x32),
 `lw-density` (default 15), `lw-speed` (default 1).
 
+Things the filter has to undo for a Word job (macOS print pipeline):
+
+- Word sends `media=Custom.90.71x161.57`, not the PPD name; the label size
+  is read from `com.apple.print.PageToPaperMappingMediaName` instead.
+- `orientation-requested=4` makes `cgpdftoraster` hand over a PORTRAIT
+  raster for a landscape label, so it is rotated 90° clockwise back.
+- Multi-page documents: the raster has one 4-byte sync word, then a
+  1796-byte header per page, so page 2 onwards must be parsed without it.
+  Each page becomes its own label (one `PRINT` per page).
+
 ## Part 3: shared Word/Excel workflow (multiple systems)
 
 Run once:
@@ -150,6 +165,8 @@ converts it to TSPL and prints it. Full Dutch guide:
 - `lzo.py` — pure-Python LZO1X-1 codec, kept for reference/testing;
   the printer's working BITMAP mode 0 is uncompressed and does not use it.
 - `test_label.py` — end-to-end framing test against a fake TCP printer.
+- `test_filter.py` — CUPS raster parser test: multi-page rasters, Word's
+  media/orientation options, bitmap decoding (no printer needed).
 - `cups/lw650xl` — CUPS filter wrapper (picks a working Python 3).
 - `cups/lw650xl.py` — the raster→TSPL conversion (self-contained).
 - `cups/lw650xl-labels.ppd` — queue PPD with the label size catalog.

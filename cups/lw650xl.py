@@ -7,12 +7,14 @@ Filter chain (installed via install.sh):
   sends to the printer at port 9100.
 
 Input raster: Apple cgpdftoraster "RaS3" format (decoded empirically):
-  - magic bytes 33 53 61 52 ("3SaR" as stored)
-  - page header is exactly 1800 bytes
-  - u32 @0x118 = horizontal DPI, u32 @0x11C = vertical DPI
-  - u32 @0x178 = pixel width W, u32 @0x17C = pixel height H
+  - 4-byte sync word 33 53 61 52 ("3SaR" as stored), ONLY before page 1
+  - page header is 1796 bytes (so page 1's header ends at file offset 1800)
+  - header-relative: u32 @0x114 = horizontal DPI, @0x118 = vertical DPI,
+    u32 @0x174 = pixel width W, @0x178 = pixel height H
   - pixel data: W*H bytes directly after the header, 8-bit gray,
     0 = black (print), 255 = white, rows UNPADDED (W bytes each)
+  - every next page repeats header + data WITHOUT the sync word; assuming
+    1800 bytes per page desynchronises the stream from page 2 onwards
 
 Output: TSPL, matching what the vendor app (Labellife) sends to this
 printer. All of this was verified on the physical printer:
@@ -33,6 +35,7 @@ printer. All of this was verified on the physical printer:
     the vendor app uses SIZE 57 mm,38.6 mm with GAP 3 mm for the AM11354
     57x32 mm label. Telling the printer a shorter pitch makes it drift.
 """
+import re
 import struct
 import sys
 
@@ -53,23 +56,36 @@ DEFAULT_MEDIA = "LW_57x32"
 
 
 # ---------------------------------------------------------------- raster ---
+# CUPS raster v3 layout (decoded from real cgpdftoraster output):
+#   [4-byte sync "3SaR"] [1796-byte page header] [W*H bytes of 8-bit gray]
+#   [1796-byte page header] [W*H bytes] ...
+# The sync word appears ONLY in front of the first page header; later pages
+# have the bare 1796-byte header. Field offsets are header-relative:
+#   u32 @0x114 / @0x118 = horizontal / vertical DPI
+#   u32 @0x174 / @0x178 = pixel width W / pixel height H
+HEADER_BYTES = 1796
+MAGIC = b"3SaR"
+
+
 def read_raster(input_bytes):
     """Yield (dpi_x, dpi_y, width_px, height_px, gray_bytes) per page."""
     pos, n = 0, len(input_bytes)
-    MAGIC = b"3SaR"
+    if input_bytes[:4] != MAGIC:
+        raise ValueError(
+            f"bad raster magic at offset 0: {input_bytes[:4]!r} "
+            "(expected RaS3 from cgpdftoraster)")
+    pos = 4
     while pos < n:
-        if pos + 1800 > n:
-            return  # trailing partial block (e.g. trailing padding bytes)
-        hdr = input_bytes[pos:pos + 1800]
-        if hdr[:4] != MAGIC:
-            raise ValueError(
-                f"bad raster magic at offset {pos}: {hdr[:4]!r} "
-                "(expected RaS3 from cgpdftoraster)")
-        dpi_x, dpi_y = struct.unpack("<II", hdr[0x118:0x120])
-        w, h = struct.unpack("<II", hdr[0x178:0x180])
+        if input_bytes[pos:pos + 4] == MAGIC:      # some rasters repeat it
+            pos += 4
+        if pos + HEADER_BYTES > n:
+            return  # trailing padding bytes
+        hdr = input_bytes[pos:pos + HEADER_BYTES]
+        dpi_x, dpi_y = struct.unpack("<II", hdr[0x114:0x11C])
+        w, h = struct.unpack("<II", hdr[0x174:0x17C])
         if not (0 < w <= 20000 and 0 < h <= 20000):
             raise ValueError(f"implausible page size {w}x{h} @ {pos}")
-        data_start, data_len = pos + 1800, w * h
+        data_start, data_len = pos + HEADER_BYTES, w * h
         if data_start + data_len > n:
             raise ValueError(
                 f"truncated raster page: need {data_len} bytes at {data_start}, "
@@ -86,6 +102,20 @@ def content_box(w_mm, h_mm):
     cw = max(1, min(cw, HEAD_DOTS))
     ch = max(1, ch)
     return 0, TOP_OFFSET_DOTS, cw, ch
+
+
+def rotate_cw(gray, w, h):
+    """Rotate an 8-bit gray buffer 90 degrees clockwise -> (data, new_w, new_h).
+
+    Word/macOS hands CUPS a PORTRAIT raster (orientation-requested=4 makes
+    cgpdftoraster rotate the page) while a shipping label is landscape. The
+    rotation direction was checked against the PDF itself: clockwise restores
+    the original page.
+    """
+    out = bytearray(w * h)
+    for y in range(h):
+        out[h - 1 - y::h] = gray[y * w:(y + 1) * w]
+    return out, h, w
 
 
 def scale_to_box(gray, w, h, box_w, box_h):
@@ -150,36 +180,66 @@ def num(v):
 
 
 def parse_options(s):
+    """Split a CUPS options string into a dict.
+
+    CUPS escapes spaces inside values as "\\ ", so split only on whitespace
+    that is not preceded by a backslash; otherwise a title like
+    "Microsoft\\ Word\\ -\\ Regel\\ 1.docx" would create bogus keys.
+    """
     opts = {}
-    for tok in (s or "").split():
+    for tok in re.split(r"(?<!\\)\s+", (s or "").strip()):
         k, _, v = tok.partition("=")
-        opts[k] = v
+        if k:
+            opts[k] = v.replace("\\ ", " ")
     return opts
+
+
+def parse_size_name(name):
+    """'LW_57x32' -> (57.0, 32.0) or None."""
+    if not name.startswith("LW_"):
+        return None
+    a, _, b = name[3:].partition("x")
+    try:
+        return float(a), float(b)
+    except ValueError:
+        return None
+
+
+def find_media(size_w, size_h):
+    """Media whose label dimensions match (within 1 mm), for the pitch."""
+    for name, spec in MEDIA.items():
+        dims = parse_size_name(name)
+        if dims and abs(dims[0] - size_w) <= 1.0 and abs(dims[1] - size_h) <= 1.0:
+            return spec
+    return None
 
 
 def media_geometry(opts, w_mm, h_mm):
     """(label_w_mm, label_h_mm, pitch_mm, gap_mm) for this job.
 
-    The media name (e.g. "LW_57x32") is authoritative: it describes the
-    label that is physically loaded. The raster page size is only a
-    fallback when the media is unknown.
+    The label size is what the printer needs; the raster page size is only a
+    fallback. Word/macOS does NOT send media=LW_57x32 but
+    media=Custom.90.71x161.57 plus the PPD name in
+    com.apple.print.PageToPaperMappingMediaName, so look for both.
     """
     name = opts.get("media", "")
-    spec = MEDIA.get(name)
-    size_w, size_h = w_mm, h_mm
-    if name.startswith("LW_"):
-        try:
-            a, _, b = name[3:].partition("x")
-            size_w, size_h = float(a), float(b)
-        except ValueError:
-            pass
+    if parse_size_name(name) is None:
+        name = opts.get("com.apple.print.PageToPaperMappingMediaName", "")
+    dims = parse_size_name(name)
+    if dims:
+        size_w, size_h = dims
+    else:
+        # Unknown media: trust the page size, normalised so the long side is
+        # the label width (a label is printed landscape on this printer).
+        size_w, size_h = max(w_mm, h_mm), min(w_mm, h_mm)
+    spec = MEDIA.get(name) or find_media(size_w, size_h)
     pitch = float(opts.get("lw-pitch", spec["pitch"] if spec else size_h))
     gap = float(opts.get("lw-gap", spec["gap"] if spec else 3.0))
     return size_w, size_h, pitch, gap
 
 
 def convert(input_bytes, opts=None):
-    """Full raster -> TSPL payload conversion."""
+    """Full raster -> TSPL conversion."""
     opts = opts or {}
     density = int(opts.get("lw-density", 15))
     speed = int(opts.get("lw-speed", 1))
@@ -190,6 +250,10 @@ def convert(input_bytes, opts=None):
         w_mm = w * 25.4 / dpi_x
         h_mm = h * 25.4 / dpi_y
         size_w, size_h, pitch, gap = media_geometry(opts, w_mm, h_mm)
+        # Match the page to the label: Word's portrait raster for a landscape
+        # label (or the other way round) is rotated back to the label.
+        if (w > h) != (size_w > size_h):
+            gray, w, h = rotate_cw(gray, w, h)
         ox, oy, cw, ch = content_box(size_w, size_h)
         dark = scale_to_box(gray, w, h, cw, ch)
         # The vendor app sends 444 rows for a 38.6 mm pitch (456 dots), i.e.
