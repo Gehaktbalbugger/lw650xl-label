@@ -108,4 +108,4 @@
 *Font Courier: "(001.004)" Standard ROM
 *% lw-media LW_57x32 pitch=38.6 gap=3 voffset=0.34
 *% lw-media LW_36x89 pitch=93 gap=4 left=3 right=3 top=-0.5 bottom=1
-*% lw-media LW_26x25 pitch=33.97 gap=3 rows=356 left=0.6 right=0.6 top=0 voffset=4.75 bottom=0.5 rotate=270
+*% lw-media LW_26x25 pitch=34 gap=3 left=1.5 right=1.5 top=0 voffset=4.45 bottom=0.7 rotate=270

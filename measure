@@ -259,8 +259,8 @@ def cmd_print(lw, args):
     print(f"0,0 staat op {centre[0]:.1f} / {centre[1]:.1f} mm van de bitmap"
           + (f", beeld gedraaid {geom.rotate} graden." if geom.rotate else "."))
     if geom.rotate:
-        print("Lees N/Z af langs de*zijkanten* van het etiket zoals je het gedraaid "
-              "bekijkt: de as van de tekst is de voedingsrichting.")
+        print("Lees de randen af zoals het etiket uit de printer komt: de as van")
+        print("de tekst loopt langs de voedingsrichting.")
     print("Lees de vier randen af en doe:  ./measure solve --N .. --Z .. --W .. --O ..")
     print(f"(meetgegevens: {args.state})")
     return 0

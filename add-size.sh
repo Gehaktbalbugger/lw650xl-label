@@ -14,7 +14,10 @@
 #   ./add-size.sh LW_36x89 "Adres 36x89 mm (AM99012, staand)" 36 89 \
 #       --gap 4 --pitch 93 --left 3 --right 3 --top -0.5 --bottom 1
 #
-# --gap      distance between labels in mm, 0 for continuous stock (default 3)
+# --gap      length in mm of the gap / mark / notch, 0 for continuous (default 3)
+# --gapoff   mm of plain liner between the label's trailing edge and that gap
+#            or mark (default 0). This roll: 25 mm label, 4 mm liner, 3 mm
+#            notch, 5 mm liner -> --gap 3 --gapoff 4 --pitch 37
 # --pitch    what the printer feeds per label = label height + gap/liner.
 #            Default is height + gap; measure the real roll if labels drift.
 # --voffset  move the print down the label by this many mm (default 0), for
@@ -31,6 +34,9 @@
 # --bottom   mm to keep free at the label's bottom edge (default 0.7). Raise
 #            it to match a top edge that is unreachable, so the print stays
 #            centred on the label.
+# --sense    gap (default) or bline: rolls with black marks / holes in the
+#            liner must be fed to the sensor as BLINE, otherwise it keeps
+#            hunting for a gap that is not there and starts each job elsewhere.
 # --rotate   90 (clockwise) or 270 (counter-clockwise): print the page turned
 #            on its side, useful when the unreachable edge must fall along the
 #            feed direction instead of the label's left edge.
@@ -52,6 +58,7 @@ EXTRA=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --gap)    GAP_MM="${2:?--gap needs a value}"; shift 2 ;;
+        --gapoff) EXTRA+=("gapoff=${2:?--gapoff needs a value}"); shift 2 ;;
         --pitch)  PITCH_MM="${2:?--pitch needs a value}"; shift 2 ;;
         --voffset) EXTRA+=("voffset=${2:?--voffset needs a value}"); shift 2 ;;
         --left)   EXTRA+=("left=${2:?--left needs a value}"); shift 2 ;;
@@ -60,6 +67,7 @@ while [[ $# -gt 0 ]]; do
         --bottom) EXTRA+=("bottom=${2:?--bottom needs a value}"); shift 2 ;;
         --rows)   EXTRA+=("rows=${2:?--rows needs a value}"); shift 2 ;;
         --rotate) EXTRA+=("rotate=${2:?--rotate needs a value}"); shift 2 ;;
+        --sense)  EXTRA+=("sense=${2:?--sense needs a value}"); shift 2 ;;
         *) echo "unknown option: $1" >&2; exit 1 ;;
     esac
 done

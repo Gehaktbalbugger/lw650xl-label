@@ -77,11 +77,13 @@ DEFAULT_MEDIA = "LW_57x32"
 # CUPS keeps PPD comments intact (checked against the installed PPD) and
 # hands the PPD to filters through the PPD env var, so the PPD is the single
 # place where a size is defined. MEDIA above only stays as a fallback.
-GEOMETRY_KEYS = ("pitch", "gap", "voffset", "left", "right", "top",
-              "bottom", "rows", "rotate")
+GEOMETRY_KEYS = ("pitch", "gap", "gapoff", "voffset", "left", "right", "top",
+              "bottom", "rows", "rotate", "sense")
+SENSORS = ("sense",)
 
 Geometry = collections.namedtuple(
-    "Geometry", "size_w size_h pitch gap voffset left right top bottom rows rotate")
+    "Geometry", "size_w size_h pitch gap gapoff voffset left right top bottom"
+                 " rows rotate sense")
 
 PPD_PATHS = (
     os.environ.get("PPD"),
@@ -105,6 +107,11 @@ def load_ppd_media(paths=PPD_PATHS):
             spec = {}
             for tok in m.group(2).split():
                 key, _, value = tok.partition("=")
+                if key not in GEOMETRY_KEYS:
+                    continue
+                if key in SENSORS:            # words, not numbers
+                    spec[key] = value
+                    continue
                 try:
                     spec[key] = float(value)
                 except ValueError:
@@ -336,6 +343,11 @@ def media_geometry(opts, w_mm, h_mm, table=None):
     def pick(key, default):
         return float(opts.get("lw-" + key, spec.get(key, default) if spec else default))
 
+    sense = opts.get("lw-sense") or (spec.get("sense") if spec else None) or "gap"
+    sense = sense.lower()
+    if sense not in ("gap", "bline"):
+        sense = "gap"
+
     return Geometry(
         size_w=size_w,
         size_h=size_h,
@@ -355,6 +367,11 @@ def media_geometry(opts, w_mm, h_mm, table=None):
         # by turning the page: the unreachable strip then falls along the feed
         # direction, where voffset/rows can centre it.
         rotate=int(pick("rotate", 0.0)) % 360,
+        # sense: "gap" (doorzichtig ertussen) of "bline" (zwarte merken /
+        # gaatjes in de liner). Rols met merken moeten BLINE krijgen, anders
+        # zoekt de sensor een kloof die er niet is en begint elke beurt elders.
+        sense=sense,
+        gapoff=pick("gapoff", 0.0),
     )
 
 
@@ -393,7 +410,8 @@ def convert(input_bytes, opts=None, table=None):
                     "REFERENCE 0,0\r\n"
                     "OFFSET 0 mm\r\n"
                     f"SIZE {num(geom.size_w)} mm,{num(geom.pitch)} mm\r\n"
-                    f"GAP {num(geom.gap)} mm,0 mm\r\n"
+                    f"{geom.sense.upper()} {num(geom.gap)} mm,"
+                    f"{num(geom.gapoff)} mm\r\n"
                     "DIRECTION 0,0\r\n"
                     "CLS\r\n").encode("ascii")
         else:

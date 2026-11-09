@@ -59,8 +59,8 @@ PPD_CANDIDATES = (
 )
 
 
-GEOMETRY_KEYS = ("pitch", "gap", "voffset", "left", "right", "top",
-              "bottom", "rows", "rotate")
+GEOMETRY_KEYS = ("pitch", "gap", "gapoff", "voffset", "left", "right", "top",
+              "bottom", "rows", "rotate", "sense")
 
 
 def media_from_ppd(size_w, size_h):
@@ -78,12 +78,15 @@ def media_from_ppd(size_w, size_h):
         found = {}
         for tok in m.group(1).split():
             key, _, value = tok.partition("=")
-            try:
-                val = float(value)
-            except ValueError:
+            if key not in GEOMETRY_KEYS:
                 continue
-            if key in GEOMETRY_KEYS:
-                found[key] = val
+            if key == "sense":
+                found[key] = value
+                continue
+            try:
+                found[key] = float(value)
+            except ValueError:
+                pass
         return found
     return {}
 
@@ -198,6 +201,16 @@ def to_preview_png(img, path):
     img.convert("L").save(path)
 
 
+def tspl_sensor(gap_mm, sense, gapoff_mm=0.0):
+    """GAP for clear liner between labels, BLINE for marks/holes in it.
+
+    The second number is the liner between the label's trailing edge and the
+    start of the gap/mark: this roll has 4 mm of plain liner before its 3 mm
+    notch, which the printer needs or it hunts for the wrong edge.
+    """
+    return f"{(sense or 'gap').upper()} {gap_mm:g} mm,{gapoff_mm:g} mm"
+
+
 def build_tspl(args, img, dots_mm):
     """Compose the label into a full-head bitmap and build the TSPL job.
 
@@ -224,7 +237,8 @@ def build_tspl(args, img, dots_mm):
         "REFERENCE 0,0",
         "OFFSET 0 mm",
         f"SIZE {args.size_w:g} mm,{args.pitch:g} mm",
-        f"GAP {args.gap:g} mm,0 mm",
+        tspl_sensor(args.gap, getattr(args, "sense", "gap"),
+                    getattr(args, "gapoff", 0.0) or 0.0),
         "DIRECTION 0,0",
         "CLS",
     ]
@@ -302,6 +316,10 @@ def main():
                    help="keep this many mm free at the label's right edge (PPD, 0.8)")
     p.add_argument("--rows", type=int, default=None,
                    help="pin the bitmap height in dots (PPD rows=; default pitch-12)")
+    p.add_argument("--gapoff", type=float, default=None,
+                   help="mm of liner between the label end and the gap/mark (PPD gapoff=)")
+    p.add_argument("--sense", choices=("gap", "bline"), default=None,
+                   help="media sensor: gap (default) or bline for marked liner")
     p.add_argument("--rotate", type=int, default=None, choices=(0, 90, 270),
                    help="turn the label image: 90 clockwise, 270 counter-clockwise")
     p.add_argument("--dpi", type=int, default=DEFAULT_DPI, help="head resolution")
@@ -332,6 +350,8 @@ def main():
     args.right = None
     args.rows = None
     args.rotate = None
+    args.sense = None
+    args.gapoff = None
     if args.bottom is None:
         args.bottom = hints.get("bottom", DEFAULT_BOTTOM_MM)
     if args.right is None:
@@ -343,6 +363,10 @@ def main():
                            args.rows)
     dots_mm = round(args.dpi / 25.4)  # 300 dpi -> 12 dots/mm
 
+    if args.sense is None:
+        args.sense = hints.get("sense", "gap")
+    if args.gapoff is None:
+        args.gapoff = hints.get("gapoff", 0.0)
     if args.rotate is None:
         args.rotate = int(hints.get("rotate", 0))
     if args.rotate in (90, 270):
