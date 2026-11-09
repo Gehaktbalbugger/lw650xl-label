@@ -3,7 +3,8 @@
 ## 1.3 — S0929120 (25 × 25 mm vierkant) en twee nieuwe rolknoppen
 
 - Nieuw formaat `LW_26x25`: de Dymo S0929120 / 30332-role is gemeten
-  26 × 25 mm (niet 25 × 25), steek 33,97 mm met 3 mm tussenruimte.
+  26 × 25 mm (niet 25 × 25). De rollijn is: 25 mm etiket, 4 mm liner,
+  3 mm gaatje, 5 mm liner = 37 mm steek.
   Een 25 × 25 Word-pagina wordt er automatisch naartoe gemapt.
 - De roldefinities kregen twee velden erbij:
   `rows` (bitmaphoogte in dots; standaard `pitch - 12`, zoals de
@@ -16,7 +17,13 @@
   begon: die kloof bestaat niet, dus de gap-zoeker sprong rond.
 - Inkt kan niet linkser dan x=0; bij een smallere rol is dat een
   fysieke dode zone. Centreren doe je door rechts evenveel in te
-  leveren (`left` = `right`), niet door te schuiven.
+  leveren als links onbereikbaar is. Het grootste gecentreerde vierkant
+  op deze rol is daarmee 23,03 × 23,03 mm (1,5 mm links/rechts,
+  1,0 mm boven/onder): `left=1.5 right=1.45 voffset=5.1 bottom=1.95`.
+- Belangrijkste inzicht: voor deze printer telt **SIZE-hoogte + GAP =
+  de echte steek**. Met `SIZE 26 mm,34 mm` + `GAP 3 mm` (37 mm) vielen
+  vijf losse beurten exact same; zolang de som klopte maakte het de
+  sensor niet uit dat de gaatjes buiten het sensorbereik vallen.
 - Bug in `./measure`: de kruis-print stuurde `SIZE <w>,<h>` in plaats
   van de meegegeven `--pitch`/`--gap`, waardoor de printer te weinig
   voerde en het beeld half op de liner belandde. Beide meetmodi sturen
