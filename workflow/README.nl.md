@@ -267,12 +267,12 @@ gedefinieerd wordt. `add-size.sh` schrijft het papierformaat (dat je in Word
 kiest) plus één commentaarregel met de geometrie:
 
 ```bash
-./add-size.sh LW_76x51 "Logistiek 76x51 mm" 76 51 --gap 3 --pitch 54.5 --voffset 0.5
+./add-size.sh LW_76x51 "Logistiek 76x51 mm" 76 51 --gap 3 --pitch 54.5 --voffset 0.34
 sudo ./install.sh
 ```
 
 ```
-*% lw-media LW_76x51 pitch=54.5 gap=3 voffset=0.5
+*% lw-media LW_76x51 pitch=54.5 gap=3 voffset=0.34
 ```
 
 Filter en `label`-CLI lezen die regel, dus Word, `lp` en de gedeelde inbox
@@ -283,8 +283,8 @@ afstand en begint de print aan de bovenrand van het etiket.
 **`--voffset`** schuift de hele print naar beneden op het etiket. Het printbare
 vlak begint precies op de bovenrand, waardoor een pagina die Word verticaal
 centreert iets te hoog staat. Proefdrukken op de AM11354-rol centreerden op
-0,5 mm (1 mm was al te laag). Met `--voffset 0` print je weer vanaf de
-bovenrand.
+0,34 mm (4 dots; 0 mm te hoog, 0,5 mm te laag). Met `--voffset 0` print je
+weer vanaf de bovenrand.
 
 **Steek (pitch) is de aanvoe-afstand per etiket, niet de etikethoogte.**
 Voor de 57 × 32 mm-rol is dat 38,6 mm. Loopt de printer langzaam scheef

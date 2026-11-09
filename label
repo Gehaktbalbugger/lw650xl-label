@@ -18,7 +18,7 @@ DEFAULT_HOST = "172.16.1.20"
 DEFAULT_PORT = 9100
 DEFAULT_SIZE = "57x32"    # mm, the AM11354 labels loaded in the printer
 DEFAULT_PITCH = 38.6      # mm, label + gap/liner (what SIZE expects)
-DEFAULT_VOFFSET = 0.5     # mm, moves the print down the label (centring)
+DEFAULT_VOFFSET = 0.34    # mm, moves the print down the label (centring)
 DEFAULT_DPI = 300
 
 # Printer geometry, measured on the hardware (see cups/lw650xl.py):

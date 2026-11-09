@@ -52,7 +52,7 @@ DOTS_PER_MM = 300.0 / 25.4
 # the PPD; the pitch is what the printer needs to feed correctly, and
 # voffset moves the print down the label (see content_box).
 MEDIA = {
-    "LW_57x32": {"pitch": 38.6, "gap": 3.0, "voffset": 0.5},  # AM11354
+    "LW_57x32": {"pitch": 38.6, "gap": 3.0, "voffset": 0.34},  # AM11354
 }
 DEFAULT_MEDIA = "LW_57x32"
 
