@@ -30,6 +30,10 @@ LEFT_MARGIN_DOTS = 24
 RIGHT_SAFETY_DOTS = 9
 BOTTOM_SAFETY_DOTS = 8
 DOTS_PER_MM = 300.0 / 25.4
+DEFAULT_LEFT_MM = LEFT_MARGIN_DOTS / DOTS_PER_MM     # ~2.0 mm dead zone
+DEFAULT_TOP_MM = TOP_OFFSET_DOTS / DOTS_PER_MM       # ~5.1 mm below origin
+DEFAULT_BOTTOM_MM = BOTTOM_SAFETY_DOTS / DOTS_PER_MM  # ~0.7 mm shy of the edge
+DEFAULT_RIGHT_MM = RIGHT_SAFETY_DOTS / DOTS_PER_MM     # ~0.8 mm shy of the edge
 
 FONT_CANDIDATES = [
     "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
@@ -55,7 +59,7 @@ PPD_CANDIDATES = (
 )
 
 
-GEOMETRY_KEYS = ("pitch", "gap", "voffset")
+GEOMETRY_KEYS = ("pitch", "gap", "voffset", "left", "right", "top", "bottom")
 
 
 def media_from_ppd(size_w, size_h):
@@ -129,17 +133,31 @@ def fit_font(draw, text, font_pt, max_w, max_h, line_spacing=1.15):
     return font, wrap_lines(draw, text, font, max_w), int((asc + desc) * 1.15)
 
 
-def content_box(size_w, size_h):
-    """Printable area in dots: (width, height) of the label's print window."""
-    cw = int(round(size_w * DOTS_PER_MM)) - LEFT_MARGIN_DOTS - RIGHT_SAFETY_DOTS
-    ch = int(round(size_h * DOTS_PER_MM)) - BOTTOM_SAFETY_DOTS
-    return max(1, min(cw, HEAD_DOTS)), max(1, ch)
+def content_box(size_w, size_h, left_mm=DEFAULT_LEFT_MM, top_mm=DEFAULT_TOP_MM,
+                voffset_mm=0.0, pitch_mm=None, bottom_mm=DEFAULT_BOTTOM_MM,
+                right_mm=DEFAULT_RIGHT_MM):
+    """Label's print window in dots: (origin_y, width, height).
+
+    `left_mm` is the dead zone between the label edge and the start of the
+    head, `top_mm` where the label starts below the bitmap origin and
+    `voffset_mm` nudges the print down for centring. When the pitch is known
+    the height is clamped to the canvas: the printer anchors the bitmap at
+    its bottom edge, so a taller canvas would move the whole print.
+    """
+    cw = (int(round(size_w * DOTS_PER_MM)) - int(round(left_mm * DOTS_PER_MM))
+          - int(round(right_mm * DOTS_PER_MM)))
+    ch = int(round(size_h * DOTS_PER_MM)) - int(round(bottom_mm * DOTS_PER_MM))
+    oy = max(0, int(round((top_mm + voffset_mm) * DOTS_PER_MM)))
+    cw = max(1, min(cw, HEAD_DOTS))
+    if pitch_mm:
+        ch = min(ch, int(round(pitch_mm * DOTS_PER_MM)) - 12 - oy)
+    return oy, max(1, ch), cw
 
 
 def render_label(args, dots_mm):
     """Render text (+optional logo) to a 1-bit PIL image covering the label."""
     from PIL import Image, ImageDraw
-    w_px, h_px = content_box(args.size_w, args.size_h)
+    _oy, h_px, w_px = args.box
     img = Image.new("1", (w_px, h_px), 1)  # 1 = white
     draw = ImageDraw.Draw(img)
     margin = int(args.margin * dots_mm)
@@ -192,7 +210,7 @@ def build_tspl(args, img, dots_mm):
 
     bpr = HEAD_DOTS // 8
     target_h = int(round(args.pitch * DOTS_PER_MM)) - 12
-    oy = TOP_OFFSET_DOTS + int(round(args.voffset * DOTS_PER_MM))
+    oy = args.box[0]
     canvas_h = max(oy + img.height, target_h)
     canvas = Image.new("1", (bpr * 8, canvas_h), 1)
     canvas.paste(img, (0, oy))
@@ -271,6 +289,15 @@ def main():
                    help="label gap in mm (default: from the PPD, else 3)")
     p.add_argument("--voffset", type=float, default=None,
                    help="print this many mm lower on the label (default: from the PPD)")
+    p.add_argument("--left", type=float, default=None,
+                   help="dead zone left of the head in mm (default: from the PPD, 2)")
+    p.add_argument("--media-top", dest="media_top", type=float, default=None,
+                   help="label top edge below the bitmap origin in mm (PPD, 5.1); "
+                        "negative means part of the label is out of reach")
+    p.add_argument("--media-bottom", dest="media_bottom", type=float, default=None,
+                   help="keep this many mm free at the label's bottom edge (PPD, 0.7)")
+    p.add_argument("--media-right", dest="media_right", type=float, default=None,
+                   help="keep this many mm free at the label's right edge (PPD, 0.8)")
     p.add_argument("--dpi", type=int, default=DEFAULT_DPI, help="head resolution")
     p.add_argument("--preview", metavar="FILE.png", help="render to PNG instead of printing")
     args = p.parse_args()
@@ -291,6 +318,18 @@ def main():
             args.pitch = args.size_h + args.gap      # die-cut: label + gap
     if args.voffset is None:
         args.voffset = hints.get("voffset", DEFAULT_VOFFSET if known else 0.0)
+    if args.left is None:
+        args.left = hints.get("left", DEFAULT_LEFT_MM)
+    if args.media_top is None:
+        args.media_top = hints.get("top", DEFAULT_TOP_MM)
+    args.bottom = None
+    args.right = None
+    if args.bottom is None:
+        args.bottom = hints.get("bottom", DEFAULT_BOTTOM_MM)
+    if args.right is None:
+        args.right = hints.get("right", DEFAULT_RIGHT_MM)
+    args.box = content_box(args.size_w, args.size_h, args.left, args.media_top,
+                           args.voffset, args.pitch, args.bottom, args.right)
     dots_mm = round(args.dpi / 25.4)  # 300 dpi -> 12 dots/mm
 
     img = render_label(args, dots_mm)

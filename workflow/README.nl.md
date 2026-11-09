@@ -256,6 +256,7 @@ Standaard beschikbaar (uit de PPD):
 | `LW_102x59` | Verzendetiket 102 × 59 mm |
 | `LW_101x54` | Naambadge 101 × 54 mm |
 | `LW_89x36` | Adres breed 89 × 36 mm |
+| `LW_36x89` | Adres 36 × 89 mm (AM99012 / Dymo S0722400, **staand**) |
 | `LW_89x28` | Adres 89 × 28 mm |
 | `LW_54x25` | Retour 54 × 25 mm |
 | `LW_50x12` | Hangmap 50 × 12 mm |
@@ -268,17 +269,33 @@ kiest) plus één commentaarregel met de geometrie:
 
 ```bash
 ./add-size.sh LW_76x51 "Logistiek 76x51 mm" 76 51 --gap 3 --pitch 54.5 --voffset 0.34
+./add-size.sh LW_36x89 "Adres 36x89 mm (AM99012, staand)" 36 89 \
+    --gap 4 --pitch 93 --left 3 --right 3 --top -0.5 --bottom 1
 sudo ./install.sh
 ```
 
 ```
-*% lw-media LW_76x51 pitch=54.5 gap=3 voffset=0.34
+*% lw-media LW_36x89 pitch=93 gap=4 left=3 right=3 top=-0.5 bottom=1
 ```
 
 Filter en `label`-CLI lezen die regel, dus Word, `lp` en de gedeelde inbox
 werken meteen mee — code aanpassen hoeft niet. `--gap`, `--pitch` en
 `--voffset` mag je weglaten: dan is de afstand 3 mm, de steek = hoogte +
 afstand en begint de print aan de bovenrand van het etiket.
+
+Daarnaast drie getallen voor de rol die **anders op de liner zit** (smaller,
+heter of hoger dan de standaardrol). Die vind je met een meet-etiket:
+
+- `--left` — mm etiket dat links van de kop valt. Die rand is onbereikbaar en
+  dus altijd wit. AM11354: 2 mm, AM99012 (36 mm smal): 3 mm.
+- `--right` — mm die rechts vrij blijft. Inkt kan niet linkser dan x=0, dus een
+  rol met een onbereikbare linkerrand centreer je door rechts evenveel in te
+  leveren (AM99012: left 3, right 3 → 30 mm breed printsel, rondom gelijk).
+- `--top` — mm van bitmap-oorsprong tot de bovenrand van het etiket. Bij een
+  hoog etiket kan dat negatief zijn (AM99012: -0,5 mm); die regels worden dan
+  niet geprint.
+- `--bottom` — mm die onderaan vrij blijft. Zet dit gelijk aan een onbereikbare
+  bovenrand, dan is het printsel gecentreerd (AM99012: 1 mm bij -0,5 mm boven).
 
 **`--voffset`** schuift de hele print naar beneden op het etiket. Het printbare
 vlak begint precies op de bovenrand, waardoor een pagina die Word verticaal
@@ -291,6 +308,11 @@ Voor de 57 × 32 mm-rol is dat 38,6 mm. Loopt de printer langzaam scheef
 na een paar etiketten? Meet dan de afstand tussen dezelfde punt op twee
 opeenvolgende etiketten op de rol en geef die opnieuw op. Continu materiaal:
 `--gap 0`, dan is de steek gelijk aan de hoogte.
+
+**Rol wisselen** is omhoog: de juiste maat kiezen in Word. Staat de print
+scheef of aan één kant afgesneden, meet de vier randen na met een kruis-etiket
+(0,0 in het midden, 1-mm-schaal, letters N/Z/W/O) en pas `--left`, `--top`,
+`--bottom` en `--voffset` aan met `add-size.sh` + `sudo ./install.sh`.
 
 De watcher leest diezelfde PPD; alleen voor één afwijkende rol kun je
 `LW_GAP` of `LW_PITCH` in de LaunchDaemon zetten. Voor een eenmalige test:
@@ -351,7 +373,9 @@ in Word het aangepaste paginaformaat goed.
 - Pas de etiketafstand aan: `lw-gap` (standaard 3 mm). Voor continu
   materiaal: `-o lw-gap=0` of een maat met `add-size.sh ... --gap 0`.
 - Staat de print te hoog of te laag op het etiket: `--voffset` in `add-size.sh`
-  (of eenmalig `-o lw-voffset=<mm>` / `--voffset <mm>`).
+  (of eenmalig `-o lw-voffset=<mm>` / `--voffset <mm>`). Staat het printsel
+te ver naar één zijkant en is die kant onbereikbaar: zet `--left` en `--right`
+aan elkaar gelijk.
 - De feed-hoogte (`SIZE`) is de etiket*steek* (etiket + tussenruimte),
   niet de etikethoogte: 38,6 mm voor de 57 × 32 mm-rol. Voor een andere
   rol: `-o lw-pitch=<mm>`.

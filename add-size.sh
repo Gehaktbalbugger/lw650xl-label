@@ -3,22 +3,37 @@
 # afterwards if the queue already exists).
 #
 # Usage:  ./add-size.sh <name> <description> <width_mm> <height_mm>
-#                       [--gap <mm>] [--pitch <mm>]
+#                       [--gap <mm>] [--pitch <mm>] [--voffset <mm>]
+#                       [--left <mm>] [--right <mm>] [--top <mm>] [--bottom <mm>]
 #
 # Examples:
 #   ./add-size.sh LW_76x51 "Logistics 76x51 mm" 76 51
 #   ./add-size.sh LW_30x15 "Kasbon 30x15 mm" 30 15 --gap 0
-#   ./add-size.sh LW_57x32 "Etiket 57x32 mm (AM11354)" 57 32 --gap 3 --pitch 38.6 --voffset 1
+#   ./add-size.sh LW_57x32 "Etiket 57x32 mm (AM11354)" 57 32 --gap 3 --pitch 38.6 --voffset 0.34
+#   ./add-size.sh LW_36x89 "Adres 36x89 mm (AM99012, staand)" 36 89 \
+#       --gap 4 --pitch 93 --left 3 --right 3 --top -0.5 --bottom 1
 #
 # --gap      distance between labels in mm, 0 for continuous stock (default 3)
 # --pitch    what the printer feeds per label = label height + gap/liner.
 #            Default is height + gap; measure the real roll if labels drift.
 # --voffset  move the print down the label by this many mm (default 0), for
 #            rolls whose printed area is not centred on the label.
+# --left     dead zone between the label's left edge and the start of the head
+#            (default 2). A narrower roll sits further left in the printer;
+#            those mm can never be printed.
+# --right    mm to keep free at the label's right edge (default 0.8). Set it
+#            equal to --left to keep the print centred on such a roll.
+# --top      distance from the bitmap origin to the label's top edge (default
+#            5.1). The bitmap is anchored at its bottom, so tall labels start
+#            higher up; measure with the ruler print. Negative is allowed:
+#            those rows are out of the head's reach and print starts at 0.
+# --bottom   mm to keep free at the label's bottom edge (default 0.7). Raise
+#            it to match a top edge that is unreachable, so the print stays
+#            centred on the label.
 set -euo pipefail
 
 if [[ $# -lt 4 ]]; then
-    echo "Usage: $0 <name> <description> <width_mm> <height_mm> [--gap <mm>] [--pitch <mm>] [--voffset <mm>]" >&2
+    echo "Usage: $0 <name> <description> <width_mm> <height_mm> [--gap <mm>] [--pitch <mm>] [--voffset <mm>] [--left <mm>] [--right <mm>] [--top <mm>] [--bottom <mm>]" >&2
     exit 1
 fi
 
@@ -26,11 +41,19 @@ NAME="$1"; DESC="$2"; W_MM="$3"; H_MM="$4"; shift 4
 GAP_MM=3.0
 PITCH_MM=""
 VOFFSET_MM=0.0
+LEFT_MM=""
+RIGHT_MM=""
+TOP_MM=""
+BOTTOM_MM=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --gap)     GAP_MM="${2:?--gap needs a value}"; shift 2 ;;
         --pitch)   PITCH_MM="${2:?--pitch needs a value}"; shift 2 ;;
         --voffset) VOFFSET_MM="${2:?--voffset needs a value}"; shift 2 ;;
+        --left)    LEFT_MM="${2:?--left needs a value}"; shift 2 ;;
+        --right)   RIGHT_MM="${2:?--right needs a value}"; shift 2 ;;
+        --top)     TOP_MM="${2:?--top needs a value}"; shift 2 ;;
+        --bottom)  BOTTOM_MM="${2:?--bottom needs a value}"; shift 2 ;;
         *) echo "unknown option: $1" >&2; exit 1 ;;
     esac
 done
@@ -83,12 +106,14 @@ add "PaperDimension" "DefaultPaperDimension" "*PaperDimension $NAME/$DESC: \"$w_
 #   *% lw-media LW_57x32 pitch=38.6 gap=3
 # CUPS copies comments into /etc/cups/ppd/<queue>.ppd and passes that path to
 # filters, so nothing else has to know about this size.
-python3 - "$PPD" "$NAME" "$PITCH_MM" "$GAP_MM" "$VOFFSET_MM" <<'EOF'
+python3 - "$PPD" "$NAME" "$PITCH_MM" "$GAP_MM" "$VOFFSET_MM" "$LEFT_MM" "$RIGHT_MM" "$TOP_MM" "$BOTTOM_MM" <<'EOF'
 import re, sys
-ppd, name, pitch, gap, voffset = sys.argv[1:6]
+ppd, name, pitch, gap, voffset, left, right, top, bottom = sys.argv[1:10]
 line = f"*% lw-media {name} pitch={pitch} gap={gap}"
-if float(voffset):
-    line += f" voffset={voffset}"
+for key, value in (("voffset", voffset), ("left", left), ("right", right),
+                   ("top", top), ("bottom", bottom)):
+    if value and float(value) != 0.0:
+        line += f" {key}={value}"
 line += "\n"
 src = open(ppd).read()
 src = re.sub(rf"^\*%\s*lw-media\s+{re.escape(name)}\b.*\n", "", src, flags=re.M)
@@ -97,7 +122,7 @@ src = (src[:i] + line + src[i:]) if i != -1 else (src + line)
 open(ppd, "w").write(src)
 EOF
 
-echo "Added $NAME to $PPD  (pitch $PITCH_MM mm, gap $GAP_MM mm, voffset $VOFFSET_MM mm)"
+echo "Added $NAME to $PPD  (pitch $PITCH_MM, gap $GAP_MM, voffset $VOFFSET_MM, left ${LEFT_MM:-2}, right ${RIGHT_MM:-0.8}, top ${TOP_MM:-5.1}, bottom ${BOTTOM_MM:-0.7})"
 echo "  filter:   -o media=$NAME   (te overschrijven met -o lw-pitch / lw-gap / lw-voffset)"
 echo "  CLI:      ./label \"tekst\" --size ${W_MM}x${H_MM} --pitch $PITCH_MM --gap $GAP_MM --voffset $VOFFSET_MM"
 if command -v lpstat >/dev/null 2>&1 && lpstat -p LW650XL_Labels >/dev/null 2>&1; then

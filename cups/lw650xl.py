@@ -35,6 +35,7 @@ printer. All of this was verified on the physical printer:
     the vendor app uses SIZE 57 mm,38.6 mm with GAP 3 mm for the AM11354
     57x32 mm label. Telling the printer a shorter pitch makes it drift.
 """
+import collections
 import os
 import re
 import struct
@@ -48,11 +49,26 @@ RIGHT_SAFETY_DOTS = 9     # keep clear of the right label edge
 BOTTOM_SAFETY_DOTS = 8    # keep clear of the bottom label edge
 DOTS_PER_MM = 300.0 / 25.4
 
+# Defaults, measured on the AM11354 57x32 roll. Rolls that sit differently
+# in the printer (a narrow 36 mm roll sits ~1 mm further left, and a tall
+# label starts higher because the bitmap is anchored at its bottom) override
+# these per size with left= / top= in the PPD's lw-media line.
+DEFAULT_LEFT_MM = LEFT_MARGIN_DOTS / DOTS_PER_MM     # ~2.0 mm dead zone
+DEFAULT_TOP_MM = TOP_OFFSET_DOTS / DOTS_PER_MM       # ~5.1 mm below origin
+DEFAULT_BOTTOM_MM = BOTTOM_SAFETY_DOTS / DOTS_PER_MM  # ~0.7 mm shy of the edge
+DEFAULT_RIGHT_MM = RIGHT_SAFETY_DOTS / DOTS_PER_MM     # ~0.8 mm shy of the edge
+
 # Media with a known label pitch (SIZE height). The page size comes from
 # the PPD; the pitch is what the printer needs to feed correctly, and
 # voffset moves the print down the label (see content_box).
 MEDIA = {
-    "LW_57x32": {"pitch": 38.6, "gap": 3.0, "voffset": 0.34},  # AM11354
+    # AM11354 57 x 32 mm, liggend; 2 mm dode zone links, 5,1 mm tot de bovenrand
+    "LW_57x32": {"pitch": 38.6, "gap": 3.0, "voffset": 0.34},
+    # AM99012 / Dymo S0722400 36 x 89 mm, staand op de rol: smaller en lager
+    # 3 mm of the label hangs past the head's left end and cannot be printed,
+    # so the right side is trimmed to the same 3 mm to keep the print centred.
+    "LW_36x89": {"pitch": 93.0, "gap": 4.0, "left": 3.0, "right": 3.0,
+                 "top": -0.5, "bottom": 1.0},
 }
 DEFAULT_MEDIA = "LW_57x32"
 
@@ -61,7 +77,10 @@ DEFAULT_MEDIA = "LW_57x32"
 # CUPS keeps PPD comments intact (checked against the installed PPD) and
 # hands the PPD to filters through the PPD env var, so the PPD is the single
 # place where a size is defined. MEDIA above only stays as a fallback.
-GEOMETRY_KEYS = ("pitch", "gap", "voffset")
+GEOMETRY_KEYS = ("pitch", "gap", "voffset", "left", "right", "top", "bottom")
+
+Geometry = collections.namedtuple(
+    "Geometry", "size_w size_h pitch gap voffset left right top bottom")
 
 PPD_PATHS = (
     os.environ.get("PPD"),
@@ -148,18 +167,24 @@ def read_raster(input_bytes):
 
 
 # -------------------------------------------------------------- geometry ---
-def content_box(w_mm, h_mm, voffset_mm=0.0):
+def print_window(geom, target_h):
     """Printable area in bitmap dots: (x, y, width, height).
 
-    The measured window is flush with the label's top edge, which prints the
-    design slightly high on the label (the vendor roll sits 1 mm lower for a
-    centred result), so the whole window can be moved down by voffset_mm.
+    `left` is the dead zone between the label's left edge and bitmap x=0 (the
+    head cannot reach it), `top` is where the label starts below the bitmap
+    origin and `voffset` nudges the print down the label for centring. The
+    height is clamped to the canvas: the printer anchors the bitmap at its
+    bottom edge, so growing the window would move the whole print.
     """
-    cw = int(round(w_mm * DOTS_PER_MM)) - LEFT_MARGIN_DOTS - RIGHT_SAFETY_DOTS
-    ch = int(round(h_mm * DOTS_PER_MM)) - BOTTOM_SAFETY_DOTS
+    dead = int(round(geom.left * DOTS_PER_MM))
+    cw = (int(round(geom.size_w * DOTS_PER_MM)) - dead
+          - int(round(geom.right * DOTS_PER_MM)))
+    ch = int(round(geom.size_h * DOTS_PER_MM)) - int(round(geom.bottom * DOTS_PER_MM))
+    # Rows below zero cannot be printed: the head starts at x/y 0.
+    oy = max(0, int(round((geom.top + geom.voffset) * DOTS_PER_MM)))
     cw = max(1, min(cw, HEAD_DOTS))
-    ch = max(1, ch)
-    return 0, TOP_OFFSET_DOTS + int(round(voffset_mm * DOTS_PER_MM)), cw, ch
+    ch = max(1, min(ch, target_h - oy))
+    return 0, oy, cw, ch
 
 
 def rotate_cw(gray, w, h):
@@ -273,7 +298,7 @@ def find_media(size_w, size_h, table=None):
 
 
 def media_geometry(opts, w_mm, h_mm, table=None):
-    """(label_w_mm, label_h_mm, pitch_mm, gap_mm, voffset_mm) for this job.
+    """Geometry for this job: (size_w, size_h, pitch, gap, voffset, left, top).
 
     The label size is what the printer needs; the raster page size is only a
     fallback. Word/macOS does NOT send media=LW_57x32 but
@@ -292,10 +317,20 @@ def media_geometry(opts, w_mm, h_mm, table=None):
         # the label width (a label is printed landscape on this printer).
         size_w, size_h = max(w_mm, h_mm), min(w_mm, h_mm)
     spec = table.get(name) or find_media(size_w, size_h, table)
-    pitch = float(opts.get("lw-pitch", spec["pitch"] if spec else size_h))
-    gap = float(opts.get("lw-gap", spec["gap"] if spec else 3.0))
-    voffset = float(opts.get("lw-voffset", spec.get("voffset", 0.0) if spec else 0.0))
-    return size_w, size_h, pitch, gap, voffset
+    def pick(key, default):
+        return float(opts.get("lw-" + key, spec.get(key, default) if spec else default))
+
+    return Geometry(
+        size_w=size_w,
+        size_h=size_h,
+        pitch=pick("pitch", size_h),
+        gap=pick("gap", 3.0),
+        voffset=pick("voffset", 0.0),
+        left=pick("left", DEFAULT_LEFT_MM),
+        right=pick("right", DEFAULT_RIGHT_MM),
+        top=pick("top", DEFAULT_TOP_MM),
+        bottom=pick("bottom", DEFAULT_BOTTOM_MM),
+    )
 
 
 def convert(input_bytes, opts=None, table=None):
@@ -310,16 +345,16 @@ def convert(input_bytes, opts=None, table=None):
     for dpi_x, dpi_y, w, h, gray in read_raster(input_bytes):
         w_mm = w * 25.4 / dpi_x
         h_mm = h * 25.4 / dpi_y
-        size_w, size_h, pitch, gap, voffset = media_geometry(opts, w_mm, h_mm, table)
+        geom = media_geometry(opts, w_mm, h_mm, table)
         # Match the page to the label: Word's portrait raster for a landscape
         # label (or the other way round) is rotated back to the label.
-        if (w > h) != (size_w > size_h):
+        if (w > h) != (geom.size_w > geom.size_h):
             gray, w, h = rotate_cw(gray, w, h)
-        ox, oy, cw, ch = content_box(size_w, size_h, voffset)
-        dark = scale_to_box(gray, w, h, cw, ch)
         # The vendor app sends 444 rows for a 38.6 mm pitch (456 dots), i.e.
         # 12 dots of padding that end up in the gap. Match that exactly.
-        target_h = int(round(pitch * DOTS_PER_MM)) - 12
+        target_h = int(round(geom.pitch * DOTS_PER_MM)) - 12
+        ox, oy, cw, ch = print_window(geom, target_h)
+        dark = scale_to_box(gray, w, h, cw, ch)
         bpr, canvas_h, bits = pack_canvas(dark, cw, ch, ox, oy, target_h)
 
         if pages == 0:
@@ -327,8 +362,8 @@ def convert(input_bytes, opts=None, table=None):
                     f"SPEED {speed}\r\n"
                     "REFERENCE 0,0\r\n"
                     "OFFSET 0 mm\r\n"
-                    f"SIZE {num(size_w)} mm,{num(pitch)} mm\r\n"
-                    f"GAP {num(gap)} mm,0 mm\r\n"
+                    f"SIZE {num(geom.size_w)} mm,{num(geom.pitch)} mm\r\n"
+                    f"GAP {num(geom.gap)} mm,0 mm\r\n"
                     "DIRECTION 0,0\r\n"
                     "CLS\r\n").encode("ascii")
         else:

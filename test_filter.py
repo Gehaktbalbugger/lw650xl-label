@@ -26,10 +26,13 @@ FILTER_PATH = os.path.join(HERE, "cups", "lw650xl.py")
 
 # Test table: the geometry the PPD would carry for the rolls we check.
 TABLE = {
-    "LW_57x32": {"pitch": 38.6, "gap": 3.0, "voffset": 1.0},
+    "LW_57x32": {"pitch": 38.6, "gap": 3.0, "voffset": 0.34},
+    "LW_36x89": {"pitch": 93.0, "gap": 4.0, "left": 3.0, "right": 3.0,
+                 "top": -0.5, "bottom": 1.0},
     "LW_76x51": {"pitch": 54.5, "gap": 3.0},
     "LW_30x15": {"pitch": 15.0, "gap": 0.0},
 }
+G = lw_defaults = None            # set after the module loads
 
 HEADER_BYTES = 1796
 MAGIC = b"3SaR"
@@ -108,10 +111,14 @@ def main():
     ok &= check("job-name with escaped spaces kept whole",
                 opts.get("job-name") == "Microsoft Word - Regel 1.docx")
     geo = lw.media_geometry(opts, 31.75, 56.81, TABLE)
-    ok &= check("Custom media falls back to the PPD name: %r" % (geo,),
-                geo == (57.0, 32.0, 38.6, 3.0, 1.0))
-    geo = lw.media_geometry(lw.parse_options("media=LW_57x32"), 57.0, 32.0, TABLE)
-    ok &= check("media=LW_57x32 honoured", geo == (57.0, 32.0, 38.6, 3.0, 1.0))
+    ok &= check("Custom media falls back to the PPD name: %r" % (geo.size_w,),
+                geo == lw.Geometry(57.0, 32.0, 38.6, 3.0, 0.34,
+                                   lw.DEFAULT_LEFT_MM, lw.DEFAULT_RIGHT_MM,
+                                   lw.DEFAULT_TOP_MM, lw.DEFAULT_BOTTOM_MM))
+    geo = lw.media_geometry(lw.parse_options("media=LW_36x89"), 36.0, 89.0, TABLE)
+    ok &= check("standing roll keeps its own left/top: %r" % (geo,),
+                geo == lw.Geometry(36.0, 89.0, 93.0, 4.0, 0.0, 3.0, 3.0,
+                                   -0.5, 1.0))
     geo = lw.media_geometry(lw.parse_options("media=Custom.90.71x161.57"),
                             31.75, 56.81, TABLE)
     ok &= check("unknown media: long side becomes label width", geo[0] > geo[1])
@@ -130,12 +137,31 @@ def main():
     ok &= check("rotate_cw moves bottom-left to top-left",
                 rotated[5 * rw + 19] == 0)
 
-    # content window moves with the offset, size stays the label area
-    box0 = lw.content_box(57.0, 32.0)
-    box1 = lw.content_box(57.0, 32.0, 1.0)
-    ok &= check("content_box: flush at the label top by default", box0[1] == 60)
-    ok &= check("content_box: voffset 1 mm moves it down 12 dots",
-                box1[1] == 72 and box1[3] == box0[3])
+    # --- printable window per roll -----------------------------------------
+    g57 = lw.media_geometry(lw.parse_options("media=LW_57x32"), 57.0, 32.0, TABLE)
+    t57 = int(round(g57.pitch * lw.DOTS_PER_MM)) - 12          # 444 rows
+    w57 = lw.print_window(g57, t57)
+    ok &= check("57x32 window x 0..640, y starts at the offset",
+                w57[0] == 0 and w57[2] == 640 and w57[3] == 370)
+    ok &= check("57x32 voffset 0.34 mm = 4 dots lower", w57[1] == 64)
+
+    g36 = lw.media_geometry(lw.parse_options("media=LW_36x89"), 36.0, 89.0, TABLE)
+    t36 = int(round(g36.pitch * lw.DOTS_PER_MM)) - 12          # 1086 rows
+    w36 = lw.print_window(g36, t36)
+    # AM99012: label loops from -0.5 to 88.5 mm; rows below 0 cannot be printed
+    label_top = int(round(g36.top * lw.DOTS_PER_MM))           # -6
+    label_bot = label_top + int(round(89.0 * lw.DOTS_PER_MM))  # 1045
+    # 3 mm hangs past the head on the west side, so the east side is trimmed
+    # to the same 3 mm: the print ends up centred on the label.
+    label_left, label_right = -35, -35 + int(round(36.0 * lw.DOTS_PER_MM))
+    ok &= check("36x89: window centred, 30.1 mm wide (was 32.3)", w36[2] == 355)
+    ok &= check("36x89: equal white west and east (%d/%d)"
+                % (w36[0] - label_left, label_right - w36[0] - w36[2]),
+                (w36[0] - label_left) == (label_right - w36[0] - w36[2]) == 35)
+    ok &= check("36x89: print starts at row 0", w36[1] == 0)
+    ok &= check("36x89: equal white above and below (%d/%d)"
+                % (w36[1] - label_top, label_bot - w36[1] - w36[3]),
+                w36[1] - label_top == label_bot - w36[1] - w36[3] == 6)
 
     # --- 4. full conversion, two pages -------------------------------------
     # Landscape 57x32 label: a dark pixel at (10, 70) in the page must end up
@@ -171,6 +197,8 @@ def main():
                 "*% lw-media LW_57x32 pitch=38.6 gap=3 voffset=1\n"
                 "*% lw-media LW_76x51 pitch=54.5 gap=3\n"
                 "*% lw-media LW_30x15 pitch=15 gap=0\n"
+                "*% lw-media LW_36x89 pitch=93 gap=4 left=3 right=3 "
+                "top=-0.5 bottom=1\n"
                 "*End\n")
         tmp_ppd = f.name
     try:
@@ -179,9 +207,19 @@ def main():
         ok &= check("PPD: new size read",
                     table["LW_76x51"] == {"pitch": 54.5, "gap": 3.0})
         ok &= check("PPD: voffset read", table["LW_57x32"]["voffset"] == 1.0)
+        # a PPD line only overrides the keys it carries
+        ok &= check("PPD: left/top/bottom read",
+                    table["LW_36x89"]["left"] == 3.0
+                    and table["LW_36x89"]["right"] == 3.0
+                    and table["LW_36x89"]["top"] == -0.5
+                    and table["LW_36x89"]["bottom"] == 1.0
+                    and table["LW_36x89"]["pitch"] == 93.0
+                    and "voffset" not in table["LW_36x89"])
         geo = lw.media_geometry(lw.parse_options("media=LW_76x51"), 76.0, 51.0, table)
         ok &= check("PPD size drives SIZE/pitch: %r" % (geo,),
-                    geo == (76.0, 51.0, 54.5, 3.0, 0.0))
+                    geo == lw.Geometry(76.0, 51.0, 54.5, 3.0, 0.0,
+                                   lw.DEFAULT_LEFT_MM, lw.DEFAULT_RIGHT_MM,
+                                   lw.DEFAULT_TOP_MM, lw.DEFAULT_BOTTOM_MM))
         geo = lw.media_geometry(lw.parse_options("media=LW_30x15"), 30.0, 15.0, table)
         ok &= check("continuous stock: gap 0", geo[3] == 0.0)
         geo = lw.media_geometry(
@@ -191,10 +229,16 @@ def main():
         geo = lw.media_geometry(lw.parse_options("media=Custom.215x145"),
                                 51.0, 76.0, table)
         ok &= check("unknown media falls back to the matching roll: %r" % (geo,),
-                    geo == (76.0, 51.0, 54.5, 3.0, 0.0))
+                    geo == lw.Geometry(76.0, 51.0, 54.5, 3.0, 0.0,
+                                       lw.DEFAULT_LEFT_MM, lw.DEFAULT_RIGHT_MM,
+                                       lw.DEFAULT_TOP_MM, lw.DEFAULT_BOTTOM_MM))
         geo = lw.media_geometry(
             lw.parse_options("media=LW_57x32 lw-voffset=0"), 57.0, 32.0, table)
-        ok &= check("-o lw-voffset=0 disables the centring shift", geo[4] == 0.0)
+        ok &= check("-o lw-voffset=0 disables the centring shift", geo.voffset == 0.0)
+        geo = lw.media_geometry(
+            lw.parse_options("media=LW_57x32 lw-left=4 lw-top=6"), 57.0, 32.0, table)
+        ok &= check("-o lw-left / lw-top override the roll",
+                    geo.left == 4.0 and geo.top == 6.0)
     finally:
         os.unlink(tmp_ppd)
 

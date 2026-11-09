@@ -115,8 +115,9 @@ cupsfilter -p /etc/cups/ppd/LW650XL_Labels.ppd \
 
 ### Changing label size / adding a new size
 
-Built-in sizes (from the PPD): **57x32 (default, AM11354)**, 104x159,
-102x59, 101x54, 89x36, 89x28, 54x25, 50x12, 57x57, 62x100 mm.
+Built-in sizes (from the PPD): **57x32 (default, AM11354)**,
+**36x89 standing (AM99012 / Dymo S0722400)**, 104x159, 102x59, 101x54,
+89x36, 89x28, 54x25, 50x12, 57x57, 62x100 mm.
 
 The PPD is the only place a roll is defined. `add-size.sh` writes the four PPD
 entries that make the size show up as a paper size, plus one comment line with
@@ -131,9 +132,25 @@ sudo ./install.sh
 
 Both the CUPS filter (it is handed the PPD path) and the `label` CLI read
 those lines, so a new size works from Word, from `lp` and from the shared
-inbox without touching code. `--gap`, `--pitch` and `--voffset` are optional: without them
-gap = 3 mm, pitch = label height + gap and the print starts flush with the
-label's top edge.
+inbox without touching code. `--gap`, `--pitch`, `--voffset`, `--left`, `--right`, `--top` and `--bottom`
+are optional:
+without them gap = 3 mm, pitch = label height + gap and the print starts flush
+with the label's top edge.
+
+Rolls that sit differently in the printer need `left`, `top` and `bottom`;
+measure them with a ruler print (see below):
+
+- **left** — mm of label to the left of bitmap x=0. The head cannot reach it,
+  so it is dead zone. The 57 mm roll measures 2 mm, the narrower 36 mm roll
+  sits 3 mm over the edge.
+- **right** — mm kept free at the label's right edge. Ink cannot move left of
+  x=0, so a roll with an unreachable left edge is centred by trimming the
+  right side to the same amount (AM99012: left 3, right 3).
+- **top** — mm from the bitmap origin to the label's top edge. Positive for
+  short labels (5.1 mm on the AM11354), **negative when the label starts above
+  the head's reach** (the 89 mm tall AM99012 starts at -0.5 mm).
+- **bottom** — mm kept free at the label's bottom edge. Raise it to match an
+  unreachable top edge so the print stays centred.
 
 **voffset** shifts the whole print down the label. The measured print window
 starts exactly at the label's top edge, which makes a page that Word centres
@@ -150,9 +167,28 @@ same point on two consecutive labels and pass that. Continuous stock:
 Overriding once, without editing the PPD:
 
 ```
-lp -d LW650XL_Labels -o media=LW_76x51 -o lw-pitch=55 -o lw-gap=2 job.pdf
-./label "tekst" --size 76x51 --pitch 55 --gap 2
+lp -d LW650XL_Labels -o media=LW_36x89 -o lw-top=0 -o lw-bottom=0.7 job.pdf
+./label "tekst" --size 36x89 --media-top 0 --media-bottom 0.7
 ```
+
+### Measuring a new roll
+
+`add-size.sh` only knows what you measure. Print a ruler label and read the
+four edges off it — this is how both rolls above were set:
+
+```
+python3 - <<'PY'
+# kruis met 0,0 in het midden + 1-mm schaal, direct naar de printer
+...
+PY
+```
+
+Put the cross where the print window's centre is expected, print one label and
+read the mm value at each edge (N/Z/W/O). Equal W/O means the `left` value is
+right; a difference between N and Z is twice the error in `top`. A short
+Python/PIL script that draws the cross, mm ticks and N/Z/W/O letters is the
+quickest way; the payload is plain `BITMAP ...,0,` mode 0 so it can be sent
+with `nc 172.16.1.20 9100` without touching the installed driver.
 
 ### How it works
 
@@ -165,6 +201,7 @@ Word/Pages/… → PDF → cgpdftoraster (macOS)
 Custom CUPS options understood by the filter: `lw-gap` (gap mm,
 default 3), `lw-pitch` (feed height mm, default 38.6 for 57x32),
 `lw-voffset` (print N mm lower on the label, default 0.34 for 57x32),
+`lw-left` / `lw-right` / `lw-top` / `lw-bottom` (roll position, see below),
 `lw-density` (default 15), `lw-speed` (default 1).
 
 Things the filter has to undo for a Word job (macOS print pipeline):
