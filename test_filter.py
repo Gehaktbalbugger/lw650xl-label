@@ -149,7 +149,37 @@ def main():
     ok &= check("portrait page is rotated (single dot at %r)" % (pts[:1],),
                 len(pts) == 1 and pts[0][0] > pts[0][1])
 
-    # --- 5. garbage in, error out ------------------------------------------
+    # --- 6. size metadata lives in the PPD (written by add-size.sh) --------
+    import tempfile
+    with tempfile.NamedTemporaryFile("w", suffix=".ppd", delete=False) as f:
+        f.write('*PPD-Adobe: "4.3"\n'
+                "*% lw-media LW_57x32 pitch=38.6 gap=3\n"
+                "*% lw-media LW_76x51 pitch=54.5 gap=3\n"
+                "*% lw-media LW_30x15 pitch=15 gap=0\n"
+                "*End\n")
+        tmp_ppd = f.name
+    try:
+        table = lw.load_ppd_media([tmp_ppd])
+        ok &= check("PPD: built-in size kept", table["LW_57x32"]["pitch"] == 38.6)
+        ok &= check("PPD: new size read",
+                    table["LW_76x51"] == {"pitch": 54.5, "gap": 3.0})
+        geo = lw.media_geometry(lw.parse_options("media=LW_76x51"), 76.0, 51.0, table)
+        ok &= check("PPD size drives SIZE/pitch: %r" % (geo,),
+                    geo == (76.0, 51.0, 54.5, 3.0))
+        geo = lw.media_geometry(lw.parse_options("media=LW_30x15"), 30.0, 15.0, table)
+        ok &= check("continuous stock: gap 0", geo[3] == 0.0)
+        geo = lw.media_geometry(
+            lw.parse_options("media=LW_76x51 lw-pitch=60 lw-gap=4"), 76.0, 51.0, table)
+        ok &= check("-o lw-pitch overrides the PPD", geo[2] == 60.0 and geo[3] == 4.0)
+        # a size known only by dimensions still finds its pitch by matching
+        geo = lw.media_geometry(lw.parse_options("media=Custom.215x145"),
+                                51.0, 76.0, table)
+        ok &= check("unknown media falls back to the matching roll: %r" % (geo,),
+                    geo == (76.0, 51.0, 54.5, 3.0))
+    finally:
+        os.unlink(tmp_ppd)
+
+    # --- 7. garbage in, error out ------------------------------------------
     try:
         lw.convert(b"not a raster at all", lw_opts)
         ok &= check("bad input raises", False)

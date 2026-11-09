@@ -9,6 +9,8 @@ Examples:
 """
 import argparse
 import math
+import os
+import re
 import socket
 import sys
 
@@ -41,6 +43,38 @@ def parse_size(s):
         return float(w), float(h)
     except ValueError:
         sys.exit(f"bad --size {s!r}, expected like 57x32 (mm)")
+
+
+# The PPD written by add-size.sh is the catalog of label rolls: each size
+# records its feed pitch and gap as a comment CUPS preserves.
+PPD_CANDIDATES = (
+    "/etc/cups/ppd/LW650XL_Labels.ppd",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                 "cups", "lw650xl-labels.ppd"),
+)
+
+
+def media_from_ppd(size_w, size_h):
+    """(pitch_mm, gap_mm) recorded for this label size, or (None, None)."""
+    name = f"LW_{size_w:g}x{size_h:g}"
+    for path in PPD_CANDIDATES:
+        try:
+            with open(path, "r", errors="replace") as f:
+                text = f.read()
+        except OSError:
+            continue
+        m = re.search(rf"^\*%\s*lw-media\s+{re.escape(name)}\s+(.*)$", text, re.M)
+        if not m:
+            continue
+        found = {}
+        for tok in m.group(1).split():
+            key, _, value = tok.partition("=")
+            try:
+                found[key] = float(value)
+            except ValueError:
+                pass
+        return found.get("pitch"), found.get("gap")
+    return None, None
 
 
 def load_font(pt):
@@ -213,7 +247,8 @@ def main():
     p.add_argument("--port", type=int, default=DEFAULT_PORT)
     p.add_argument("--size", default=DEFAULT_SIZE, help="WxH in mm (default 57x32)")
     p.add_argument("--pitch", type=float,
-                   help="feed height in mm, label + gap/liner (default 38.6 for 57x32)")
+                   help="feed height in mm, label + gap/liner "
+                        "(default: from the PPD, else height + gap)")
     p.add_argument("--font", type=float, default=8.0, help="max text height in mm (default 8)")
     p.add_argument("--margin", type=float, default=2.0, help="margin in mm")
     p.add_argument("--top", type=float, default=0, help="start text N mm from top")
@@ -225,15 +260,25 @@ def main():
     p.add_argument("--copies", type=int, default=1)
     p.add_argument("--density", type=int, default=15, help="0-15, higher = darker")
     p.add_argument("--speed", type=int, default=1, help="labels per minute-ish")
-    p.add_argument("--gap", type=float, default=3.0, help="label gap in mm")
+    p.add_argument("--gap", type=float, default=None,
+                   help="label gap in mm (default: from the PPD, else 3)")
     p.add_argument("--dpi", type=int, default=DEFAULT_DPI, help="head resolution")
     p.add_argument("--preview", metavar="FILE.png", help="render to PNG instead of printing")
     args = p.parse_args()
 
     args.text = args.text.replace("\\n", "\n")
     args.size_w, args.size_h = parse_size(args.size)
+    # Roll geometry: the PPD written by add-size.sh knows the pitch and gap.
+    pitch_hint, gap_hint = media_from_ppd(args.size_w, args.size_h)
+    if args.gap is None:
+        args.gap = gap_hint if gap_hint is not None else 3.0
     if args.pitch is None:
-        args.pitch = DEFAULT_PITCH if (args.size_w, args.size_h) == (57.0, 32.0) else args.size_h
+        if pitch_hint is not None:
+            args.pitch = pitch_hint
+        elif (args.size_w, args.size_h) == (57.0, 32.0):
+            args.pitch = DEFAULT_PITCH
+        else:
+            args.pitch = args.size_h + args.gap      # die-cut: label + gap
     dots_mm = round(args.dpi / 25.4)  # 300 dpi -> 12 dots/mm
 
     img = render_label(args, dots_mm)

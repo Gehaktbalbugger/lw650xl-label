@@ -118,30 +118,34 @@ cupsfilter -p /etc/cups/ppd/LW650XL_Labels.ppd \
 Built-in sizes (from the PPD): **57x32 (default, AM11354)**, 104x159,
 102x59, 101x54, 89x36, 89x28, 54x25, 50x12, 57x57, 62x100 mm.
 
-For the 57x32 roll the printer expects the label *pitch* (38.6 mm) in
-`SIZE`, not the 32 mm label height; the filter knows this. For other
-rolls whose pitch differs from the label height, pass
-`-o lw-pitch=<mm>`.
-
-**Add a new size:**
+The PPD is the only place a roll is defined. `add-size.sh` writes the four PPD
+entries that make the size show up as a paper size, plus one comment line with
+the geometry the printer needs:
 
 ```
-./add-size.sh LW_76x51 "Logistics 76x51 mm" 76 51          # die-cut (2 mm gap)
-./add-size.sh LW_30x15 "Kasbon 30x15 mm" 30 15 --gap 0     # continuous
-sudo ./install.sh                                          # re-apply
+./add-size.sh LW_76x51 "Logistiek 76x51 mm" 76 51 --gap 3 --pitch 54.5
+sudo ./install.sh
 ```
 
-The size then appears as a paper size in every app.
+    *% lw-media LW_76x51 pitch=54.5 gap=3
 
-**Switching the loaded roll:** nothing to configure for align‑ment —
-pick the matching paper size in the print dialog. For continuous
-(vgap-less) media pass `-o lw-gap=0` (`lp`), or in Word just use the
-matching paper size that `add-size.sh --gap 0` created.
+Both the CUPS filter (it is handed the PPD path) and the `label` CLI read
+those lines, so a new size works from Word, from `lp` and from the shared
+inbox without touching code. `--gap` and `--pitch` are optional: without them
+gap = 3 mm and pitch = label height + gap.
 
-**Parameters of an existing size:** edit
-`cups/lw650xl-labels.ppd` (entries `*PageSize`, `*PageRegion`,
-`*ImageableArea`, `*PaperDimension` in points — 1 mm = 2.8346 pt)
-and run `sudo ./install.sh` again.
+**Pitch** is the distance the printer feeds per label, not the label height:
+the 57 × 32 mm roll needs 38.6 mm (label + gap + liner). If labels slowly
+drift out of position, the pitch is wrong — measure the distance between the
+same point on two consecutive labels and pass that. Continuous stock:
+`--gap 0`, which makes the pitch equal to the height.
+
+Overriding once, without editing the PPD:
+
+```
+lp -d LW650XL_Labels -o media=LW_76x51 -o lw-pitch=55 -o lw-gap=2 job.pdf
+./label "tekst" --size 76x51 --pitch 55 --gap 2
+```
 
 ### How it works
 

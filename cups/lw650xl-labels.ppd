@@ -30,6 +30,7 @@
 *OpenUI *PageSize/Media Size: PickOne
 *OrderDependency: 10 AnySetup *PageSize
 *DefaultPageSize: LW_57x32
+*PageSize LW_57x32/Etiket 57x32 mm (AM11354): "<</PageSize[161.57 90.71]/ImagingBBox null>>setpagedevice"
 *PageSize LW_104x159/Verzendetiket XL 104x159 mm: "<</PageSize[294.80 450.71]/ImagingBBox null>>setpagedevice"
 *PageSize LW_102x59/Verzendetiket 102x59 mm: "<</PageSize[289.13 167.24]/ImagingBBox null>>setpagedevice"
 *PageSize LW_101x54/Naambadge 101x54 mm: "<</PageSize[286.30 153.07]/ImagingBBox null>>setpagedevice"
@@ -39,12 +40,12 @@
 *PageSize LW_50x12/Hangmap 50x12 mm: "<</PageSize[141.73 34.02]/ImagingBBox null>>setpagedevice"
 *PageSize LW_57x57/CD/DVD 57x57 mm: "<</PageSize[161.57 161.57]/ImagingBBox null>>setpagedevice"
 *PageSize LW_62x100/Continu 62x100 mm: "<</PageSize[175.75 283.46]/ImagingBBox null>>setpagedevice"
-*PageSize LW_57x32/Etiket 57x32 mm (AM11354): "<</PageSize[161.57 90.71]/ImagingBBox null>>setpagedevice"
 *CloseUI: *PageSize
 
 *OpenUI *PageRegion/Media Size: PickOne
 *OrderDependency: 10 AnySetup *PageRegion
 *DefaultPageRegion: LW_57x32
+*PageRegion LW_57x32/Etiket 57x32 mm (AM11354): "<</PageSize[161.57 90.71]/ImagingBBox null>>setpagedevice"
 *PageRegion LW_104x159/Verzendetiket XL 104x159 mm: "<</PageSize[294.80 450.71]/ImagingBBox null>>setpagedevice"
 *PageRegion LW_102x59/Verzendetiket 102x59 mm: "<</PageSize[289.13 167.24]/ImagingBBox null>>setpagedevice"
 *PageRegion LW_101x54/Naambadge 101x54 mm: "<</PageSize[286.30 153.07]/ImagingBBox null>>setpagedevice"
@@ -54,7 +55,6 @@
 *PageRegion LW_50x12/Hangmap 50x12 mm: "<</PageSize[141.73 34.02]/ImagingBBox null>>setpagedevice"
 *PageRegion LW_57x57/CD/DVD 57x57 mm: "<</PageSize[161.57 161.57]/ImagingBBox null>>setpagedevice"
 *PageRegion LW_62x100/Continu 62x100 mm: "<</PageSize[175.75 283.46]/ImagingBBox null>>setpagedevice"
-*PageRegion LW_57x32/Etiket 57x32 mm (AM11354): "<</PageSize[161.57 90.71]/ImagingBBox null>>setpagedevice"
 *CloseUI: *PageRegion
 
 *DefaultImageableArea: LW_57x32
@@ -98,3 +98,4 @@
 
 *DefaultFont: Courier
 *Font Courier: "(001.004)" Standard ROM
+*% lw-media LW_57x32 pitch=38.6 gap=3

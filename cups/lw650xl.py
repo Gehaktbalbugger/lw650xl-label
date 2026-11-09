@@ -35,6 +35,7 @@ printer. All of this was verified on the physical printer:
     the vendor app uses SIZE 57 mm,38.6 mm with GAP 3 mm for the AM11354
     57x32 mm label. Telling the printer a shorter pitch makes it drift.
 """
+import os
 import re
 import struct
 import sys
@@ -53,6 +54,55 @@ MEDIA = {
     "LW_57x32": {"pitch": 38.6, "gap": 3.0},   # AM11354 57 x 32 mm
 }
 DEFAULT_MEDIA = "LW_57x32"
+
+# Sizes added with ./add-size.sh carry their pitch and gap as PPD comments:
+#   *% lw-media LW_76x51 pitch=53.5 gap=3
+# CUPS keeps PPD comments intact (checked against the installed PPD) and
+# hands the PPD to filters through the PPD env var, so the PPD is the single
+# place where a size is defined. MEDIA above only stays as a fallback.
+PPD_PATHS = (
+    os.environ.get("PPD"),
+    "/etc/cups/ppd/LW650XL_Labels.ppd",
+)
+_LW_MEDIA = re.compile(r"^\*%\s*lw-media\s+(\S+)(.*)$", re.M)
+
+
+def load_ppd_media(paths=PPD_PATHS):
+    """Built-in MEDIA merged with the size lines found in the PPD."""
+    media = dict(MEDIA)
+    for path in paths:
+        if not path or not os.access(path, os.R_OK):
+            continue
+        try:
+            with open(path, "r", errors="replace") as f:
+                text = f.read()
+        except OSError:
+            continue
+        for m in _LW_MEDIA.finditer(text):
+            spec = {}
+            for tok in m.group(2).split():
+                key, _, value = tok.partition("=")
+                try:
+                    spec[key] = float(value)
+                except ValueError:
+                    pass
+            spec = {k: v for k, v in spec.items() if k in ("pitch", "gap")}
+            if spec:
+                entry = dict(MEDIA.get(m.group(1), {}))
+                entry.update(spec)
+                media[m.group(1)] = entry
+        break
+    return media
+
+
+_TABLE = None
+
+
+def media_table():
+    global _TABLE
+    if _TABLE is None:
+        _TABLE = load_ppd_media()
+    return _TABLE
 
 
 # ---------------------------------------------------------------- raster ---
@@ -205,16 +255,16 @@ def parse_size_name(name):
         return None
 
 
-def find_media(size_w, size_h):
+def find_media(size_w, size_h, table=None):
     """Media whose label dimensions match (within 1 mm), for the pitch."""
-    for name, spec in MEDIA.items():
+    for name, spec in (media_table() if table is None else table).items():
         dims = parse_size_name(name)
         if dims and abs(dims[0] - size_w) <= 1.0 and abs(dims[1] - size_h) <= 1.0:
             return spec
     return None
 
 
-def media_geometry(opts, w_mm, h_mm):
+def media_geometry(opts, w_mm, h_mm, table=None):
     """(label_w_mm, label_h_mm, pitch_mm, gap_mm) for this job.
 
     The label size is what the printer needs; the raster page size is only a
@@ -222,6 +272,7 @@ def media_geometry(opts, w_mm, h_mm):
     media=Custom.90.71x161.57 plus the PPD name in
     com.apple.print.PageToPaperMappingMediaName, so look for both.
     """
+    table = media_table() if table is None else table
     name = opts.get("media", "")
     if parse_size_name(name) is None:
         name = opts.get("com.apple.print.PageToPaperMappingMediaName", "")
@@ -232,7 +283,7 @@ def media_geometry(opts, w_mm, h_mm):
         # Unknown media: trust the page size, normalised so the long side is
         # the label width (a label is printed landscape on this printer).
         size_w, size_h = max(w_mm, h_mm), min(w_mm, h_mm)
-    spec = MEDIA.get(name) or find_media(size_w, size_h)
+    spec = table.get(name) or find_media(size_w, size_h, table)
     pitch = float(opts.get("lw-pitch", spec["pitch"] if spec else size_h))
     gap = float(opts.get("lw-gap", spec["gap"] if spec else 3.0))
     return size_w, size_h, pitch, gap

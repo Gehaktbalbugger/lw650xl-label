@@ -262,14 +262,36 @@ Standaard beschikbaar (uit de PPD):
 | `LW_57x57` | CD/DVD 57 × 57 mm |
 | `LW_62x100` | Continu 62 × 100 mm |
 
-Nieuwe maat toevoegen:
+**Zo werkt een nieuwe rol:** de PPD is de enige plaats waar een rol
+gedefinieerd wordt. `add-size.sh` schrijft het papierformaat (dat je in Word
+kiest) plus één commentaarregel met de geometrie:
 
 ```bash
-./add-size.sh LW_76x51 "Logistics 76x51 mm" 76 51
+./add-size.sh LW_76x51 "Logistiek 76x51 mm" 76 51 --gap 3 --pitch 54.5
 sudo ./install.sh
 ```
 
-De watcher herkent de nieuwe maat automatisch (hij leest de PPD).
+```
+*% lw-media LW_76x51 pitch=54.5 gap=3
+```
+
+Filter en `label`-CLI lezen die regel, dus Word, `lp` en de gedeelde inbox
+werken meteen mee — code aanpassen hoeft niet. `--gap` en `--pitch` mag je
+weglaten: dan is de afstand 3 mm en de steek = hoogte + afstand.
+
+**Steek (pitch) is de aanvoe-afstand per etiket, niet de etikethoogte.**
+Voor de 57 × 32 mm-rol is dat 38,6 mm. Loopt de printer langzaam scheef
+na een paar etiketten? Meet dan de afstand tussen dezelfde punt op twee
+opeenvolgende etiketten op de rol en geef die opnieuw op. Continu materiaal:
+`--gap 0`, dan is de steek gelijk aan de hoogte.
+
+De watcher leest diezelfde PPD; alleen voor één afwijkende rol kun je
+`LW_GAP` of `LW_PITCH` in de LaunchDaemon zetten. Voor een eenmalige test:
+
+```bash
+lp -d LW650XL_Labels -o media=LW_76x51 -o lw-pitch=55 -o lw-gap=2 job.pdf
+./label "tekst" --size 76x51 --pitch 55 --gap 2
+```
 
 ---
 

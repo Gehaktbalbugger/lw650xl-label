@@ -21,7 +21,10 @@ PPD="${LW_PPD:-/etc/cups/ppd/$QUEUE.ppd}"
 [[ -r "$PPD" ]] || PPD="$HERE/lw650xl-labels.ppd"
 [[ -r "$PPD" ]] || PPD="$HERE/../cups/lw650xl-labels.ppd"
 PY="${LW_PYTHON:-/usr/bin/python3}"
-GAP="${LW_GAP:-3}"
+# Afstand tussen de etiketten (0 voor continu materiaal). Standaard leeg: de
+# PPD-per-maat-waarde (zie add-size.sh) mag beslissen, anders overschrijft deze
+# globale instelling elke individuele rol.
+GAP="${LW_GAP:-}"
 DENSITY="${LW_DENSITY:-15}"
 SPEED="${LW_SPEED:-1}"
 HOST="${LW_HOST:-172.16.1.20}"
@@ -90,11 +93,12 @@ print_pdf() {
     local -a args=(
         -d "$QUEUE"
         -o "media=$media"
-        -o "lw-gap=$GAP"
         -o "lw-density=$DENSITY"
         -o "lw-speed=$SPEED"
         -t "$(basename "$f")"
     )
+    [[ -n "$GAP" ]] && args+=(-o "lw-gap=$GAP")
+    [[ -n "${LW_PITCH:-}" ]] && args+=(-o "lw-pitch=$LW_PITCH")
     [[ -n "$orient" ]] && args+=(-o "orientation-requested=$orient")
 
     if [[ "${LW_DRY_RUN:-0}" == "1" ]]; then
