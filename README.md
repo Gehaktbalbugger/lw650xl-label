@@ -2,27 +2,33 @@
 
 The LW650XL PRO is a rebranded **Aimo 650** (Xiamen Aimo Technology /
 AIMOmate) desktop label printer: 4-inch, 300 dpi, direct thermal.
-It speaks **TSPL** over raw TCP port 9100, with the vendor twist that
-`BITMAP` must be **LZO-compressed (mode 3)** and bit 1 = printed dot.
-This repo encodes that itself — no vendor driver needed.
+It speaks **TSPL** over raw TCP port 9100. The bitmap format was
+reverse-engineered from the vendor app (Labellife) and verified on the
+hardware: `BITMAP` **mode 0** (uncompressed), payload directly after the
+last comma (no length, no CRLF), **bit 1 = white**, and the bitmap is
+mapped 1:1 onto the 1280-dot print head. This repo encodes that itself —
+no vendor driver needed.
 
-It contains two ways to print:
+It contains three ways to print:
 
 1. **`label`** — command-line tool for quick labels.
 2. **CUPS driver** (`cups/`) — a macOS print queue with real label
    sizes, so **Word / Pages / Preview** can print with a page size
    that matches the label in the printer.
+3. **Shared inbox** (`workflow/`) — Word/Excel on any system on the home
+   network drops a PDF or CSV into a shared folder; this iMac prints it.
+   No driver on the clients. See **[workflow/README.nl.md](workflow/README.nl.md)**
+   (Dutch) and run `./setup.sh` once.
 
 ## Status
 
-- **Tested**: verified live against the printer (labels print, printer
-  answers `SSSGETPRINTING:DOING → DONE`, no command errors).
-- **CLI tests**: `python3 lzo.py` (LZO round-trip suite) and
-  `python3 test_label.py` (end-to-end framing check via a fake TCP
-  printer) — both pass.
-- **Driver tests**: the filter's output was validated the same way
-  (framing + LZO round-trip) and PPD rendering goes through
-  `cgpdftoraster` at 300 dpi, 8-bit gray, with correct page size.
+- **Verified on hardware**: geometry, polarity and framing were checked
+  against the vendor app's own traffic (captured with `tcpdump`) and with
+  ruler/edge test prints on an AM11354 57 × 32 mm roll.
+- **End-to-end**: PDF in the shared inbox → watcher → CUPS → printer
+  produces a correctly aligned label (job `LW650XL_Labels-148`).
+- **CLI tests**: `python3 test_label.py` (framing + geometry check via a
+  fake TCP printer) and `python3 lzo.py` (legacy LZO round-trip) pass.
 
 ## Part 1: terminal tool
 
@@ -33,8 +39,10 @@ It contains two ways to print:
 ./label "Test" --preview out.png          # render PNG, do not print
 ```
 
-- Default label size 102x59 mm (the 123inkt large shipping labels);
-  use `--size 104x159` for the extra-large PostNL ones.
+- Default label size 57x32 mm (the AM11354 roll in the printer);
+  use `--size 102x59` for the large shipping labels or `--size 104x159`
+  for the extra-large PostNL ones. Pass `--pitch` if the roll's
+  label+gap pitch differs from its height (57x32 uses 38.6 mm).
 - `--host` defaults to 172.16.1.20.
 - `--density 0-15` (darkness), `--speed`, `--gap` (label gap mm).
 - `\n` in the text starts a new line. Text auto-wraps and auto-shrinks
@@ -51,7 +59,7 @@ sudo ./install.sh
 
 This installs
 
-- `/usr/libexec/cups/filter/lw650xl` — raster → TSPL filter
+- `/usr/libexec/cups/filter/lw650xl` (+ `lw650xl.py`) — raster → TSPL filter
 - `/etc/cups/ppd/LW650XL_Labels.ppd` — label size catalog
 - the queue **LW650XL_Labels** (socket://172.16.1.20:9100)
 
@@ -60,8 +68,8 @@ This installs
 1. In Word: **File → Print** (⌘P).
 2. Printer: **LW650XL Labels**.
 3. In the paper/page section choose the **paper size** with the same
-   name as the label roll that is loaded (e.g. *Verzendetiket
-   102x59 mm*).
+   name as the label roll that is loaded (default: *Etiket 57x32 mm
+   (AM11354)*).
 4. Make sure the document's **page setup / paper size matches** the
    same label size (File → Page Setup), so nothing gets scaled.
 5. Print. The label comes out with 1:1 framing.
@@ -73,16 +81,21 @@ full label.
 ### Printing from other apps or the command line
 
 ```
-lp -d LW650XL_Labels -o media=LW_102x59 mylabel.pdf
+lp -d LW650XL_Labels -o media=LW_57x32 mylabel.pdf
 cupsfilter -p /etc/cups/ppd/LW650XL_Labels.ppd \
-           -o media=LW_102x59 -m application/vnd.cups-raw mylabel.pdf \
+           -o media=LW_57x32 -m application/vnd.cups-raw mylabel.pdf \
            | nc 172.16.1.20 9100
 ```
 
 ### Changing label size / adding a new size
 
-Built-in sizes (from the PPD): 104x159, 102x59, 101x54, 89x36,
-89x28, 54x25, 50x12, 57x57, 62x100 mm.
+Built-in sizes (from the PPD): **57x32 (default, AM11354)**, 104x159,
+102x59, 101x54, 89x36, 89x28, 54x25, 50x12, 57x57, 62x100 mm.
+
+For the 57x32 roll the printer expects the label *pitch* (38.6 mm) in
+`SIZE`, not the 32 mm label height; the filter knows this. For other
+rolls whose pitch differs from the label height, pass
+`-o lw-pitch=<mm>`.
 
 **Add a new size:**
 
@@ -108,20 +121,37 @@ and run `sudo ./install.sh` again.
 
 ```
 Word/Pages/… → PDF → cgpdftoraster (macOS)
-            → lw650xl (this repo; threshold + bit-pack + LZO)
+            → lw650xl (this repo; threshold + bit-pack, mode 0)
             → TSPL over TCP 9100 (socket backend)
 ```
 
 Custom CUPS options understood by the filter: `lw-gap` (gap mm,
-default 2), `lw-density` (default 8), `lw-speed` (default 4).
+default 3), `lw-pitch` (feed height mm, default 38.6 for 57x32),
+`lw-density` (default 15), `lw-speed` (default 1).
+
+## Part 3: shared Word/Excel workflow (multiple systems)
+
+Run once:
+
+```
+sudo ./setup.sh
+```
+
+This installs the queue (shared via IPP/Bonjour), creates the SMB share
+**Labelprinter** (`/Users/Shared/Labelprinter/inbox`) and starts a launchd
+watcher. Any system can then drop a **PDF** (Word: *Label_NaarPrinter*
+macro) or a **CSV** (Excel: one label per row) into that folder; the iMac
+converts it to TSPL and prints it. Full Dutch guide:
+[`workflow/README.nl.md`](workflow/README.nl.md).
 
 ## Files
 
 - `label` — the CLI (Python 3 + Pillow, both already on this Mac).
-- `lzo.py` — pure-Python LZO1X-1 compressor/decompressor for the
-  BITMAP mode-3 payload. `python3 lzo.py` runs its round-trip self-test.
+- `lzo.py` — pure-Python LZO1X-1 codec, kept for reference/testing;
+  the printer's working BITMAP mode 0 is uncompressed and does not use it.
 - `test_label.py` — end-to-end framing test against a fake TCP printer.
-- `cups/lw650xl` — CUPS raster→TSPL filter (self-contained).
+- `cups/lw650xl` — CUPS filter wrapper (picks a working Python 3).
+- `cups/lw650xl.py` — the raster→TSPL conversion (self-contained).
 - `cups/lw650xl-labels.ppd` — queue PPD with the label size catalog.
-- `cups/test.pdf` — 102x59 mm test page for `lp`.
+- `cups/test.pdf` — test page for `lp` (regenerate for another size).
 - `install.sh` / `uninstall.sh` / `add-size.sh` — queue management.

@@ -1,240 +1,33 @@
-#!/usr/bin/env python3
-"""lw650xl - CUPS filter: CUPS raster -> TSPL for the LW650XL PRO (Aimo 650).
+#!/bin/sh
+# lw650xl - CUPS filter wrapper (CUPS raster -> TSPL for the LW650XL PRO).
+#
+# cupsd starts filters in a restricted context where /usr/bin/python3 (the
+# Xcode stub) cannot resolve /var/select/developer_dir, so the real Python
+# interpreter is selected explicitly. The conversion itself lives in
+# lw650xl.py next to this script.
+#
+# The fallback list covers: Xcode Command Line Tools, Homebrew (Apple
+# Silicon and Intel), python.org installs, and finally the system stub.
 
-Filter chain (installed via install.sh):
-  application/pdf -> cgpdftoraster (system) -> lw650xl (this filter)
-  lw650xl emits application/vnd.cups-raw, which the CUPS socket backend
-  sends to the printer at port 9100.
+SELF_DIR=/usr/libexec/cups/filter
+if [ ! -r "$SELF_DIR/lw650xl.py" ]; then
+    case "$0" in
+        */*) SELF_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) ;;
+        *)   SELF_DIR=. ;;
+    esac
+fi
 
-Input raster: Apple cgpdftoraster "RaS3" format (decoded empirically):
-  - magic bytes 33 53 61 52 ("3SaR" as stored)
-  - page header is exactly 1800 bytes
-  - u32 @0x118 = horizontal DPI, u32 @0x11C = vertical DPI
-  - u32 @0x178 = pixel width W, u32 @0x17C = pixel height H
-  - pixel data: W*H bytes directly after the header, 8-bit gray,
-    0 = black (print), 255 = white, rows UNPADDED (W bytes each)
+for py in \
+    /Library/Developer/CommandLineTools/usr/bin/python3 \
+    /opt/homebrew/bin/python3 \
+    /usr/local/bin/python3 \
+    /Library/Frameworks/Python.framework/Versions/Current/bin/python3 \
+    /usr/bin/python3
+do
+    if [ -x "$py" ]; then
+        exec "$py" "$SELF_DIR/lw650xl.py" "$@"
+    fi
+done
 
-Output: TSPL with the vendor quirks of this printer family:
-  - BITMAP mode 3 = LZO-compressed bitmap (lzo1x classic format)
-  - bit 1 = printed dot, rows packed MSB-first, padded to byte boundary
-  - binary payload starts immediately after the last comma of the BITMAP
-    header (no CRLF), CRLF line endings everywhere, job closed by PRINT.
-"""
-import struct
-import sys
-
-M3_MAX_OFFSET = 16384
-M3_MAX_LEN = 65313
-
-
-# ---------------------------------------------------------------- LZO1X-1 --
-# Pure-Python compressor, bit-compatible with the printer's minilzo
-# lzo1x_decompress. Same algorithm as ../lzo.py (keep in sync).
-def _emit_litrun(out, lit):
-    n = len(lit)
-    if n <= 18:
-        out.append(n - 3)
-    else:
-        z = (n - 19) // 255
-        b = n - 18 - 255 * z
-        out.append(0)
-        out += b"\x00" * z
-        out.append(b)
-    out += lit
-
-
-def lzo_compress(data):
-    data = bytes(data)
-    n = len(data)
-    if n == 0:
-        raise ValueError("LZO1X: empty input")
-
-    table = {}
-    matches = []
-    for i in range(min(3, n - 2)):
-        table[data[i:i + 3]] = i
-    pos = 3
-    while pos + 3 <= n:
-        h = data[pos:pos + 3]
-        prev = table.get(h)
-        table[h] = pos
-        if prev is None or prev >= pos or pos - prev > M3_MAX_OFFSET:
-            pos += 1
-            continue
-        length = 3
-        max_len = min(M3_MAX_LEN, n - pos)
-        while length < max_len and data[prev + length] == data[pos + length]:
-            length += 1
-        matches.append((pos, length, pos - prev))
-        for p in range(pos + 1, min(pos + length, n - 2)):
-            table[data[p:p + 3]] = p
-        pos += length
-
-    out = bytearray()
-    first = matches[0][0] if matches else n
-    if first <= 238:
-        out.append(17 + first)
-        out += data[:first]
-    else:
-        _emit_litrun(out, data[:first])
-
-    for i, (mpos, mlen, off) in enumerate(matches):
-        end = mpos + mlen
-        next_pos = matches[i + 1][0] if i + 1 < len(matches) else n
-        gap = next_pos - end
-        if gap <= 3:
-            nxt, gap = gap, 0
-        else:
-            nxt = 0
-        if mlen <= 4 and off <= 2048:
-            out.append(((mlen - 1) << 5) | (((off - 1) & 7) << 2) | nxt)
-            out.append((off - 1) >> 3)
-        elif mlen <= 33:
-            out.append(32 + (mlen - 2))
-            out += (((off - 1) << 2) | nxt).to_bytes(2, "little")
-        else:
-            z = (mlen - 34) // 255
-            b = mlen - 33 - 255 * z
-            out.append(32)
-            out += b"\x00" * z
-            out.append(b)
-            out += (((off - 1) << 2) | nxt).to_bytes(2, "little")
-        if nxt:
-            out += data[end:end + nxt]
-        if gap:
-            _emit_litrun(out, data[end:end + gap])
-
-    out += b"\x11\x00\x00"  # EOF marker
-    return bytes(out)
-
-
-# ---------------------------------------------------------------- raster ---
-def read_raster(input_bytes):
-    """Yield (dpi_x, dpi_y, width_px, height_px, gray_bytes) per page."""
-    pos, n = 0, len(input_bytes)
-    MAGIC = b"3SaR"
-    while pos < n:
-        if pos + 1800 > n:
-            return  # trailing partial block (e.g. trailing padding bytes)
-        hdr = input_bytes[pos:pos + 1800]
-        if hdr[:4] != MAGIC:
-            raise ValueError(
-                f"bad raster magic at offset {pos}: {hdr[:4]!r} "
-                "(expected RaS3 from cgpdftoraster)")
-        dpi_x, dpi_y = struct.unpack("<II", hdr[0x118:0x120])
-        w, h = struct.unpack("<II", hdr[0x178:0x180])
-        if not (0 < w <= 20000 and 0 < h <= 20000):
-            raise ValueError(f"implausible page size {w}x{h} @ {pos}")
-        data_start, data_len = pos + 1800, w * h
-        if data_start + data_len > n:
-            raise ValueError(
-                f"truncated raster page: need {data_len} bytes at {data_start}, "
-                f"have {n - data_start}")
-        yield dpi_x, dpi_y, w, h, input_bytes[data_start:data_start + data_len]
-        pos = data_start + data_len
-
-
-def pack_bits_canvas(gray, w, h, canv_w_dots, canv_h_dots):
-    """8-bit gray -> 1-bit rows in a white CLI-style dot canvas.
-
-    The verified-working CLI builds its bitmap as round(mm * 12) dots in
-    both directions. Rasterized pages come at dpi dots/inch (e.g. 1205 px
-    for 102 mm at 300 dpi), so paste the raster rows 1:1 into the top-left
-    of the CLI-sized canvas and pad white right/bottom. Bit 1 = dark,
-    MSB-first (CLI convention).
-    """
-    bpr = (canv_w_dots + 7) // 8
-    out = bytearray(bpr * canv_h_dots)
-    for y in range(h):
-        if y >= canv_h_dots:
-            break
-        ob = bpr * y
-        for x in range(w):
-            if x < canv_w_dots and gray[y * w + x] <= 128:
-                out[ob + (x >> 3)] |= 0x80 >> (x & 7)
-    return bpr, canv_h_dots, bytes(out)
-
-
-# ------------------------------------------------------------------ TSPL ---
-def tspl_header(w_mm, h_mm, gap_mm=2.0, density=8, speed=4):
-    # Byte-for-byte the style of the verified-working label CLI: plain %g
-    # numbers, no decimals (e.g. "SIZE 102 mm,59 mm"). Avoid anything the
-    # CLI never used.
-    return (
-        f"DENSITY {density}\r\n"
-        f"SPEED {speed}\r\n"
-        "REFERENCE 0,0\r\n"
-        "OFFSET 0 mm\r\n"
-        f"SIZE {round(w_mm):g} mm,{round(h_mm):g} mm\r\n"
-        f"GAP {gap_mm:g} mm,0 mm\r\n"
-        "DIRECTION 0,0\r\n"
-        "CLS\r\n"
-    )
-
-
-def parse_options(s):
-    opts = {}
-    for tok in (s or "").split():
-        k, _, v = tok.partition("=")
-        opts[k] = v
-    return opts
-
-
-def convert(input_bytes, opts=None):
-    """Full raster -> TSPL payload conversion."""
-    opts = opts or {}
-    gap_mm = float(opts.get("lw-gap", 2.0))
-    density = int(opts.get("lw-density", 8))
-    speed = int(opts.get("lw-speed", 4))
-
-    out = bytearray(b"\r\n")  # clear any stale partial line at the printer
-    pages = 0
-    for dpi_x, dpi_y, w, h, gray in read_raster(input_bytes):
-        # physical label size from the raster resolution
-        w_mm = w * 25.4 / dpi_x
-        h_mm = h * 25.4 / dpi_y
-        dots_mm = round(dpi_x / 25.4)          # 300 dpi -> 12 dots/mm
-        cw = round(w_mm * dots_mm)             # CLI-style canvas (e.g. 1224)
-        ch = round(h_mm * dots_mm)             # (e.g. 719)
-        bpr, ch, bits = pack_bits_canvas(gray, w, h, cw, ch)
-        packed = lzo_compress(bits)
-        if pages == 0:
-            out += tspl_header(w_mm, h_mm, gap_mm, density, speed).encode("ascii")
-        else:
-            out += b"CLS\r\n"  # clear between pages
-        pages += 1
-        # CRLF between BITMAP header and payload is REQUIRED by the
-        # firmware (without it jobs are silently swallowed); declared
-        # length counts only the payload bytes.
-        out += (f"BITMAP 0,0,{bpr},{ch},3,{len(packed)},\r\n").encode("ascii")
-        out += packed
-        out += b"\r\nPRINT 1,1\r\n"
-    if not out.strip():
-        raise ValueError("no raster pages found in input")
-    return bytes(out)
-
-
-def main(argv):
-    if len(argv) < 6:
-        sys.stderr.write(
-            "Usage: filter job-id user title copies options [file]\n"
-            "(stdin is read when no file argument is given)\n")
-        return 1
-    opts = parse_options(argv[5])
-    if len(argv) > 6:
-        with open(argv[6], "rb") as f:
-            data = f.read()
-    else:
-        data = sys.stdin.buffer.read()
-    try:
-        payload = convert(data, opts)
-    except Exception as e:
-        sys.stderr.write(f"lw650xl: {e}\n")
-        return 1
-    sys.stdout.buffer.write(payload)
-    sys.stdout.buffer.flush()
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+echo "lw650xl: geen werkende Python 3 gevonden" >&2
+exit 1

@@ -14,8 +14,19 @@ import sys
 
 DEFAULT_HOST = "172.16.1.20"
 DEFAULT_PORT = 9100
-DEFAULT_SIZE = "102x59"   # mm, the 123inkt large shipping labels
+DEFAULT_SIZE = "57x32"    # mm, the AM11354 labels loaded in the printer
+DEFAULT_PITCH = 38.6      # mm, label + gap/liner (what SIZE expects)
 DEFAULT_DPI = 300
+
+# Printer geometry, measured on the hardware (see cups/lw650xl.py):
+# the bitmap maps 1:1 onto the 1280-dot head, the label top edge is 60 dots
+# below the bitmap origin, and 2 mm of the label lies left of bitmap x=0.
+HEAD_DOTS = 1280
+TOP_OFFSET_DOTS = 60
+LEFT_MARGIN_DOTS = 24
+RIGHT_SAFETY_DOTS = 9
+BOTTOM_SAFETY_DOTS = 8
+DOTS_PER_MM = 300.0 / 25.4
 
 FONT_CANDIDATES = [
     "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
@@ -29,7 +40,7 @@ def parse_size(s):
         w, h = s.lower().split("x")
         return float(w), float(h)
     except ValueError:
-        sys.exit(f"bad --size {s!r}, expected like 102x59 (mm)")
+        sys.exit(f"bad --size {s!r}, expected like 57x32 (mm)")
 
 
 def load_font(pt):
@@ -78,11 +89,17 @@ def fit_font(draw, text, font_pt, max_w, max_h, line_spacing=1.15):
     return font, wrap_lines(draw, text, font, max_w), int((asc + desc) * 1.15)
 
 
+def content_box(size_w, size_h):
+    """Printable area in dots: (width, height) of the label's print window."""
+    cw = int(round(size_w * DOTS_PER_MM)) - LEFT_MARGIN_DOTS - RIGHT_SAFETY_DOTS
+    ch = int(round(size_h * DOTS_PER_MM)) - BOTTOM_SAFETY_DOTS
+    return max(1, min(cw, HEAD_DOTS)), max(1, ch)
+
+
 def render_label(args, dots_mm):
     """Render text (+optional logo) to a 1-bit PIL image covering the label."""
     from PIL import Image, ImageDraw
-    w_px = int(round(args.size_w * dots_mm))
-    h_px = int(round(args.size_h * dots_mm))
+    w_px, h_px = content_box(args.size_w, args.size_h)
     img = Image.new("1", (w_px, h_px), 1)  # 1 = white
     draw = ImageDraw.Draw(img)
     margin = int(args.margin * dots_mm)
@@ -121,59 +138,49 @@ def to_preview_png(img, path):
     img.convert("L").save(path)
 
 
-def bitmap_bytes(img):
-    """Pack PIL '1' image to TSPL BITMAP data.
-
-    PIL '1' packs white=1; this printer family wants bit 1 = dark/print,
-    so invert every byte.
-    """
-    raw = img.tobytes("raw", "1")
-    return bytes(~b & 0xFF for b in raw)
-
-
 def build_tspl(args, img, dots_mm):
-    from PIL import Image
-    import lzo
+    """Compose the label into a full-head bitmap and build the TSPL job.
 
-    w_px = img.width
-    h_px = img.height
-    bpr = (w_px + 7) // 8
-    # pad width to byte boundary by extending white margin
-    if bpr * 8 != w_px:
-        padded = Image.new("1", (bpr * 8, h_px), 1)
-        padded.paste(img, (0, 0))
-        img = padded
-    raw = bitmap_bytes(img)
-    packed = lzo.compress(raw)
+    Verified against the printer (and the vendor app):
+      - BITMAP mode 0 = uncompressed, payload right after the last comma,
+        no length field and no CRLF before the binary data.
+      - bit 1 = WHITE, bit 0 = printed dot.
+      - the bitmap is mapped 1:1 on the 1280-dot head and anchored at its
+        BOTTOM edge, so it must be padded to the full feed height.
+    """
+    from PIL import Image
+
+    bpr = HEAD_DOTS // 8
+    target_h = int(round(args.pitch * DOTS_PER_MM)) - 12
+    canvas_h = max(TOP_OFFSET_DOTS + img.height, target_h)
+    canvas = Image.new("1", (bpr * 8, canvas_h), 1)
+    canvas.paste(img, (0, TOP_OFFSET_DOTS))
+    bits = canvas.tobytes("raw", "1")   # PIL '1' already packs white = 1
 
     parts = [
         f"DENSITY {args.density}",
         f"SPEED {args.speed}",
         "REFERENCE 0,0",
         "OFFSET 0 mm",
-        f"SIZE {args.size_w:g} mm,{args.size_h:g} mm",
+        f"SIZE {args.size_w:g} mm,{args.pitch:g} mm",
         f"GAP {args.gap:g} mm,0 mm",
         "DIRECTION 0,0",
         "CLS",
     ]
-    # This firmware REQUIRES a CRLF between the BITMAP header line and the
-    # binary payload (verified by physical prints — removing it makes the
-    # printer silently swallow the job). The declared length counts only the
-    # LZO payload bytes, not that CRLF.
     payload = ("\r\n".join(parts) + "\r\n" +
-               f"BITMAP 0,0,{bpr},{h_px},3,{len(packed)},\r\n").encode("ascii")
-    payload += packed + b"\r\n"
+               f"BITMAP 0,0,{bpr},{canvas_h},0,").encode("ascii")
+    payload += bits + b"\r\n"
 
     if args.qr:
-        x = int((args.size_w - 32) * dots_mm)
-        y = int((args.size_h - 32) * dots_mm)
+        x = max(0, img.width - int(30 * dots_mm))
+        y = TOP_OFFSET_DOTS + max(0, img.height - int(30 * dots_mm))
         payload += f'QRCODE {x},{y},L,8,A,0,"{args.qr}"\r\n'.encode("ascii")
     if args.barcode:
         kind, _, code = args.barcode.partition(":")
         if not code:
             sys.exit("bad --barcode, use --barcode CODE128:YOURDATA")
-        x = int(4 * dots_mm)
-        y = int((args.size_h - 18) * dots_mm)
+        x = int(2 * dots_mm)
+        y = TOP_OFFSET_DOTS + max(0, img.height - int(12 * dots_mm))
         payload += (
             f'BARCODE {x},{y},"{kind}",{int(12 * dots_mm)},2,4,0,1,100,"{code}"\r\n'
         ).encode("ascii")
@@ -204,7 +211,9 @@ def main():
     p.add_argument("text", help="label text; use \\n for new lines")
     p.add_argument("--host", default=DEFAULT_HOST)
     p.add_argument("--port", type=int, default=DEFAULT_PORT)
-    p.add_argument("--size", default=DEFAULT_SIZE, help="WxH in mm (default 102x59)")
+    p.add_argument("--size", default=DEFAULT_SIZE, help="WxH in mm (default 57x32)")
+    p.add_argument("--pitch", type=float,
+                   help="feed height in mm, label + gap/liner (default 38.6 for 57x32)")
     p.add_argument("--font", type=float, default=8.0, help="max text height in mm (default 8)")
     p.add_argument("--margin", type=float, default=2.0, help="margin in mm")
     p.add_argument("--top", type=float, default=0, help="start text N mm from top")
@@ -214,15 +223,17 @@ def main():
     p.add_argument("--logo-w", type=float, default=25, help="max logo width mm")
     p.add_argument("--logo-h", type=float, default=25, help="max logo height mm")
     p.add_argument("--copies", type=int, default=1)
-    p.add_argument("--density", type=int, default=8, help="0-15, higher = darker")
-    p.add_argument("--speed", type=int, default=4, help="labels per minute-ish")
-    p.add_argument("--gap", type=float, default=2.0, help="label gap in mm")
+    p.add_argument("--density", type=int, default=15, help="0-15, higher = darker")
+    p.add_argument("--speed", type=int, default=1, help="labels per minute-ish")
+    p.add_argument("--gap", type=float, default=3.0, help="label gap in mm")
     p.add_argument("--dpi", type=int, default=DEFAULT_DPI, help="head resolution")
     p.add_argument("--preview", metavar="FILE.png", help="render to PNG instead of printing")
     args = p.parse_args()
 
     args.text = args.text.replace("\\n", "\n")
     args.size_w, args.size_h = parse_size(args.size)
+    if args.pitch is None:
+        args.pitch = DEFAULT_PITCH if (args.size_w, args.size_h) == (57.0, 32.0) else args.size_h
     dots_mm = round(args.dpi / 25.4)  # 300 dpi -> 12 dots/mm
 
     img = render_label(args, dots_mm)

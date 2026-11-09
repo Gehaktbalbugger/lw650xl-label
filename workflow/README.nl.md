@@ -1,0 +1,308 @@
+# Etiketten printen vanaf Word en Excel (meerdere systemen)
+
+Deze opzet laat de **iMac** alle etiketten maken. Word en Excel op
+Windows, macOS of zelfs een telefoon hoeven alleen een **PDF** of **CSV**
+in een gedeelde map te zetten. De iMac zet dat om naar de eigen taal van
+de printer (TSPL) en stuurt het naar `172.16.1.20:9100`.
+
+Er is dus **geen printerdriver op de clients nodig** en de printer hoeft
+geen PCL5 of PostScript te begrijpen.
+
+```
+Word / Excel / telefoon
+        │  PDF of CSV
+        ▼
+/Users/Shared/Labelprinter/inbox        (SMB-share "Labelprinter")
+        │  launchd-watcher
+        ▼
+CUPS-queue LW650XL_Labels
+        │  cgpdftoraster (300 dpi) → lw650xl-filter
+        ▼
+TSPL (bitmap mode 0)  →  socket://172.16.1.20:9100  →  LW650XL PRO
+```
+
+---
+
+## 1. Eenmalige installatie
+
+Open Terminal op de iMac:
+
+```bash
+cd ~/Documents/Standaardproject/label-printer
+./setup.sh
+```
+
+Het script vraagt om je macOS-wachtwoord. Het doet drie dingen:
+
+1. installeert de CUPS-filter en de queue **LW650XL_Labels**;
+2. maakt de gedeelde map **Labelprinter** aan (SMB);
+3. installeert de watcher die de inbox automatisch leegprint.
+
+Controleer daarna:
+
+```bash
+lpstat -p LW650XL_Labels
+lp -d LW650XL_Labels -o media=LW_57x32 ~/Documents/Standaardproject/label-printer/cups/test.pdf
+```
+
+De tweede opdracht print één testetiket. Komt er niets uit, zie
+[Problemen oplossen](#7-problemen-oplossen).
+
+---
+
+## 2. Word: etiket ontwerpen en printen
+
+### 2.1 Paginaformaat gelijk zetten aan het etiket
+
+Dit is de belangrijkste stap: **de pagina in Word moet precies zo groot
+zijn als het etiket**. Anders schaalt de printer het beeld of weigert de
+watcher het bestand.
+
+In Word:
+
+1. **Indeling → Grootte → Meer papierformaten…**
+2. Kies **Aangepast** en vul in:
+   - Etiket 57 × 32 mm (AM11354, standaard in de printer): breedte
+     **5,7 cm**, hoogte **3,2 cm**, liggend.
+   - Verzendetiket 102 × 59 mm: breedte **10,2 cm**, hoogte **5,9 cm**,
+     liggend.
+   - PostNL XL 104 × 159 mm: breedte **10,4 cm**, hoogte **15,9 cm**,
+     staand.
+3. **Marges → Aangepast**: 0,2 cm rondom, kop- en voettekst 0 cm.
+4. Zet **Schalen** op **100%** (niet "aanpassen aan pagina").
+
+Snel invullen kan met de macro's `Label_Pagina_57x32`,
+`Label_Pagina_102x59` en `Label_Pagina_104x159` (zie 2.2).
+
+### 2.2 De macro installeren
+
+1. In Word: **Extra → Macro → Visual Basic** (Alt+F11).
+2. **Bestand → Bestand importeren…** en kies
+   `workflow/word/LabelPrinter.bas`.
+3. Sluit de editor.
+4. Zet **Label_NaarPrinter** op de werkbalk Snelle toegang:
+   pijl rechtsboven → **Meer opdrachten → Alle opdrachten → Macro's**.
+
+De macro exporteert het document als PDF naar de gedeelde inbox. De
+iMac pakt hem automatisch op. Je hoeft dus **niet** de printer te kiezen.
+
+> Op de iMac zelf kun je ook gewoon ⌘P → **LW650XL Labels** doen. Kies
+> dan het papierformaat dat bij de rol hoort.
+
+### 2.3 Etiket printen
+
+1. Ontwerp het etiket (tekst, tabel, logo, eventueel een barcode-font).
+2. Klik op **Label_NaarPrinter**.
+3. De melding "Etiket(ten) naar de labelprinter gestuurd" verschijnt.
+4. Binnen enkele seconden rolt het etiket eruit.
+
+### 2.4 Mail merge: veel etiketten in één keer (adressen uit Excel)
+
+1. Maak in Excel een lijst met kolommen (bijv. `Naam`, `Straat`, `Postcode`,
+   `Plaats`).
+2. In Word: **Verzendlijsten → Start samenvoegen → Brieven**.
+3. **Ontvangers selecteren → Bestaande lijst gebruiken** → kies het
+   Excel-bestand.
+4. Zet de velden op het etiket (één etiket per pagina).
+5. **Samenvoegen voltooien → Afzonderlijke documenten bewerken… → Alle**.
+6. Er opent een nieuw document met één etiket per pagina. Klik op
+   **Label_NaarPrinter**.
+
+De PDF bevat alle pagina's; de filter print **één etiket per pagina**.
+Dit is de snelste route voor tientallen adressen.
+
+---
+
+## 3. Excel: één etiket per rij (CSV)
+
+Voor losse labels of een adressenlijst zonder Word is er een tweede
+route: Excel schrijft een CSV, de iMac print elke rij als etiket.
+
+### 3.1 Blad klaarzetten
+
+Zet in **rij 1** deze koppen (alleen `text` is verplicht):
+
+| text | qr | barcode | copies | size |
+|---|---|---|---|---|
+| Anna de Bakker\nKeukenstraat 12\n1011 AB Amsterdam | https://track/1 | CODE128:ABC123 | 1 | 57x32 |
+| Pakket #1234 | | | 2 | |
+
+- `text`: gebruik de tekens `\n` voor een nieuwe regel.
+- `qr`, `barcode`, `copies`, `size` mogen leeg blijven.
+- `size` is de etiketmaat in mm; leeg = 57x32.
+
+### 3.2 Versturen
+
+**Methode A – met de macro (Windows):**
+
+1. Extra → Macro → Visual Basic → Bestand importeren →
+   `workflow/excel/LabelPrinter.bas`.
+2. Extra → Macro → Macro's → **Label_ExportCSV**.
+
+**Methode B – handmatig (elk systeem):**
+
+1. **Bestand → Opslaan als → CSV UTF-8 (door komma's gescheiden)**.
+2. Zet het bestand in de gedeelde map `Labelprinter/inbox`.
+
+De watcher print één etiket per rij. Het scheidingsteken (`;` of `,`)
+maakt niet uit; dat wordt automatisch herkend.
+
+> Wil je liever met de hand een los etiket printen? Op de iMac:
+> `./label "Tekst\nregel 2" --size 57x32`
+
+---
+
+## 4. Vanaf een ander systeem
+
+### Windows
+
+Open Verkenner en ga naar:
+
+```
+\\iMac2020\Labelprinter\inbox
+```
+
+of, als de naam niet werkt:
+
+```
+\\172.16.1.101\Labelprinter\inbox
+```
+
+Meld je aan met het macOS-account van de iMac (of gast, als dat aanstaat).
+Sleep de PDF of CSV erin. Klaar.
+
+### macOS / iPhone / iPad
+
+Finder → **Ga → Verbinden met server…** →
+
+```
+smb://iMac2020.local/Labelprinter
+```
+
+Daarna staat de map onder `/Volumes/Labelprinter/inbox`.
+
+### Wat de clients nodig hebben
+
+Alleen schrijfrechten op de share. Geen driver, geen software, geen
+printerinstellingen. De iMac doet het werk.
+
+---
+
+## 5. Wat de watcher precies doet
+
+- **PDF**: leest het paginaformaat uit de PDF, kiest de bijpassende
+  etiketmaat (of een vrije maat), en print via de CUPS-queue.
+- **CSV**: leest de rijen en print per rij een etiket via de `label`-CLI
+  (met tekst, QR en/of barcode).
+- Bestanden die klaar zijn gaan naar `printed/<datum>/`; mislukte naar
+  `failed/` met een `.error.txt`.
+- De watcher start bij het inloggen/booten, kijkt continu naar de map en
+  draait daarnaast elke 60 seconden als vangnet.
+
+Bestandsnamen mogen alles zijn; gebruik geen `~$` aan het begin (dat zijn
+Word-vergrendelingsbestanden).
+
+---
+
+## 6. Etiketmaten
+
+Standaard beschikbaar (uit de PPD):
+
+| Naam | Formaat |
+|---|---|
+| `LW_104x159` | Verzendetiket XL 104 × 159 mm |
+| `LW_57x32` | Etiket 57 × 32 mm (AM11354, standaard) |
+| `LW_102x59` | Verzendetiket 102 × 59 mm |
+| `LW_101x54` | Naambadge 101 × 54 mm |
+| `LW_89x36` | Adres breed 89 × 36 mm |
+| `LW_89x28` | Adres 89 × 28 mm |
+| `LW_54x25` | Retour 54 × 25 mm |
+| `LW_50x12` | Hangmap 50 × 12 mm |
+| `LW_57x57` | CD/DVD 57 × 57 mm |
+| `LW_62x100` | Continu 62 × 100 mm |
+
+Nieuwe maat toevoegen:
+
+```bash
+./add-size.sh LW_76x51 "Logistics 76x51 mm" 76 51
+sudo ./install.sh
+```
+
+De watcher herkent de nieuwe maat automatisch (hij leest de PPD).
+
+---
+
+## 7. Problemen oplossen
+
+**Er komt niets uit de printer**
+
+```bash
+lpstat -p LW650XL_Labels -l          # is de queue actief?
+lpq -P LW650XL_Labels                # staan er nog jobs?
+nc -z -G 2 172.16.1.20 9100 && echo "printer bereikbaar"
+```
+
+- Staat de printer aan en op het netwerk (niet alleen Bluetooth)?
+- Heeft de printer nog een vast IP? Zo niet, maak een DHCP-reservering
+  voor `172.16.1.20`.
+- Sluit de Labelife-app eens af; sommige printers accepteren maar één
+  verbinding tegelijk.
+
+**Het bestand verdwijnt naar `failed/`**
+
+Open `failed/<naam>.error.txt` en `/Users/Shared/Labelprinter/logs/print.log`.
+Meestal is het paginaformaat niet gelijk aan het etiket (bijv. A4). Zet
+in Word het aangepaste paginaformaat goed.
+
+**De afdruk staat scheef of te hoog/laag**
+
+- Controleer of de geladen rol bij de gekozen maat hoort.
+- Pas de etiketafstand aan: `lw-gap` (standaard 3 mm). Voor continu
+  materiaal: `-o lw-gap=0` of een maat met `add-size.sh ... --gap 0`.
+- De feed-hoogte (`SIZE`) is de etiket*steek* (etiket + tussenruimte),
+  niet de etikethoogte: 38,6 mm voor de 57 × 32 mm-rol. Voor een andere
+  rol: `-o lw-pitch=<mm>`.
+- De filter gebruikt de rand van de pagina als referentie; houd 0,2 cm
+  marge aan in Word.
+
+**De share is niet zichtbaar**
+
+- Systeeminstellingen → Algemeen → Delen → **Bestandsdeling** aan.
+- Controleer of `Labelprinter` bij de gedeelde mappen staat.
+- Firewall: sta inkomend verkeer voor `cupsd` en `smbd` toe.
+
+**Logboeken en status**
+
+```bash
+tail -f /Users/Shared/Labelprinter/logs/print.log
+tail -f /Users/Shared/Labelprinter/logs/watcher.err.log
+sudo launchctl print system/com.benno.labelprinter.watcher
+```
+
+**Watcher herstarten**
+
+```bash
+sudo launchctl kickstart -k system/com.benno.labelprinter.watcher
+```
+
+**Alles verwijderen**
+
+```bash
+sudo ./workflow/uninstall-workflow.sh
+sudo ./uninstall.sh
+```
+
+---
+
+## 8. Bestanden
+
+| Bestand | Functie |
+|---|---|
+| `setup.sh` | eenmalige complete installatie |
+| `install.sh` | alleen de CUPS-queue |
+| `workflow/print-inbox.sh` | de watcher |
+| `workflow/pdfmedia.py` | paginaformaat → CUPS-media |
+| `workflow/csv2labels.py` | CSV → één etiket per rij |
+| `workflow/word/LabelPrinter.bas` | Word-macro's |
+| `workflow/excel/LabelPrinter.bas` | Excel-macro (CSV) |
+| `workflow/com.benno.labelprinter.watcher.plist` | launchd-template |
