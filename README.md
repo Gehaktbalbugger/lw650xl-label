@@ -9,6 +9,11 @@ last comma (no length, no CRLF), **bit 1 = white**, and the bitmap is
 mapped 1:1 onto the 1280-dot print head. This repo encodes that itself —
 no vendor driver needed.
 
+Everything measured off the real printer — TSPL quirks, the registration
+model, the per-roll numbers and the traps — is written up in
+**[KNOWLEDGE.md](KNOWLEDGE.md)**; the current state and next steps are in
+**[HANDOFF.md](HANDOFF.md)**.
+
 It contains three ways to print:
 
 1. **`label`** — command-line tool for quick labels.
@@ -266,6 +271,9 @@ converts it to TSPL and prints it. Full Dutch guide:
   the four edge readings into an `add-size.sh` command.
 - `test_label.py` — end-to-end framing test against a fake TCP printer.
 - `test_measure.py` — print/solve round trip of `measure`.
+- `KNOWLEDGE.md` — alles wat gemeten is: BITMAP-opbouw, registratiemodel,
+  commando-matrix, rollen en hun getallen, veldvalleien.
+- `HANDOFF.md` — status en de open punten voor de volgende sessie.
 - `test_filter.py` — CUPS raster parser test: multi-page rasters, Word's
   media/orientation options, bitmap decoding (no printer needed).
 - `cups/lw650xl` — CUPS filter wrapper (picks a working Python 3).

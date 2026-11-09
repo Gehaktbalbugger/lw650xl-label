@@ -31,7 +31,7 @@
 - `./measure` kreeg een `ladder`-stand (genummerde banden over één
   voeding) om te zien waar een rol begint, en `--step` voor leesbare
   schalen op kleine etiketten.
-- `test_filter.py` (41 checks) en `test_measure.py` (22 checks) dekken
+- `test_filter.py` (40 checks) en `test_measure.py` (20 checks) dekken
   `rows`, `rotate`, de inverse rotatie en de pitch/gap-doorvoer.
 
 ## 1.1 — AM99012 / Dymo S0722400 (36 × 89 mm, staand)

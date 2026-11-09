@@ -445,7 +445,15 @@ sudo ./uninstall.sh
 
 ---
 
-## 8. Bestanden
+## 8. Achtergrond en vervolg
+
+- **[KNOWLEDGE.md](../KNOWLEDGE.md)** — álles wat aan de printer gemeten is:
+  waarom het bitmapformaat zo is, hoe de registratie werkt, de rollijn van elke
+  rol en welke commandoze deze firmware wél/niet kent.
+- **[HANDOFF.md](../HANDOFF.md)** — waar we gebleven zijn, wat de volgende rol
+  is om toe te voegen en welke punten nog open staan.
+
+## 9. Bestanden
 
 | Bestand | Functie |
 |---|---|
