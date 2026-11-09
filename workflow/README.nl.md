@@ -257,6 +257,7 @@ Standaard beschikbaar (uit de PPD):
 | `LW_101x54` | Naambadge 101 × 54 mm |
 | `LW_89x36` | Adres breed 89 × 36 mm |
 | `LW_36x89` | Adres 36 × 89 mm (AM99012 / Dymo S0722400, **staand**) |
+| `LW_26x25` | Vierkant multipurpose 26 × 25 mm (S0929120 / Dymo 30332), zijwaarts geprint |
 | `LW_89x28` | Adres 89 × 28 mm |
 | `LW_54x25` | Retour 54 × 25 mm |
 | `LW_50x12` | Hangmap 50 × 12 mm |
@@ -296,6 +297,12 @@ heter of hoger dan de standaardrol). Die vind je met een meet-etiket:
   niet geprint.
 - `--bottom` — mm die onderaan vrij blijft. Zet dit gelijk aan een onbereikbare
   bovenrand, dan is het printsel gecentreerd (AM99012: 1 mm bij -0,5 mm boven).
+- `--rows` — hoogte van de bitmap in dots, in plaats van de standaard
+  `steek - 12`. Labellife stuurt 356 rijen voor de vierkante rol; die waarde
+  overnemen gaf dezelfde registratie als de vendor-app.
+- `--rotate` — `90` of `270`: het ontwerp zijwaarts printen (zoals Labellife
+  doet bij vierkante rollen). Dit verandert de dode zone niet, alleen de
+  leesrichting.
 
 **`--voffset`** schuift de hele print naar beneden op het etiket. Het printbare
 vlak begint precies op de bovenrand, waardoor een pagina die Word verticaal

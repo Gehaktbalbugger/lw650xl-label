@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.3 — S0929120 (25 × 25 mm vierkant) en twee nieuwe rolknoppen
+
+- Nieuw formaat `LW_26x25`: de Dymo S0929120 / 30332-role is gemeten
+  26 × 25 mm (niet 25 × 25), steek 33,97 mm met 3 mm tussenruimte.
+  Een 25 × 25 Word-pagina wordt er automatisch naartoe gemapt.
+- De roldefinities kregen twee velden erbij:
+  `rows` (bitmaphoogte in dots; standaard `pitch - 12`, zoals de
+  vendor-app stuurt) en `rotate` (90 / 270: het ontwerp zijwaarts
+  printen). `add-size.sh` kreeg `--rows` en `--rotate`.
+- Labellife bleek voor deze rol `SIZE 25 mm,33.97 mm`, `GAP 3 mm` en
+  356 bitmapproeren te sturen; met die waarden en 0,6 mm wit rondom
+  staat het beeld gecentreerd. Eerdere aannames (steek 38 mm,
+  tussenruimte 13 mm) waren de reden dat de printer elke beurt elders
+  begon: die kloof bestaat niet, dus de gap-zoeker sprong rond.
+- Inkt kan niet linkser dan x=0; bij een smallere rol is dat een
+  fysieke dode zone. Centreren doe je door rechts evenveel in te
+  leveren (`left` = `right`), niet door te schuiven.
+- Bug in `./measure`: de kruis-print stuurde `SIZE <w>,<h>` in plaats
+  van de meegegeven `--pitch`/`--gap`, waardoor de printer te weinig
+  voerde en het beeld half op de liner belandde. Beide meetmodi sturen
+  nu exact de berekende geometrie.
+- `./measure` kreeg een `ladder`-stand (genummerde banden over één
+  voeding) om te zien waar een rol begint, en `--step` voor leesbare
+  schalen op kleine etiketten.
+- `test_filter.py` (41 checks) en `test_measure.py` (22 checks) dekken
+  `rows`, `rotate`, de inverse rotatie en de pitch/gap-doorvoer.
+
 ## 1.1 — AM99012 / Dymo S0722400 (36 × 89 mm, staand)
 
 - Nieuw formaat `LW_36x89`: deze rol staat 90° anders op de printer dan de

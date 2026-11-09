@@ -5,6 +5,7 @@
 # Usage:  ./add-size.sh <name> <description> <width_mm> <height_mm>
 #                       [--gap <mm>] [--pitch <mm>] [--voffset <mm>]
 #                       [--left <mm>] [--right <mm>] [--top <mm>] [--bottom <mm>]
+#                       [--rows <n>]
 #
 # Examples:
 #   ./add-size.sh LW_76x51 "Logistics 76x51 mm" 76 51
@@ -30,6 +31,12 @@
 # --bottom   mm to keep free at the label's bottom edge (default 0.7). Raise
 #            it to match a top edge that is unreachable, so the print stays
 #            centred on the label.
+# --rotate   90 (clockwise) or 270 (counter-clockwise): print the page turned
+#            on its side, useful when the unreachable edge must fall along the
+#            feed direction instead of the label's left edge.
+# --rows     pin the bitmap height in dots. Default: pitch in dots minus 12,
+#            which is what the vendor app sends on most rolls; square rolls
+#            from Labellife came with e.g. 356 rows for a 33.97 mm pitch.
 set -euo pipefail
 
 if [[ $# -lt 4 ]]; then
@@ -40,27 +47,26 @@ fi
 NAME="$1"; DESC="$2"; W_MM="$3"; H_MM="$4"; shift 4
 GAP_MM=3.0
 PITCH_MM=""
-VOFFSET_MM=0.0
-LEFT_MM=""
-RIGHT_MM=""
-TOP_MM=""
-BOTTOM_MM=""
+VOFFSET_MM=""
+EXTRA=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --gap)     GAP_MM="${2:?--gap needs a value}"; shift 2 ;;
-        --pitch)   PITCH_MM="${2:?--pitch needs a value}"; shift 2 ;;
-        --voffset) VOFFSET_MM="${2:?--voffset needs a value}"; shift 2 ;;
-        --left)    LEFT_MM="${2:?--left needs a value}"; shift 2 ;;
-        --right)   RIGHT_MM="${2:?--right needs a value}"; shift 2 ;;
-        --top)     TOP_MM="${2:?--top needs a value}"; shift 2 ;;
-        --bottom)  BOTTOM_MM="${2:?--bottom needs a value}"; shift 2 ;;
+        --gap)    GAP_MM="${2:?--gap needs a value}"; shift 2 ;;
+        --pitch)  PITCH_MM="${2:?--pitch needs a value}"; shift 2 ;;
+        --voffset) EXTRA+=("voffset=${2:?--voffset needs a value}"); shift 2 ;;
+        --left)   EXTRA+=("left=${2:?--left needs a value}"); shift 2 ;;
+        --right)  EXTRA+=("right=${2:?--right needs a value}"); shift 2 ;;
+        --top)    EXTRA+=("top=${2:?--top needs a value}"); shift 2 ;;
+        --bottom) EXTRA+=("bottom=${2:?--bottom needs a value}"); shift 2 ;;
+        --rows)   EXTRA+=("rows=${2:?--rows needs a value}"); shift 2 ;;
+        --rotate) EXTRA+=("rotate=${2:?--rotate needs a value}"); shift 2 ;;
         *) echo "unknown option: $1" >&2; exit 1 ;;
     esac
 done
 [[ -n "$PITCH_MM" ]] || PITCH_MM="$(python3 -c "print(round($H_MM + $GAP_MM, 2))")"
 
 here="$(cd "$(dirname "$0")" && pwd)"
-PPD="$here/cups/lw650xl-labels.ppd"
+PPD="${LW_PPD:-$here/cups/lw650xl-labels.ppd}"   # test runs can point at a copy
 [[ -f $PPD ]] || { echo "PPD not found: $PPD" >&2; exit 1; }
 
 # mm -> points (1 mm = 72/25.4 pt)
@@ -106,14 +112,16 @@ add "PaperDimension" "DefaultPaperDimension" "*PaperDimension $NAME/$DESC: \"$w_
 #   *% lw-media LW_57x32 pitch=38.6 gap=3
 # CUPS copies comments into /etc/cups/ppd/<queue>.ppd and passes that path to
 # filters, so nothing else has to know about this size.
-python3 - "$PPD" "$NAME" "$PITCH_MM" "$GAP_MM" "$VOFFSET_MM" "$LEFT_MM" "$RIGHT_MM" "$TOP_MM" "$BOTTOM_MM" <<'EOF'
+python3 - "$PPD" "$NAME" "$PITCH_MM" "$GAP_MM" "${EXTRA[@]}" <<'EOF'
 import re, sys
-ppd, name, pitch, gap, voffset, left, right, top, bottom = sys.argv[1:10]
+ppd, name, pitch, gap, *extra = sys.argv[1:]
+# Only the options the user actually typed are written: a 0 is a meaningful
+# measurement (top=0 means the label starts exactly at the first print row),
+# and anything absent falls back to the filter's default.
 line = f"*% lw-media {name} pitch={pitch} gap={gap}"
-for key, value in (("voffset", voffset), ("left", left), ("right", right),
-                   ("top", top), ("bottom", bottom)):
-    if value and float(value) != 0.0:
-        line += f" {key}={value}"
+for kv in extra:
+    if kv.split("=", 1)[1].strip():
+        line += f" {kv}"
 line += "\n"
 src = open(ppd).read()
 src = re.sub(rf"^\*%\s*lw-media\s+{re.escape(name)}\b.*\n", "", src, flags=re.M)
@@ -122,7 +130,7 @@ src = (src[:i] + line + src[i:]) if i != -1 else (src + line)
 open(ppd, "w").write(src)
 EOF
 
-echo "Added $NAME to $PPD  (pitch $PITCH_MM, gap $GAP_MM, voffset $VOFFSET_MM, left ${LEFT_MM:-2}, right ${RIGHT_MM:-0.8}, top ${TOP_MM:-5.1}, bottom ${BOTTOM_MM:-0.7})"
+echo "Added $NAME to $PPD (pitch $PITCH_MM, gap $GAP_MM ${EXTRA[*]:-})"
 echo "  filter:   -o media=$NAME   (te overschrijven met -o lw-pitch / lw-gap / lw-voffset)"
 echo "  CLI:      ./label \"tekst\" --size ${W_MM}x${H_MM} --pitch $PITCH_MM --gap $GAP_MM --voffset $VOFFSET_MM"
 if command -v lpstat >/dev/null 2>&1 && lpstat -p LW650XL_Labels >/dev/null 2>&1; then

@@ -77,10 +77,11 @@ DEFAULT_MEDIA = "LW_57x32"
 # CUPS keeps PPD comments intact (checked against the installed PPD) and
 # hands the PPD to filters through the PPD env var, so the PPD is the single
 # place where a size is defined. MEDIA above only stays as a fallback.
-GEOMETRY_KEYS = ("pitch", "gap", "voffset", "left", "right", "top", "bottom")
+GEOMETRY_KEYS = ("pitch", "gap", "voffset", "left", "right", "top",
+              "bottom", "rows", "rotate")
 
 Geometry = collections.namedtuple(
-    "Geometry", "size_w size_h pitch gap voffset left right top bottom")
+    "Geometry", "size_w size_h pitch gap voffset left right top bottom rows rotate")
 
 PPD_PATHS = (
     os.environ.get("PPD"),
@@ -167,6 +168,13 @@ def read_raster(input_bytes):
 
 
 # -------------------------------------------------------------- geometry ---
+def canvas_rows(geom):
+    """Bitmap height in dots: pinned `rows`, else the pitch minus 12 dots."""
+    if geom.rows:
+        return int(geom.rows)
+    return int(round(geom.pitch * DOTS_PER_MM)) - 12
+
+
 def print_window(geom, target_h):
     """Printable area in bitmap dots: (x, y, width, height).
 
@@ -198,6 +206,14 @@ def rotate_cw(gray, w, h):
     out = bytearray(w * h)
     for y in range(h):
         out[h - 1 - y::h] = gray[y * w:(y + 1) * w]
+    return out, h, w
+
+
+def rotate_ccw(gray, w, h):
+    """Rotate an 8-bit gray buffer 90 degrees counter-clockwise."""
+    out = bytearray(w * h)
+    for y in range(h):
+        out[y::h] = gray[y * w:(y + 1) * w][::-1]
     return out, h, w
 
 
@@ -330,6 +346,15 @@ def media_geometry(opts, w_mm, h_mm, table=None):
         right=pick("right", DEFAULT_RIGHT_MM),
         top=pick("top", DEFAULT_TOP_MM),
         bottom=pick("bottom", DEFAULT_BOTTOM_MM),
+        # rows: canvas height in dots. 0 = derive from the pitch (pitch - 12,
+        # the vendor app's padding on the 57x32 roll). Some rolls need the
+        # exact bitmap height the vendor app sends, so it can be pinned.
+        rows=pick("rows", 0.0),
+        # rotate: 90 = clockwise, 270 = counter-clockwise, 0 = upright.
+        # A square roll whose left edge is out of the head's reach gains more
+        # by turning the page: the unreachable strip then falls along the feed
+        # direction, where voffset/rows can centre it.
+        rotate=int(pick("rotate", 0.0)) % 360,
     )
 
 
@@ -350,9 +375,14 @@ def convert(input_bytes, opts=None, table=None):
         # label (or the other way round) is rotated back to the label.
         if (w > h) != (geom.size_w > geom.size_h):
             gray, w, h = rotate_cw(gray, w, h)
+        if geom.rotate == 90:
+            gray, w, h = rotate_cw(gray, w, h)
+        elif geom.rotate == 270:
+            gray, w, h = rotate_ccw(gray, w, h)
         # The vendor app sends 444 rows for a 38.6 mm pitch (456 dots), i.e.
-        # 12 dots of padding that end up in the gap. Match that exactly.
-        target_h = int(round(geom.pitch * DOTS_PER_MM)) - 12
+        # 12 dots of padding that end up in the gap; some rolls pin it in the
+        # PPD instead (rows=), which wins.
+        target_h = canvas_rows(geom)
         ox, oy, cw, ch = print_window(geom, target_h)
         dark = scale_to_box(gray, w, h, cw, ch)
         bpr, canvas_h, bits = pack_canvas(dark, cw, ch, ox, oy, target_h)

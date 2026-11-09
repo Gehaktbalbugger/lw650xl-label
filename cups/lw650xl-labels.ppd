@@ -30,6 +30,7 @@
 *OpenUI *PageSize/Media Size: PickOne
 *OrderDependency: 10 AnySetup *PageSize
 *DefaultPageSize: LW_57x32
+*PageSize LW_26x25/Vierkant multipurpose 26x25 mm (S0929120 / Dymo 30332, gemeten): "<</PageSize[73.70 70.87]/ImagingBBox null>>setpagedevice"
 *PageSize LW_36x89/Adres 36x89 mm (AM99012 / Dymo S0722400, staand): "<</PageSize[102.05 252.28]/ImagingBBox null>>setpagedevice"
 *PageSize LW_57x32/Etiket 57x32 mm (AM11354): "<</PageSize[161.57 90.71]/ImagingBBox null>>setpagedevice"
 *PageSize LW_104x159/Verzendetiket XL 104x159 mm: "<</PageSize[294.80 450.71]/ImagingBBox null>>setpagedevice"
@@ -46,6 +47,7 @@
 *OpenUI *PageRegion/Media Size: PickOne
 *OrderDependency: 10 AnySetup *PageRegion
 *DefaultPageRegion: LW_57x32
+*PageRegion LW_26x25/Vierkant multipurpose 26x25 mm (S0929120 / Dymo 30332, gemeten): "<</PageSize[73.70 70.87]/ImagingBBox null>>setpagedevice"
 *PageRegion LW_36x89/Adres 36x89 mm (AM99012 / Dymo S0722400, staand): "<</PageSize[102.05 252.28]/ImagingBBox null>>setpagedevice"
 *PageRegion LW_57x32/Etiket 57x32 mm (AM11354): "<</PageSize[161.57 90.71]/ImagingBBox null>>setpagedevice"
 *PageRegion LW_104x159/Verzendetiket XL 104x159 mm: "<</PageSize[294.80 450.71]/ImagingBBox null>>setpagedevice"
@@ -60,6 +62,7 @@
 *CloseUI: *PageRegion
 
 *DefaultImageableArea: LW_57x32
+*ImageableArea LW_26x25/Vierkant multipurpose 26x25 mm (S0929120 / Dymo 30332, gemeten): "0 0 73.70 70.87"
 *ImageableArea LW_36x89/Adres 36x89 mm (AM99012 / Dymo S0722400, staand): "0 0 102.05 252.28"
 *ImageableArea LW_57x32/Etiket 57x32 mm (AM11354): "0 0 161.57 90.71"
 *ImageableArea LW_104x159/Verzendetiket XL 104x159 mm: "0 0 294.80 450.71"
@@ -73,6 +76,7 @@
 *ImageableArea LW_62x100/Continu 62x100 mm: "0 0 175.75 283.46"
 
 *DefaultPaperDimension: LW_57x32
+*PaperDimension LW_26x25/Vierkant multipurpose 26x25 mm (S0929120 / Dymo 30332, gemeten): "73.70 70.87"
 *PaperDimension LW_36x89/Adres 36x89 mm (AM99012 / Dymo S0722400, staand): "102.05 252.28"
 *PaperDimension LW_57x32/Etiket 57x32 mm (AM11354): "161.57 90.71"
 *PaperDimension LW_104x159/Verzendetiket XL 104x159 mm: "294.80 450.71"
@@ -104,3 +108,4 @@
 *Font Courier: "(001.004)" Standard ROM
 *% lw-media LW_57x32 pitch=38.6 gap=3 voffset=0.34
 *% lw-media LW_36x89 pitch=93 gap=4 left=3 right=3 top=-0.5 bottom=1
+*% lw-media LW_26x25 pitch=33.97 gap=3 rows=356 left=0.6 right=0.6 top=0 voffset=4.75 bottom=0.5 rotate=270

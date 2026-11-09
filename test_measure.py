@@ -50,6 +50,16 @@ def main():
     # left 3 mm and right 3 mm, so x = -3 + (36 - 3 - 3)/2 = 15 mm
     check("state: centre x follows left/right", abs(st["centre_x_mm"] - 15.03) < 0.15)
 
+    # --- 1b. an unknown roll must still feed what it was told ---------------
+    # (regression: the cross print silently used SIZE <h>,<h> instead of the
+    # --pitch/--gap given on the command line, so it fed 13 mm too little)
+    other = tempfile.mktemp(suffix=".json")
+    code, out = run("25", "25", "--pitch", "38", "--gap", "13",
+                    "--dry-run", "--state", other)
+    os.path.exists(other) and os.unlink(other)
+    check("unknown roll: SIZE uses the given pitch", "SIZE 25 mm,38 mm" in out)
+    check("unknown roll: GAP uses the given gap", "GAP 13 mm,0 mm" in out)
+
     # --- 2. solve mode ------------------------------------------------------
     cx, cy = st["centre_x_mm"], st["centre_y_mm"]
     # read the edges where the print model says they are: -3..33 mm and

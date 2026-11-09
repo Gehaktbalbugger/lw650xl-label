@@ -118,8 +118,9 @@ cupsfilter -p /etc/cups/ppd/LW650XL_Labels.ppd \
 ### Changing label size / adding a new size
 
 Built-in sizes (from the PPD): **57x32 (default, AM11354)**,
-**36x89 standing (AM99012 / Dymo S0722400)**, 104x159, 102x59, 101x54,
-89x36, 89x28, 54x25, 50x12, 57x57, 62x100 mm.
+**36x89 standing (AM99012 / Dymo S0722400)**, **26x25 square (S0929120 /
+Dymo 30332, printed rotated 270°)**, 104x159, 102x59, 101x54, 89x36, 89x28, 54x25, 50x12, 57x57,
+62x100 mm.
 
 The PPD is the only place a roll is defined. `add-size.sh` writes the four PPD
 entries that make the size show up as a paper size, plus one comment line with
@@ -134,8 +135,8 @@ sudo ./install.sh
 
 Both the CUPS filter (it is handed the PPD path) and the `label` CLI read
 those lines, so a new size works from Word, from `lp` and from the shared
-inbox without touching code. `--gap`, `--pitch`, `--voffset`, `--left`, `--right`, `--top` and `--bottom`
-are optional:
+inbox without touching code. `--gap`, `--pitch`, `--voffset`, `--left`, `--right`, `--top`, `--bottom`,
+`--rows` and `--rotate` are optional:
 without them gap = 3 mm, pitch = label height + gap and the print starts flush
 with the label's top edge.
 
@@ -153,6 +154,12 @@ measure them with a ruler print (see below):
   the head's reach** (the 89 mm tall AM99012 starts at -0.5 mm).
 - **bottom** — mm kept free at the label's bottom edge. Raise it to match an
   unreachable top edge so the print stays centred.
+- **rows** — pin the bitmap height in dots instead of deriving `pitch - 12`.
+  Labellife sends 356 rows for a 33.97 mm square roll; matching that exactly
+  matched its registration.
+- **rotate** — `90` or `270`: print the page on its side. For square rolls
+  this is how the vendor app prints; it does not change the dead zone, only
+  which way the text runs.
 
 **voffset** shifts the whole print down the label. The measured print window
 starts exactly at the label's top edge, which makes a page that Word centres

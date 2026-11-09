@@ -20,6 +20,7 @@ import os
 import re
 import struct
 import sys
+import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FILTER_PATH = os.path.join(HERE, "cups", "lw650xl.py")
@@ -29,10 +30,16 @@ TABLE = {
     "LW_57x32": {"pitch": 38.6, "gap": 3.0, "voffset": 0.34},
     "LW_36x89": {"pitch": 93.0, "gap": 4.0, "left": 3.0, "right": 3.0,
                  "top": -0.5, "bottom": 1.0},
+    "LW_25x25": {"pitch": 33.97, "gap": 3.0, "rows": 356.0, "left": 1.0,
+                 "right": 1.0, "top": 0.0, "voffset": 4.75, "bottom": 0.5,
+                 "rotate": 270.0},
     "LW_76x51": {"pitch": 54.5, "gap": 3.0},
     "LW_30x15": {"pitch": 15.0, "gap": 0.0},
 }
-G = lw_defaults = None            # set after the module loads
+def fields(geo):
+    """The geometry as a plain tuple, so the assertions stay readable."""
+    return (geo.size_w, geo.size_h, geo.pitch, geo.gap, geo.voffset,
+            geo.left, geo.right, geo.top, geo.bottom, geo.rows, geo.rotate)
 
 HEADER_BYTES = 1796
 MAGIC = b"3SaR"
@@ -111,14 +118,16 @@ def main():
     ok &= check("job-name with escaped spaces kept whole",
                 opts.get("job-name") == "Microsoft Word - Regel 1.docx")
     geo = lw.media_geometry(opts, 31.75, 56.81, TABLE)
-    ok &= check("Custom media falls back to the PPD name: %r" % (geo.size_w,),
-                geo == lw.Geometry(57.0, 32.0, 38.6, 3.0, 0.34,
-                                   lw.DEFAULT_LEFT_MM, lw.DEFAULT_RIGHT_MM,
-                                   lw.DEFAULT_TOP_MM, lw.DEFAULT_BOTTOM_MM))
+    ok &= check("Custom media falls back to the PPD name: %r" % (fields(geo)[:5],),
+                fields(geo)[:9] == (57.0, 32.0, 38.6, 3.0, 0.34,
+                                    lw.DEFAULT_LEFT_MM, lw.DEFAULT_RIGHT_MM,
+                                    lw.DEFAULT_TOP_MM, lw.DEFAULT_BOTTOM_MM))
     geo = lw.media_geometry(lw.parse_options("media=LW_36x89"), 36.0, 89.0, TABLE)
-    ok &= check("standing roll keeps its own left/top: %r" % (geo,),
-                geo == lw.Geometry(36.0, 89.0, 93.0, 4.0, 0.0, 3.0, 3.0,
-                                   -0.5, 1.0))
+    ok &= check("standing roll keeps its own left/top: %r" % (fields(geo),),
+                fields(geo)[:9] == (36.0, 89.0, 93.0, 4.0, 0.0, 3.0, 3.0, -0.5, 1.0))
+    sq = lw.media_geometry(lw.parse_options("media=LW_25x25"), 25.0, 25.0, TABLE)
+    ok &= check("square roll: rows and rotate come from the PPD",
+                sq.rows == 356.0 and sq.rotate == 270)
     geo = lw.media_geometry(lw.parse_options("media=Custom.90.71x161.57"),
                             31.75, 56.81, TABLE)
     ok &= check("unknown media: long side becomes label width", geo[0] > geo[1])
@@ -136,6 +145,19 @@ def main():
     rotated, rw, rh = lw.rotate_cw(bytes(gray), w_px, h_px)
     ok &= check("rotate_cw moves bottom-left to top-left",
                 rotated[5 * rw + 19] == 0)
+
+    # canvas height: pitch-12 unless the roll pins rows=
+    gp = lw.media_geometry(lw.parse_options("media=LW_57x32"), 57.0, 32.0, TABLE)
+    ok &= check("canvas_rows: pitch minus 12 dots",
+                lw.canvas_rows(gp) == int(round(38.6 * lw.DOTS_PER_MM)) - 12)
+    gs = lw.media_geometry(lw.parse_options("media=LW_25x25"), 25.0, 25.0, TABLE)
+    ok &= check("canvas_rows: rows= from the PPD wins", lw.canvas_rows(gs) == 356)
+
+    # rotate_ccw is the exact inverse of rotate_cw
+    src = bytes(range(20))                       # 5 x 4 gray page
+    cw_data, cW, cH = lw.rotate_cw(src, 5, 4)
+    back, bW, bH = lw.rotate_ccw(cw_data, cW, cH)
+    ok &= check("rotate_ccw undoes rotate_cw", back == src and (bW, bH) == (5, 4))
 
     # --- printable window per roll -----------------------------------------
     g57 = lw.media_geometry(lw.parse_options("media=LW_57x32"), 57.0, 32.0, TABLE)
@@ -190,8 +212,26 @@ def main():
     ok &= check("portrait page is rotated (single dot at %r)" % (pts[:1],),
                 len(pts) == 1 and pts[0][0] > pts[0][1])
 
-    # --- 6. size metadata lives in the PPD (written by add-size.sh) --------
-    import tempfile
+    # --- 6b. an explicit 0 must survive (top=0 is a measurement) ----------
+    # Runs on a COPY of the PPD (via LW_PPD): a test must never rewrite the
+    # working tree -- an earlier version of this check used `git checkout` and
+    # silently discarded a roll that had just been measured.
+    tmp_ppd = tempfile.mktemp(suffix=".ppd")
+    with open("cups/lw650xl-labels.ppd", "rb") as src, open(tmp_ppd, "wb") as dst:
+        dst.write(src.read())
+    import subprocess
+    code = subprocess.run(["./add-size.sh", "LW_10x10", "Test 10x10", "10", "10",
+                           "--gap", "2", "--pitch", "12", "--top", "0",
+                           "--voffset", "0"], capture_output=True, text=True,
+                          env=dict(os.environ, LW_PPD=tmp_ppd)).returncode
+    table = lw.load_ppd_media([tmp_ppd])
+    ok &= check("add-size.sh: --top 0 written, not dropped",
+                table.get("LW_10x10", {}).get("top") == 0.0
+                and table["LW_10x10"].get("voffset") == 0.0)
+    ok &= check("add-size.sh: exit 0", code == 0)
+    os.path.exists(tmp_ppd) and os.unlink(tmp_ppd)
+
+    # --- 7. size metadata lives in the PPD (written by add-size.sh) --------
     with tempfile.NamedTemporaryFile("w", suffix=".ppd", delete=False) as f:
         f.write('*PPD-Adobe: "4.3"\n'
                 "*% lw-media LW_57x32 pitch=38.6 gap=3 voffset=1\n"
@@ -217,7 +257,7 @@ def main():
                     and "voffset" not in table["LW_36x89"])
         geo = lw.media_geometry(lw.parse_options("media=LW_76x51"), 76.0, 51.0, table)
         ok &= check("PPD size drives SIZE/pitch: %r" % (geo,),
-                    geo == lw.Geometry(76.0, 51.0, 54.5, 3.0, 0.0,
+                    fields(geo)[:9] == (76.0, 51.0, 54.5, 3.0, 0.0,
                                    lw.DEFAULT_LEFT_MM, lw.DEFAULT_RIGHT_MM,
                                    lw.DEFAULT_TOP_MM, lw.DEFAULT_BOTTOM_MM))
         geo = lw.media_geometry(lw.parse_options("media=LW_30x15"), 30.0, 15.0, table)
@@ -229,7 +269,7 @@ def main():
         geo = lw.media_geometry(lw.parse_options("media=Custom.215x145"),
                                 51.0, 76.0, table)
         ok &= check("unknown media falls back to the matching roll: %r" % (geo,),
-                    geo == lw.Geometry(76.0, 51.0, 54.5, 3.0, 0.0,
+                    fields(geo)[:9] == (76.0, 51.0, 54.5, 3.0, 0.0,
                                        lw.DEFAULT_LEFT_MM, lw.DEFAULT_RIGHT_MM,
                                        lw.DEFAULT_TOP_MM, lw.DEFAULT_BOTTOM_MM))
         geo = lw.media_geometry(
@@ -242,7 +282,7 @@ def main():
     finally:
         os.unlink(tmp_ppd)
 
-    # --- 7. garbage in, error out ------------------------------------------
+    # --- 8. garbage in, error out ------------------------------------------
     try:
         lw.convert(b"not a raster at all", lw_opts)
         ok &= check("bad input raises", False)

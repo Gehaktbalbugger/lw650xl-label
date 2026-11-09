@@ -59,7 +59,8 @@ PPD_CANDIDATES = (
 )
 
 
-GEOMETRY_KEYS = ("pitch", "gap", "voffset", "left", "right", "top", "bottom")
+GEOMETRY_KEYS = ("pitch", "gap", "voffset", "left", "right", "top",
+              "bottom", "rows", "rotate")
 
 
 def media_from_ppd(size_w, size_h):
@@ -135,7 +136,7 @@ def fit_font(draw, text, font_pt, max_w, max_h, line_spacing=1.15):
 
 def content_box(size_w, size_h, left_mm=DEFAULT_LEFT_MM, top_mm=DEFAULT_TOP_MM,
                 voffset_mm=0.0, pitch_mm=None, bottom_mm=DEFAULT_BOTTOM_MM,
-                right_mm=DEFAULT_RIGHT_MM):
+                right_mm=DEFAULT_RIGHT_MM, rows=None):
     """Label's print window in dots: (origin_y, width, height).
 
     `left_mm` is the dead zone between the label edge and the start of the
@@ -150,8 +151,9 @@ def content_box(size_w, size_h, left_mm=DEFAULT_LEFT_MM, top_mm=DEFAULT_TOP_MM,
     oy = max(0, int(round((top_mm + voffset_mm) * DOTS_PER_MM)))
     cw = max(1, min(cw, HEAD_DOTS))
     if pitch_mm:
-        ch = min(ch, int(round(pitch_mm * DOTS_PER_MM)) - 12 - oy)
-    return oy, max(1, ch), cw
+        canvas = int(rows) if rows else int(round(pitch_mm * DOTS_PER_MM)) - 12
+        ch = min(ch, canvas - oy)
+    return oy, max(1, ch), max(1, cw)
 
 
 def render_label(args, dots_mm):
@@ -209,7 +211,7 @@ def build_tspl(args, img, dots_mm):
     from PIL import Image
 
     bpr = HEAD_DOTS // 8
-    target_h = int(round(args.pitch * DOTS_PER_MM)) - 12
+    target_h = int(args.rows) if args.rows else int(round(args.pitch * DOTS_PER_MM)) - 12
     oy = args.box[0]
     canvas_h = max(oy + img.height, target_h)
     canvas = Image.new("1", (bpr * 8, canvas_h), 1)
@@ -298,6 +300,10 @@ def main():
                    help="keep this many mm free at the label's bottom edge (PPD, 0.7)")
     p.add_argument("--media-right", dest="media_right", type=float, default=None,
                    help="keep this many mm free at the label's right edge (PPD, 0.8)")
+    p.add_argument("--rows", type=int, default=None,
+                   help="pin the bitmap height in dots (PPD rows=; default pitch-12)")
+    p.add_argument("--rotate", type=int, default=None, choices=(0, 90, 270),
+                   help="turn the label image: 90 clockwise, 270 counter-clockwise")
     p.add_argument("--dpi", type=int, default=DEFAULT_DPI, help="head resolution")
     p.add_argument("--preview", metavar="FILE.png", help="render to PNG instead of printing")
     args = p.parse_args()
@@ -324,15 +330,30 @@ def main():
         args.media_top = hints.get("top", DEFAULT_TOP_MM)
     args.bottom = None
     args.right = None
+    args.rows = None
+    args.rotate = None
     if args.bottom is None:
         args.bottom = hints.get("bottom", DEFAULT_BOTTOM_MM)
     if args.right is None:
         args.right = hints.get("right", DEFAULT_RIGHT_MM)
+    if args.rows is None:
+        args.rows = hints.get("rows")
     args.box = content_box(args.size_w, args.size_h, args.left, args.media_top,
-                           args.voffset, args.pitch, args.bottom, args.right)
+                           args.voffset, args.pitch, args.bottom, args.right,
+                           args.rows)
     dots_mm = round(args.dpi / 25.4)  # 300 dpi -> 12 dots/mm
 
-    img = render_label(args, dots_mm)
+    if args.rotate is None:
+        args.rotate = int(hints.get("rotate", 0))
+    if args.rotate in (90, 270):
+        # Render the page turned on its side, then rotate it back into the
+        # label's print window. Only the design turns; the bitmap keeps
+        # running across the 1280-dot head, which is what TSPL BITMAP needs.
+        args.box = (args.box[0], args.box[2], args.box[1])
+        img = render_label(args, dots_mm)
+        img = img.rotate(-args.rotate, expand=True)
+    else:
+        img = render_label(args, dots_mm)
 
     if args.preview:
         to_preview_png(img, args.preview)

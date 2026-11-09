@@ -55,8 +55,8 @@ def resolve_geometry(lw, args):
         opts["media"] = args.name
     elif size_name(args.w, args.h) in table:
         opts["media"] = size_name(args.w, args.h)
-    for key in ("pitch", "gap", "voffset", "left", "right", "top", "bottom"):
-        value = getattr(args, key.replace("-", "_"))
+    for key in ("pitch", "gap", "voffset", "left", "right", "top", "bottom", "rotate"):
+        value = getattr(args, key.replace("-", "_"), None)
         if value is not None:
             opts[f"lw-{key}"] = str(value)
     if opts.get("media") not in table:
@@ -67,7 +67,7 @@ def resolve_geometry(lw, args):
     return geom, table
 
 
-def design_image(lw, geom, centre_mm, ticks=True):
+def design_image(lw, geom, centre_mm, step=1):
     """Het meetbeeld: exact etiketgrootte met kruis, mm-schaal en N Z W O."""
     from PIL import Image, ImageDraw, ImageFont
     dpm = lw.DOTS_PER_MM
@@ -89,8 +89,8 @@ def design_image(lw, geom, centre_mm, ticks=True):
     cx, cy = centre_mm[0] * dpm, centre_mm[1] * dpm   # 0,0 in pagina-coordinaten
     small, big = font(int(2.6 * dpm), False), font(int(4.5 * dpm))
 
-    # 1 mm streepjes langs beide armen, getallen erbij
-    for i in range(-int(geom.size_w), int(geom.size_w)):
+    # streepjes langs beide armen: elke `step` mm, getallen bij veelvouden van 5
+    for i in range(-int(geom.size_w), int(geom.size_w), step):
         x = cx + i * dpm
         if not (2 < x < W - 2):
             continue
@@ -101,7 +101,7 @@ def design_image(lw, geom, centre_mm, ticks=True):
             t = str(i)
             bb = d.textbbox((0, 0), t, font=small)
             d.text((x - (bb[2] - bb[0]) / 2, cy + 11 * dpm / 2), t, font=small, fill=0)
-    for i in range(-int(geom.size_h), int(geom.size_h)):
+    for i in range(-int(geom.size_h), int(geom.size_h), step):
         y = cy + i * dpm
         if not (2 < y < H - 2):
             continue
@@ -149,6 +149,58 @@ def as_raster(lw, img):
     return lw.MAGIC + bytes(hdr) + gray
 
 
+def cmd_ladder(lw, args):
+    """Print numbered 4 mm bands across one full feed step.
+
+    De printer begint op een vaste plek na het vinden van de gap; bij een rol
+    met een grote tussenruimte landt een deel van die voeding dan achter het
+    etiket. Met de banden is in één etiket af te lezen waar het etiket begint:
+    de band die op de bovenrand valt, maal 4 mm = de offset.
+    """
+    from PIL import Image, ImageDraw, ImageFont
+    dpm = lw.DOTS_PER_MM
+    rows = int(round(args.pitch * dpm)) - 12
+    W = int(round(args.w * dpm))
+    img = Image.new("L", (W, rows), 255)
+    d = ImageDraw.Draw(img)
+    try:
+        fo = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+                                int(4.5 * dpm))
+    except Exception:
+        fo = ImageFont.load_default()
+    step = args.band
+    for i, y0 in enumerate(range(0, rows, int(step * dpm))):
+        y1 = min(y0 + int(step * dpm) - int(0.8 * dpm), rows - 1)
+        d.rectangle([int(1 * dpm), y0, W - int(1 * dpm), y1], outline=0, width=2)
+        d.text((int(2.5 * dpm), y0 + int(0.6 * dpm)), str(i + 1), font=fo, fill=0)
+    opts = {"media": args.name or size_name(args.w, args.h),
+            "lw-pitch": str(args.pitch), "lw-gap": str(args.gap if args.gap is not None else 3.0)}
+    payload = lw.convert(as_raster(lw, img), opts)
+    if args.dry_run or args.preview:
+        if args.preview:
+            img.save(args.preview)
+        print(f"ladder: {rows} rijen, banden van {step:g} mm, {len(payload)} bytes"
+              + (" (niet geprint)" if args.preview and not args.dry_run else ""))
+        return 0
+    sock = socket.create_connection((args.host, args.port), timeout=5)
+    sock.settimeout(20)
+    sock.sendall(payload)
+    chunks, t0 = [], time.time()
+    try:
+        while time.time() - t0 < 20:
+            b = sock.recv(4096)
+            if not b:
+                break
+            chunks.append(b)
+    except socket.timeout:
+        pass
+    sock.close()
+    print("printer:", b"".join(chunks)[:80].decode("latin-1").strip())
+    print(f"banden van {step:g} mm, {rows} rijen ({rows / dpm:.1f} mm) gevoed.")
+    print("Zeg welke band op de bovenrand van het etiket valt en welke op de onderrand.")
+    return 0
+
+
 def cmd_print(lw, args):
     """Print the calibration label and remember where its 0,0 sits."""
     geom, _ = resolve_geometry(lw, args)
@@ -156,18 +208,26 @@ def cmd_print(lw, args):
     ox, oy, cw, ch = lw.print_window(geom, target_h)
     centre = ((ox + cw / 2) / lw.DOTS_PER_MM, (oy + ch / 2) / lw.DOTS_PER_MM)
 
-    img = design_image(lw, geom, centre)
+    img = design_image(lw, geom, centre, args.step)
     if args.preview:
         img.save(args.preview)
         print(f"preview: {args.preview} ({img.width}x{img.height} dots)")
 
-    payload = lw.convert(as_raster(lw, img), {"media": args.name or size_name(args.w, args.h)})
+    # stuur exactement de geometrie die hierboven berekend is; anders voedt de
+    # printer anders dan het beeld aanneemt en zijn de aflezingen nutteloos.
+    opts = {"media": args.name or size_name(args.w, args.h),
+            "lw-pitch": repr(geom.pitch), "lw-gap": repr(geom.gap),
+            "lw-voffset": repr(geom.voffset), "lw-left": repr(geom.left),
+            "lw-right": repr(geom.right), "lw-top": repr(geom.top),
+            "lw-bottom": repr(geom.bottom), "lw-rotate": repr(geom.rotate)}
+    payload = lw.convert(as_raster(lw, img), opts)
     state = {
         "w": args.w, "h": args.h, "name": args.name or size_name(args.w, args.h),
         "centre_x_mm": round(centre[0], 2), "centre_y_mm": round(centre[1], 2),
         "geometry": {"pitch": geom.pitch, "gap": geom.gap, "voffset": geom.voffset,
-                     "left": geom.left, "right": geom.right,
-                     "top": geom.top, "bottom": geom.bottom},
+                     "left": geom.left, "right": geom.right, "top": geom.top,
+                     "bottom": geom.bottom, "rows": geom.rows,
+                     "rotate": geom.rotate},
     }
     with open(args.state, "w") as f:
         json.dump(state, f, indent=1)
@@ -196,7 +256,11 @@ def cmd_print(lw, args):
         pass
     s.close()
     print("printer:", b"".join(chunks)[:120].decode("latin-1").strip())
-    print(f"0,0 staat op {centre[0]:.1f} / {centre[1]:.1f} mm van de bitmap.")
+    print(f"0,0 staat op {centre[0]:.1f} / {centre[1]:.1f} mm van de bitmap"
+          + (f", beeld gedraaid {geom.rotate} graden." if geom.rotate else "."))
+    if geom.rotate:
+        print("Lees N/Z af langs de*zijkanten* van het etiket zoals je het gedraaid "
+              "bekijkt: de as van de tekst is de voedingsrichting.")
     print("Lees de vier randen af en doe:  ./measure solve --N .. --Z .. --W .. --O ..")
     print(f"(meetgegevens: {args.state})")
     return 0
@@ -225,8 +289,11 @@ def cmd_solve(lw, args):
     # maar laat altijd een kleine veiligheidsrand.
     right = max(lw.DEFAULT_RIGHT_MM, left) if left else lw.DEFAULT_RIGHT_MM
     top = label_top
-    bottom = max(-label_top, lw.DEFAULT_BOTTOM_MM) if label_top < 0 \
-        else lw.DEFAULT_BOTTOM_MM
+    # De regels onder rij 0 zijn onbereikbaar: het etiket steekt boven de kop
+    # uit. Met bottom = 2 x |top| wordt de inkthoogte korts genoeg om diezelfde
+    # afwijking ook onderaan te laten, zodat het beeld gecentreerd staat.
+    bottom = 2.0 * -label_top if label_top < 0 else lw.DEFAULT_BOTTOM_MM
+    bottom = max(bottom, lw.DEFAULT_BOTTOM_MM)
     # steek en afstand zijn niet uit het kruis af te lezen: alleen doorgeven
     # als de gebruiker ze weet, anders laat add-size.sh zijn default nemen.
     pitch = args.pitch
@@ -275,7 +342,7 @@ def main():
         description="etiketrol kalibreren",
         epilog="./measure 36 89 --name LW_36x89   |   ./measure solve --N -49 --Z 40 --W -18 --O 18")
     ap.add_argument("positionals", nargs="*",
-                    help="'solve', of de maten: <breedte_mm> <hoogte_mm>")
+                    help="'solve' / 'ladder', of de maten: <breedte_mm> <hoogte_mm>")
     ap.add_argument("--name", help="PD-naam, bv. LW_36x89")
     ap.add_argument("--desc", help="omschrijving voor add-size.sh")
     for key, help_ in (("pitch", "steek in mm"), ("gap", "onderlinge afstand in mm"),
@@ -284,6 +351,12 @@ def main():
                        ("bottom", "rand onder in mm")):
         ap.add_argument("--" + key, type=float,
                         default=None if key != "voffset" else 0.0, help=help_)
+    ap.add_argument("--rotate", type=int, default=None, choices=(0, 90, 270),
+                    help="het meetbeeld ook draaien, zoals deze rol print (PPD rotate=)")
+    ap.add_argument("--band", type=float, default=4.0,
+                    help="bandhoogte in mm voor de ladder-modus (default 4)")
+    ap.add_argument("--step", type=int, default=1, choices=(1, 2, 5),
+                    help="streepjesafstand in mm (1, 2 of 5; op kleine etiketten 2)")
     ap.add_argument("--N", type=float, help="mm-aflezing op de noordrand")
     ap.add_argument("--Z", type=float, help="mm-aflezing op de zuidrand")
     ap.add_argument("--W", type=float, help="mm-aflezing op de westrand")
@@ -300,8 +373,8 @@ def main():
     args.mode = "print"
     numbers = []
     for tok in args.positionals:
-        if tok == "solve":
-            args.mode = "solve"
+        if tok in ("solve", "ladder"):
+            args.mode = tok
         else:
             try:
                 numbers.append(float(tok))
@@ -309,6 +382,13 @@ def main():
                 ap.exit(f"onbegrepen argument: {tok}")
     args.w = numbers[0] if len(numbers) > 0 else None
     args.h = numbers[1] if len(numbers) > 1 else None
+
+    if args.mode == "ladder":
+        if not args.w or not args.h:
+            ap.exit("gebruik: ./measure ladder <breedte_mm> <hoogte_mm> --pitch <mm>")
+        if args.pitch is None:
+            args.pitch = args.h + (args.gap if args.gap is not None else 3.0)
+        return cmd_ladder(lw, args)
 
     if args.mode == "solve":
         args.N, args.Z, args.W, args.O = (getattr(args, k) for k in "NZWO")
