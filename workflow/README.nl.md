@@ -189,11 +189,19 @@ Daarna staat de map onder `/Volumes/Labelprinter/inbox`.
 ### MacBook: eigen printerqueue (direct uit Word printen)
 
 ```bash
-xcode-select --install                       # alleen de eerste keer (Python 3)
-git clone https://github.com/Gehaktbalbugger/lw650xl-label.git
-cd lw650xl-label
+xcode-select --install                       # alleen de eerste keer (Python 3 + git)
+git clone https://github.com/Gehaktbalbugger/lw650xl-label.git ~/label-printer
+cd ~/label-printer
 sudo ./install.sh
 ```
+
+Kloon **niet** in `Documenten`, `Bureaublad` of `Downloads`: macOS staat
+`sudo` niet toe die mappen te lezen, dan faalt de installatie met
+"Operation not permitted". Een gewone map in je thuismap (hier
+`~/label-printer`) of `/tmp` werkt wel.
+
+Bijwerken later: `cd ~/label-printer && git pull && sudo ./install.sh`.
+Testen: `lp -d LW650XL_Labels ~/label-printer/cups/test.pdf`.
 
 Op een tweede Mac alleen **`install.sh`** draaien: die maakt de queue aan.
 `setup.sh` (of `workflow/install-workflow.sh`) is voor de iMac; dat is de
@@ -280,6 +288,27 @@ nc -z -G 2 172.16.1.20 9100 && echo "printer bereikbaar"
   voor `172.16.1.20`.
 - Sluit de Labelife-app eens af; sommige printers accepteren maar één
   verbinding tegelijk.
+
+**Installatie faalt met "Operation not permitted"**
+
+`sudo` mag op macOS de mappen **Documenten**, **Bureaublad** en **Downloads**
+niet lezen. Zet de repo in een gewone map, bijvoorbeeld `~/label-printer`,
+en draai `sudo ./install.sh` vanaf daar.
+
+**Een afdruktaak blijft hangen of meldt "Filter failed"**
+
+```bash
+lpstat -W completed -l -o LW650XL_Labels     # laatste taken + waarschuwing
+sudo cp /var/log/cups/error_log /tmp/cups.err && tail -40 /tmp/cups.err
+```
+
+- "geen werkende Python 3 gevonden": `xcode-select --install` of
+  `brew install python`, daarna `sudo ./install.sh` opnieuw.
+- "bad raster magic": de geïnstalleerde filter is verouderd — `git pull`
+  en `sudo ./install.sh`.
+- Filter en PPD staan in `/usr/libexec/cups/filter/` en
+  `/etc/cups/ppd/LW650XL_Labels.ppd`; ze moeten identiek zijn aan de repo
+  (`md5 /usr/libexec/cups/filter/lw650xl.py`).
 
 **Het bestand verdwijnt naar `failed/`**
 

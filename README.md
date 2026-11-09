@@ -74,11 +74,16 @@ Only the queue is needed on a client Mac — not `setup.sh`, which creates the
 shared inbox and watcher for the host:
 
 ```
-xcode-select --install   # first time only, provides a real python3
-git clone https://github.com/Gehaktbalbugger/lw650xl-label.git
-cd lw650xl-label
+xcode-select --install   # first time only, provides a real python3 + git
+git clone https://github.com/Gehaktbalbugger/lw650xl-label.git ~/label-printer
+cd ~/label-printer
 sudo ./install.sh
 ```
+
+Do NOT clone into `Documents`, `Desktop` or `Downloads`: macOS does not let
+`sudo` read those folders and the install fails with "Operation not
+permitted". A plain folder in your home directory (or /tmp) works.
+Update later with `cd ~/label-printer && git pull && sudo ./install.sh`.
 
 Pick **LW650XL PRO Labels (TSPL)** and paper size *Etiket 57x32 mm (AM11354)*
 in Word. Remove any vendor (Labellife) queues from System Settings →
