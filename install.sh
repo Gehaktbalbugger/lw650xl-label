@@ -25,6 +25,27 @@ cp "$HERE/cups/lw650xl" "$HERE/cups/lw650xl.py" /usr/libexec/cups/filter/
 chown root:wheel /usr/libexec/cups/filter/lw650xl /usr/libexec/cups/filter/lw650xl.py
 chmod 755 /usr/libexec/cups/filter/lw650xl /usr/libexec/cups/filter/lw650xl.py
 
+# Same search order as the filter wrapper: the queue is useless without a
+# Python 3 that actually runs (a bare CLT-less /usr/bin/python3 is only a
+# stub that pops up an installer dialog).
+PY_OK=""
+for py in \
+    /Library/Developer/CommandLineTools/usr/bin/python3 \
+    /opt/homebrew/bin/python3 \
+    /usr/local/bin/python3 \
+    /Library/Frameworks/Python.framework/Versions/Current/bin/python3
+do
+    if [ -x "$py" ] && "$py" -c 'import sys' >/dev/null 2>&1; then
+        PY_OK="$py"
+        break
+    fi
+done
+if [ -z "$PY_OK" ]; then
+    echo "WARNING: geen werkende Python 3 gevonden." >&2
+    echo "         installeer de Xcode Command Line Tools:  xcode-select --install" >&2
+    echo "         of Python 3 via Homebrew:               brew install python" >&2
+fi
+
 echo "Registering queue $PRINTER_NAME ..."
 lpadmin -x "$PRINTER_NAME" 2>/dev/null || true
 lpadmin -p "$PRINTER_NAME" \
@@ -33,9 +54,9 @@ lpadmin -p "$PRINTER_NAME" \
     -D "$PRINTER_DESC" \
     -P "$HERE/cups/lw650xl-labels.ppd" \
     -o printer-is-shared=true \
-    -o lw-gap=2 \
-    -o lw-density=8 \
-    -o lw-speed=4
+    -o lw-gap=3 \
+    -o lw-density=15 \
+    -o lw-speed=1
 
 cupsenable "$PRINTER_NAME"
 cupsaccept  "$PRINTER_NAME"

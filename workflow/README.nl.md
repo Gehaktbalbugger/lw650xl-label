@@ -186,6 +186,34 @@ smb://iMac2020.local/Labelprinter
 
 Daarna staat de map onder `/Volumes/Labelprinter/inbox`.
 
+### MacBook: eigen printerqueue (direct uit Word printen)
+
+```bash
+xcode-select --install                       # alleen de eerste keer (Python 3)
+git clone https://github.com/Gehaktbalbugger/lw650xl-label.git
+cd lw650xl-label
+sudo ./install.sh
+```
+
+Op een tweede Mac alleen **`install.sh`** draaien: die maakt de queue aan.
+`setup.sh` (of `workflow/install-workflow.sh`) is voor de iMac; dat is de
+map met gedeelde inbox plus de watcher, en die wil je twee keer niet hebben.
+
+Kies daarna in Word of Excel printer **LW650XL PRO Labels (TSPL)** en
+papierformaat **Etiket 57x32 mm (AM11354)**.
+
+De Labellife-driver en -queues van de maker kun je weghalen:
+Systeeminstellingen → **Printer en scanner** → oude LW650XL-queue verwijderen.
+Ze doen niets mee en staan alleen in de weg.
+
+Zonder installatie kan ook, maar dan via de iMac:
+
+- PDF/CSV in de share hierboven (geen driver nodig), of
+- queue toevoegen met **`ipp://iMac2020.local:631/printers/LW650XL_Labels`**.
+  Let op: macOS kopieert dan het PPD van de iMac en rendert soms lokaal —
+  de filter ontbreekt dan op die Mac en de taak faalt. Dan `install.sh`
+  gebruiken.
+
 ### Wat de clients nodig hebben
 
 Alleen schrijfrechten op de share. Geen driver, geen software, geen

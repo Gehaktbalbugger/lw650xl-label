@@ -68,6 +68,22 @@ This installs
 - `/etc/cups/ppd/LW650XL_Labels.ppd` — label size catalog
 - the queue **LW650XL_Labels** (socket://172.16.1.20:9100)
 
+### Install on another Mac
+
+Only the queue is needed on a client Mac — not `setup.sh`, which creates the
+shared inbox and watcher for the host:
+
+```
+xcode-select --install   # first time only, provides a real python3
+git clone https://github.com/Gehaktbalbugger/lw650xl-label.git
+cd lw650xl-label
+sudo ./install.sh
+```
+
+Pick **LW650XL PRO Labels (TSPL)** and paper size *Etiket 57x32 mm (AM11354)*
+in Word. Remove any vendor (Labellife) queues from System Settings →
+Printers & Scanners; they are not used and only get in the way.
+
 ### Print from Word
 
 1. In Word: **File → Print** (⌘P).
