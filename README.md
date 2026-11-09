@@ -34,6 +34,8 @@ It contains three ways to print:
 - **Filter tests**: `python3 test_filter.py` builds real cgpdftoraster
   layouts (multi-page, Word's portrait raster, Custom media) and decodes
   the TSPL back; printing a 2-page Word document works end to end.
+- **Calibration**: `python3 test_measure.py` checks that a printed cross and
+  the readings taken from it come back as the geometry that was assumed.
 
 ## Part 1: terminal tool
 
@@ -173,22 +175,34 @@ lp -d LW650XL_Labels -o media=LW_36x89 -o lw-top=0 -o lw-bottom=0.7 job.pdf
 
 ### Measuring a new roll
 
-`add-size.sh` only knows what you measure. Print a ruler label and read the
-four edges off it — this is how both rolls above were set:
+`add-size.sh` only knows what you measure, and `./measure` does the measuring:
 
 ```
-python3 - <<'PY'
-# kruis met 0,0 in het midden + 1-mm schaal, direct naar de printer
-...
-PY
+./measure 36 89 --name LW_36x89 --pitch 93 --gap 4      # print a cross label
+./measure solve --N -44.5 --Z 44.5 --W -18 --O 18        # read off, get the command
 ```
 
-Put the cross where the print window's centre is expected, print one label and
-read the mm value at each edge (N/Z/W/O). Equal W/O means the `left` value is
-right; a difference between N and Z is twice the error in `top`. A short
-Python/PIL script that draws the cross, mm ticks and N/Z/W/O letters is the
-quickest way; the payload is plain `BITMAP ...,0,` mode 0 so it can be sent
-with `nc 172.16.1.20 9100` without touching the installed driver.
+`measure` prints one label with `0,0` at the centre of the assumed print
+window, 1 mm ticks with numbers along both arms and N / Z / W / O at the
+assumed label edges; it records where that centre sits. Read the mm value at
+each of the four real label edges and pass them in: it writes the exact
+`add-size.sh` line, including `--left`, `--right`, `--top` and `--bottom`.
+Use `--preview out.png` or `--dry-run` to look without printing.
+
+What the readings mean:
+
+- equal |W| and |O| → the roll is centred on the head's start; if the label
+  hangs past x=0, `left` is that many mm and `right` is set equal to it,
+  because ink can never start left of x=0.
+- a difference between N and Z is twice the error in the vertical centre;
+  a negative `top` means part of the label is above the first printable row,
+  which `bottom` then mirrors.
+- pitch and gap cannot come off a cross: measure 20 labels and divide by 20,
+  then pass `--pitch` (and `--gap`) to `solve`.
+
+It sends mode-0 TSPL straight to port 9100, so it needs no driver, no root and
+works before the size exists in the PPD. Like `label` it needs Pillow
+(`pip3 install pillow`).
 
 ### How it works
 
@@ -234,7 +248,10 @@ converts it to TSPL and prints it. Full Dutch guide:
 - `label` — the CLI (Python 3 + Pillow, both already on this Mac).
 - `lzo.py` — pure-Python LZO1X-1 codec, kept for reference/testing;
   the printer's working BITMAP mode 0 is uncompressed and does not use it.
+- `measure` — roll calibration: prints a 0,0-cross with a 1 mm scale and turns
+  the four edge readings into an `add-size.sh` command.
 - `test_label.py` — end-to-end framing test against a fake TCP printer.
+- `test_measure.py` — print/solve round trip of `measure`.
 - `test_filter.py` — CUPS raster parser test: multi-page rasters, Word's
   media/orientation options, bitmap decoding (no printer needed).
 - `cups/lw650xl` — CUPS filter wrapper (picks a working Python 3).

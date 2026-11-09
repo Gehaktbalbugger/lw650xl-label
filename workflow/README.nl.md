@@ -309,6 +309,21 @@ na een paar etiketten? Meet dan de afstand tussen dezelfde punt op twee
 opeenvolgende etiketten op de rol en geef die opnieuw op. Continu materiaal:
 `--gap 0`, dan is de steek gelijk aan de hoogte.
 
+**Een onbekende rol meten** kan in twee opdrachten, zonder driver of root:
+
+```bash
+./measure 36 89 --name LW_36x89 --pitch 93 --gap 4    # kruis-etiket printen
+./measure solve --N -44.5 --Z 44.5 --W -18 --O 18      # aflezing -> add-size.sh
+```
+
+`measure` print één etiket met `0,0` in het midden van het verwachte printvlak,
+1-mm streepjes met getallen en N/Z/W/O op de verwachte randen. Lees op het
+etiket af welke mm-waarde op de vier echte randen valt; `solve` print de
+bijbehorende `add-size.sh`-opdracht met `--left`, `--right`, `--top` en
+`--bottom`. Met `--preview plaatje.png` of `--dry-run` niets sturen naar de
+printer. De steek (`--pitch`) staat niet op dat kruis: meet 20 etiketten en
+deel door 20.
+
 **Rol wisselen** is omhoog: de juiste maat kiezen in Word. Staat de print
 scheef of aan één kant afgesneden, meet de vier randen na met een kruis-etiket
 (0,0 in het midden, 1-mm-schaal, letters N/Z/W/O) en pas `--left`, `--top`,

@@ -1,0 +1,328 @@
+#!/usr/bin/env python3
+"""measure - kalibreer een nieuwe etiketrol in twee opdrachten.
+
+    ./measure 36 89 --name LW_36x89 --pitch 93 --gap 4      # meet-etiket printen
+    ./measure solve --N -49 --Z 40 --W -18 --O 18           # aflezing -> add-size.sh
+
+Het meet-etiket toont een kruis met 0,0 in het midden van het AANGENOMEN
+printbare vlak, 1-mm streepjes met getallen en de letters N Z W O op de
+verwachte etiketranden. Je leest op het geprinte etiket af welke mm-waarde op
+de vier echte randen valt en geeft die door aan `solve`; die rekent ze om naar
+`left`, `right`, `top` en `bottom` en print de add-size.sh-opdracht.
+
+De geometrie komt uit dezelfde code als de CUPS-filter (cups/lw650xl.py), dus
+wat hier gemeten wordt is wat de driver later doet.
+
+Opties print:   --name/--pitch/--gap/--left/--right/--top/--bottom/--voffset
+                --host/--port/--preview/--dry-run/--state
+Opties solve:   --N --Z --W --O  (mm op de schaal, genummerd vanaf 0,0)
+                --desc --size-mm --optioneel dezelfde rolwaarden als bij het printen
+"""
+import argparse
+import importlib.util
+import json
+import os
+import re
+import socket
+import struct
+import sys
+import time
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+FILTER_PATH = os.path.join(HERE, "cups", "lw650xl.py")
+PPD_PATHS = (os.path.join(HERE, "cups", "lw650xl-labels.ppd"),
+             "/etc/cups/ppd/LW650XL_Labels.ppd")
+DEFAULT_STATE = "/tmp/lw650xl-measure.json"
+DEFAULT_HOST = "172.16.1.20"
+
+
+def load_filter():
+    spec = importlib.util.spec_from_file_location("lw650xl_measure", FILTER_PATH)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def size_name(w_mm, h_mm):
+    return f"LW_{w_mm:g}x{h_mm:g}"
+
+
+def resolve_geometry(lw, args):
+    """Geometry from the PPD (if the size is known) with command-line overrides."""
+    table = lw.load_ppd_media(PPD_PATHS)
+    opts = {}
+    if args.name:
+        opts["media"] = args.name
+    elif size_name(args.w, args.h) in table:
+        opts["media"] = size_name(args.w, args.h)
+    for key in ("pitch", "gap", "voffset", "left", "right", "top", "bottom"):
+        value = getattr(args, key.replace("-", "_"))
+        if value is not None:
+            opts[f"lw-{key}"] = str(value)
+    if opts.get("media") not in table:
+        # unknown roll: assume the label starts at the head's left edge
+        opts.setdefault("lw-left", args.left if args.left is not None else 0)
+        opts.setdefault("lw-top", args.top if args.top is not None else 5.1)
+    geom = lw.media_geometry(opts, args.w, args.h, table)
+    return geom, table
+
+
+def design_image(lw, geom, centre_mm, ticks=True):
+    """Het meetbeeld: exact etiketgrootte met kruis, mm-schaal en N Z W O."""
+    from PIL import Image, ImageDraw, ImageFont
+    dpm = lw.DOTS_PER_MM
+    W = int(round(geom.size_w * dpm))
+    H = int(round(geom.size_h * dpm))
+    img = Image.new("L", (W, H), 255)
+    d = ImageDraw.Draw(img)
+
+    def font(sz, bold=True):
+        for p in ("/System/Library/Fonts/Supplemental/Arial Bold.ttf" if bold
+                  else "/System/Library/Fonts/Supplemental/Arial.ttf",
+                  "/System/Library/Fonts/Supplemental/Arial.ttf"):
+            try:
+                return ImageFont.truetype(p, sz)
+            except Exception:
+                pass
+        return ImageFont.load_default()
+
+    cx, cy = centre_mm[0] * dpm, centre_mm[1] * dpm   # 0,0 in pagina-coordinaten
+    small, big = font(int(2.6 * dpm), False), font(int(4.5 * dpm))
+
+    # 1 mm streepjes langs beide armen, getallen erbij
+    for i in range(-int(geom.size_w), int(geom.size_w)):
+        x = cx + i * dpm
+        if not (2 < x < W - 2):
+            continue
+        major = i % 5 == 0
+        d.line([(x, cy - (18 if major else 9) * dpm / 2),
+                (x, cy + (18 if major else 9) * dpm / 2)], fill=0, width=2)
+        if major and i:
+            t = str(i)
+            bb = d.textbbox((0, 0), t, font=small)
+            d.text((x - (bb[2] - bb[0]) / 2, cy + 11 * dpm / 2), t, font=small, fill=0)
+    for i in range(-int(geom.size_h), int(geom.size_h)):
+        y = cy + i * dpm
+        if not (2 < y < H - 2):
+            continue
+        major = i % 5 == 0
+        d.line([(cx - (18 if major else 9) * dpm / 2, y),
+                (cx + (18 if major else 9) * dpm / 2, y)], fill=0, width=2)
+        if major and i and abs(i) % 10 == 0:
+            t = str(i)
+            bb = d.textbbox((0, 0), t, font=small)
+            d.text((cx + 11 * dpm / 2, y - (bb[3] - bb[1]) / 2), t, font=small, fill=0)
+
+    # assen + kruispunt
+    d.line([(cx, 2), (cx, H - 2)], fill=0, width=1)
+    d.line([(2, cy), (W - 2, cy)], fill=0, width=1)
+    r = 5 * dpm / 2
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=0, width=3)
+    d.text((cx + 8, cy - 30), "0,0", font=small, fill=0)
+
+    # kaders op 10, 14, 18 mm ... voor een dubbele aflezing
+    for half in (10, 15):
+        d.rectangle([cx - half * dpm, cy - half * dpm,
+                     cx + half * dpm, cy + half * dpm], outline=0, width=2)
+
+    # windrichtingen met de aangenommen randen van het etiket
+    for (px, py, ch) in ((cx, 2, "N"), (cx, H - int(4.5 * dpm) - 2, "Z"),
+                         (2, cy - int(4.5 * dpm) / 2, "W"),
+                         (W - int(4.5 * dpm) - 4, cy - int(4.5 * dpm) / 2, "O")):
+        d.text((px, py), ch, font=big, fill=0)
+    note = (f"0,0 op {centre_mm[0]:.1f}/{centre_mm[1]:.1f} mm  "
+            f"w={geom.left:g} r={geom.right:g} t={geom.top:g} b={geom.bottom:g}")
+    bb = d.textbbox((0, 0), note, font=font(2.2 * dpm, False))
+    if bb[2] - bb[0] < W:
+        d.text(((W - (bb[2] - bb[0])) / 2, H - bb[3] - 2), note,
+               font=font(2.2 * dpm, False), fill=0)
+    return img
+
+
+def as_raster(lw, img):
+    """Wrap a PIL gray image in the cgpdftoraster RaS3 layout."""
+    W, H = img.size
+    hdr = bytearray(1796)
+    struct.pack_into("<II", hdr, 0x114, 300, 300)
+    struct.pack_into("<II", hdr, 0x174, W, H)
+    gray = img.convert("L").tobytes()
+    return lw.MAGIC + bytes(hdr) + gray
+
+
+def cmd_print(lw, args):
+    """Print the calibration label and remember where its 0,0 sits."""
+    geom, _ = resolve_geometry(lw, args)
+    target_h = int(round(geom.pitch * lw.DOTS_PER_MM)) - 12
+    ox, oy, cw, ch = lw.print_window(geom, target_h)
+    centre = ((ox + cw / 2) / lw.DOTS_PER_MM, (oy + ch / 2) / lw.DOTS_PER_MM)
+
+    img = design_image(lw, geom, centre)
+    if args.preview:
+        img.save(args.preview)
+        print(f"preview: {args.preview} ({img.width}x{img.height} dots)")
+
+    payload = lw.convert(as_raster(lw, img), {"media": args.name or size_name(args.w, args.h)})
+    state = {
+        "w": args.w, "h": args.h, "name": args.name or size_name(args.w, args.h),
+        "centre_x_mm": round(centre[0], 2), "centre_y_mm": round(centre[1], 2),
+        "geometry": {"pitch": geom.pitch, "gap": geom.gap, "voffset": geom.voffset,
+                     "left": geom.left, "right": geom.right,
+                     "top": geom.top, "bottom": geom.bottom},
+    }
+    with open(args.state, "w") as f:
+        json.dump(state, f, indent=1)
+
+    if args.preview and not args.dry_run:
+        print(f"niet geprint (--preview); TSPL is {len(payload)} bytes")
+        return 0
+    if args.dry_run:
+        print(f"DRY-RUN: {len(payload)} bytes naar {args.host}:{args.port}")
+        print(re.sub(rb"\r\n", b" | ", payload[:160]).decode("latin-1") + " ...")
+        print(f"meetgegevens: {args.state}")
+        return 0
+
+    s = socket.create_connection((args.host, args.port), timeout=5)
+    s.settimeout(20)
+    s.sendall(payload)
+    chunks = []
+    t0 = time.time()
+    try:
+        while time.time() - t0 < 20:
+            b = s.recv(4096)
+            if not b:
+                break
+            chunks.append(b)
+    except socket.timeout:
+        pass
+    s.close()
+    print("printer:", b"".join(chunks)[:120].decode("latin-1").strip())
+    print(f"0,0 staat op {centre[0]:.1f} / {centre[1]:.1f} mm van de bitmap.")
+    print("Lees de vier randen af en doe:  ./measure solve --N .. --Z .. --W .. --O ..")
+    print(f"(meetgegevens: {args.state})")
+    return 0
+
+
+def cmd_solve(lw, args):
+    try:
+        state = json.load(open(args.state))
+    except OSError:
+        sys.exit(f"geen meetgegevens in {args.state}; print eerst ./measure <w> <h>")
+    if args.w is None:
+        args.w, args.h = state["w"], state["h"]
+    cx, cy = state["centre_x_mm"], state["centre_y_mm"]
+
+    dpm = lw.DOTS_PER_MM
+    # gelabelde aflezing -> absolute ligging van het etiket t.o.v. de bitmap
+    label_left = cx + args.W
+    label_right = cx + args.O
+    label_top = cy + args.N
+    label_bottom = cy + args.Z
+
+    measured_w = label_right - label_left
+    measured_h = label_bottom - label_top
+    left = max(0.0, -label_left)                    # onbereikbaar deel links
+    # Centreer door rechts evenveel in te leveren als links onbereikbaar is,
+    # maar laat altijd een kleine veiligheidsrand.
+    right = max(lw.DEFAULT_RIGHT_MM, left) if left else lw.DEFAULT_RIGHT_MM
+    top = label_top
+    bottom = max(-label_top, lw.DEFAULT_BOTTOM_MM) if label_top < 0 \
+        else lw.DEFAULT_BOTTOM_MM
+    # steek en afstand zijn niet uit het kruis af te lezen: alleen doorgeven
+    # als de gebruiker ze weet, anders laat add-size.sh zijn default nemen.
+    pitch = args.pitch
+    gap = args.gap
+    if pitch is not None and gap is None:
+        gap = round(pitch - measured_h, 1)
+
+    name = args.name or state["name"]
+    desc = args.desc or f"Etiket {measured_w:.0f}x{measured_h:.0f} mm"
+    cmd = f"./add-size.sh {name} \"{desc}\" {args.w:g} {args.h:g}"
+    if pitch is not None:
+        cmd += f" --pitch {pitch:g}"
+    if gap is not None:
+        cmd += f" --gap {gap:g}"
+    if left:
+        cmd += f" --left {left:g} --right {right:g}"
+    if abs(top - lw.DEFAULT_TOP_MM) > 0.05:
+        cmd += f" --top {top:g}"
+    if abs(bottom - lw.DEFAULT_BOTTOM_MM) > 0.05:
+        cmd += f" --bottom {bottom:g}"
+    if args.voffset:
+        cmd += f" --voffset {args.voffset:g}"
+
+    print(f"gemeten etiket: {measured_w:.2f} x {measured_h:.2f} mm "
+          f"(opgave: {args.w:g} x {args.h:g} mm)")
+    print(f"labellijnen in bitmap-mm: x {label_left:.2f}..{label_right:.2f}, "
+          f"y {label_top:.2f}..{label_bottom:.2f}")
+    asym_w = abs(args.W + args.O)
+    asym_h = abs(args.N + args.Z)
+    print(f"centreringsfout: horizontaal {asym_w:.2f} mm, verticaal {asym_h:.2f} mm")
+    if asym_w > 0.3 or asym_h > 0.3:
+        print("  -> de 0,0 van het meetbeeld stond niet op het etiketmidden;")
+        print("     bovenstaande waarden corrigeren dat.")
+    if pitch is None:
+        print("meet nog de steek (20 etiketten afstanden meten / 20) en voeg")
+        print("  --pitch <mm> --gap <mm> toe; die zijn uit dit kruis niet te halen.")
+    print()
+    print(cmd)
+    print("sudo /Users/Shared/Labelprinter/setup/install.sh")
+    return 0
+
+
+def main():
+    lw = load_filter()
+    ap = argparse.ArgumentParser(
+        description="etiketrol kalibreren",
+        epilog="./measure 36 89 --name LW_36x89   |   ./measure solve --N -49 --Z 40 --W -18 --O 18")
+    ap.add_argument("positionals", nargs="*",
+                    help="'solve', of de maten: <breedte_mm> <hoogte_mm>")
+    ap.add_argument("--name", help="PD-naam, bv. LW_36x89")
+    ap.add_argument("--desc", help="omschrijving voor add-size.sh")
+    for key, help_ in (("pitch", "steek in mm"), ("gap", "onderlinge afstand in mm"),
+                       ("voffset", "print N mm lager"), ("left", "dode zone links in mm"),
+                       ("right", "rand rechts in mm"), ("top", "etiketbovenrand in mm"),
+                       ("bottom", "rand onder in mm")):
+        ap.add_argument("--" + key, type=float,
+                        default=None if key != "voffset" else 0.0, help=help_)
+    ap.add_argument("--N", type=float, help="mm-aflezing op de noordrand")
+    ap.add_argument("--Z", type=float, help="mm-aflezing op de zuidrand")
+    ap.add_argument("--W", type=float, help="mm-aflezing op de westrand")
+    ap.add_argument("--O", type=float, help="mm-aflezing op de oostrand")
+    ap.add_argument("--host", default=os.environ.get("LW_HOST", DEFAULT_HOST))
+    ap.add_argument("--port", type=int, default=int(os.environ.get("LW_PORT", 9100)))
+    ap.add_argument("--preview", metavar="FILE.png", help="schrijf het beeld, niet printen")
+    ap.add_argument("--dry-run", action="store_true", help="TSPL bouwen, niet versturen")
+    ap.add_argument("--state", default=DEFAULT_STATE,
+                    help="bestand met meetgegevens (default /tmp/lw650xl-measure.json)")
+    args = ap.parse_args()
+
+    # ./measure 36 89  |  ./measure solve --N .. 
+    args.mode = "print"
+    numbers = []
+    for tok in args.positionals:
+        if tok == "solve":
+            args.mode = "solve"
+        else:
+            try:
+                numbers.append(float(tok))
+            except ValueError:
+                ap.exit(f"onbegrepen argument: {tok}")
+    args.w = numbers[0] if len(numbers) > 0 else None
+    args.h = numbers[1] if len(numbers) > 1 else None
+
+    if args.mode == "solve":
+        args.N, args.Z, args.W, args.O = (getattr(args, k) for k in "NZWO")
+        missing = [k for k in "NZWO" if getattr(args, k) is None]
+        if missing:
+            sys.exit("geef alle vier aflezingen: " + " ".join(f"--{k} <mm>" for k in missing))
+        if args.voffset is None:
+            args.voffset = 0.0
+        return cmd_solve(lw, args)
+
+    if not args.w or not args.h:
+        ap.exit("gebruik: ./measure <breedte_mm> <hoogte_mm> [...]  of  ./measure solve ...")
+    return cmd_print(lw, args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
