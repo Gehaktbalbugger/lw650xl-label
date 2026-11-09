@@ -123,16 +123,22 @@ entries that make the size show up as a paper size, plus one comment line with
 the geometry the printer needs:
 
 ```
-./add-size.sh LW_76x51 "Logistiek 76x51 mm" 76 51 --gap 3 --pitch 54.5
+./add-size.sh LW_76x51 "Logistiek 76x51 mm" 76 51 --gap 3 --pitch 54.5 --voffset 1
 sudo ./install.sh
 ```
 
-    *% lw-media LW_76x51 pitch=54.5 gap=3
+    *% lw-media LW_76x51 pitch=54.5 gap=3 voffset=1
 
 Both the CUPS filter (it is handed the PPD path) and the `label` CLI read
 those lines, so a new size works from Word, from `lp` and from the shared
-inbox without touching code. `--gap` and `--pitch` are optional: without them
-gap = 3 mm and pitch = label height + gap.
+inbox without touching code. `--gap`, `--pitch` and `--voffset` are optional: without them
+gap = 3 mm, pitch = label height + gap and the print starts flush with the
+label's top edge.
+
+**voffset** shifts the whole print down the label. The measured print window
+starts exactly at the label's top edge, which makes a page that Word centres
+vertically sit a bit high; 1 mm centres the AM11354 roll. Set it to 0 to
+return to flush-at-top printing.
 
 **Pitch** is the distance the printer feeds per label, not the label height:
 the 57 × 32 mm roll needs 38.6 mm (label + gap + liner). If labels slowly
@@ -157,6 +163,7 @@ Word/Pages/… → PDF → cgpdftoraster (macOS)
 
 Custom CUPS options understood by the filter: `lw-gap` (gap mm,
 default 3), `lw-pitch` (feed height mm, default 38.6 for 57x32),
+`lw-voffset` (print N mm lower on the label, default 1 for 57x32),
 `lw-density` (default 15), `lw-speed` (default 1).
 
 Things the filter has to undo for a Word job (macOS print pipeline):

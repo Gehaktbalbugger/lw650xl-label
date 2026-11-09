@@ -24,6 +24,13 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 FILTER_PATH = os.path.join(HERE, "cups", "lw650xl.py")
 
+# Test table: the geometry the PPD would carry for the rolls we check.
+TABLE = {
+    "LW_57x32": {"pitch": 38.6, "gap": 3.0, "voffset": 1.0},
+    "LW_76x51": {"pitch": 54.5, "gap": 3.0},
+    "LW_30x15": {"pitch": 15.0, "gap": 0.0},
+}
+
 HEADER_BYTES = 1796
 MAGIC = b"3SaR"
 
@@ -100,13 +107,13 @@ def main():
         r"PageSize=Custom.90x161 job-name=Microsoft\ Word\ -\ Regel\ 1.docx")
     ok &= check("job-name with escaped spaces kept whole",
                 opts.get("job-name") == "Microsoft Word - Regel 1.docx")
-    geo = lw.media_geometry(opts, 31.75, 56.81)
+    geo = lw.media_geometry(opts, 31.75, 56.81, TABLE)
     ok &= check("Custom media falls back to the PPD name: %r" % (geo,),
-                geo == (57.0, 32.0, 38.6, 3.0))
-    geo = lw.media_geometry(lw.parse_options("media=LW_57x32"), 57.0, 32.0)
-    ok &= check("media=LW_57x32 honoured", geo == (57.0, 32.0, 38.6, 3.0))
+                geo == (57.0, 32.0, 38.6, 3.0, 1.0))
+    geo = lw.media_geometry(lw.parse_options("media=LW_57x32"), 57.0, 32.0, TABLE)
+    ok &= check("media=LW_57x32 honoured", geo == (57.0, 32.0, 38.6, 3.0, 1.0))
     geo = lw.media_geometry(lw.parse_options("media=Custom.90.71x161.57"),
-                            31.75, 56.81)
+                            31.75, 56.81, TABLE)
     ok &= check("unknown media: long side becomes label width", geo[0] > geo[1])
 
     # --- 3. rotation --------------------------------------------------------
@@ -123,13 +130,20 @@ def main():
     ok &= check("rotate_cw moves bottom-left to top-left",
                 rotated[5 * rw + 19] == 0)
 
+    # content window moves with the offset, size stays the label area
+    box0 = lw.content_box(57.0, 32.0)
+    box1 = lw.content_box(57.0, 32.0, 1.0)
+    ok &= check("content_box: flush at the label top by default", box0[1] == 60)
+    ok &= check("content_box: voffset 1 mm moves it down 12 dots",
+                box1[1] == 72 and box1[3] == box0[3])
+
     # --- 4. full conversion, two pages -------------------------------------
     # Landscape 57x32 label: a dark pixel at (10, 70) in the page must end up
     # inside the print window at the same place.
     lw_opts = lw.parse_options("media=LW_57x32")
     payload = lw.convert(raster(make_page(673, 378, mark=[(10, 70)]),
                                 make_page(673, 378, mark=[(600, 300)])),
-                         lw_opts)
+                         lw_opts, TABLE)
     ok &= check("two pages -> two PRINT commands", payload.count(b"PRINT 1,1\r\n") == 2)
     ok &= check("header once: SIZE 57 mm,38.6 mm", payload.count(b"SIZE 57 mm,38.6 mm") == 1)
     ok &= check("header once: DENSITY/SPEED/CLS",
@@ -138,13 +152,14 @@ def main():
     ok &= check("bitmaps span the head at full feed height",
                 all((w, h) == (1280, 444) for w, h, _ in bits))
     pts1 = dark_pixels(*bits[0])
-    ok &= check("page 1 dot lands in the print window: %r" % (pts1[:1],),
-                pts1 and 0 <= pts1[0][0] <= 640 and 60 <= pts1[0][1] <= 430)
+    # voffset 1 mm moves the window down: y 72..442 instead of 60..430
+    ok &= check("page 1 dot lands in the shifted print window: %r" % (pts1[:1],),
+                pts1 and 0 <= pts1[0][0] <= 640 and 72 <= pts1[0][1] <= 442)
     pts2 = dark_pixels(*bits[1])
     ok &= check("page 2 keeps its own content", len(pts2) == 1 and pts2[0] > pts1[0])
 
     # portrait raster for a landscape label must be rotated back
-    payload = lw.convert(raster(make_page(375, 671, mark=[(300, 20)])), lw_opts)
+    payload = lw.convert(raster(make_page(375, 671, mark=[(300, 20)])), lw_opts, TABLE)
     pts = dark_pixels(*decode_bitmaps(payload)[0])
     ok &= check("portrait page is rotated (single dot at %r)" % (pts[:1],),
                 len(pts) == 1 and pts[0][0] > pts[0][1])
@@ -153,7 +168,7 @@ def main():
     import tempfile
     with tempfile.NamedTemporaryFile("w", suffix=".ppd", delete=False) as f:
         f.write('*PPD-Adobe: "4.3"\n'
-                "*% lw-media LW_57x32 pitch=38.6 gap=3\n"
+                "*% lw-media LW_57x32 pitch=38.6 gap=3 voffset=1\n"
                 "*% lw-media LW_76x51 pitch=54.5 gap=3\n"
                 "*% lw-media LW_30x15 pitch=15 gap=0\n"
                 "*End\n")
@@ -163,9 +178,10 @@ def main():
         ok &= check("PPD: built-in size kept", table["LW_57x32"]["pitch"] == 38.6)
         ok &= check("PPD: new size read",
                     table["LW_76x51"] == {"pitch": 54.5, "gap": 3.0})
+        ok &= check("PPD: voffset read", table["LW_57x32"]["voffset"] == 1.0)
         geo = lw.media_geometry(lw.parse_options("media=LW_76x51"), 76.0, 51.0, table)
         ok &= check("PPD size drives SIZE/pitch: %r" % (geo,),
-                    geo == (76.0, 51.0, 54.5, 3.0))
+                    geo == (76.0, 51.0, 54.5, 3.0, 0.0))
         geo = lw.media_geometry(lw.parse_options("media=LW_30x15"), 30.0, 15.0, table)
         ok &= check("continuous stock: gap 0", geo[3] == 0.0)
         geo = lw.media_geometry(
@@ -175,7 +191,10 @@ def main():
         geo = lw.media_geometry(lw.parse_options("media=Custom.215x145"),
                                 51.0, 76.0, table)
         ok &= check("unknown media falls back to the matching roll: %r" % (geo,),
-                    geo == (76.0, 51.0, 54.5, 3.0))
+                    geo == (76.0, 51.0, 54.5, 3.0, 0.0))
+        geo = lw.media_geometry(
+            lw.parse_options("media=LW_57x32 lw-voffset=0"), 57.0, 32.0, table)
+        ok &= check("-o lw-voffset=0 disables the centring shift", geo[4] == 0.0)
     finally:
         os.unlink(tmp_ppd)
 

@@ -49,17 +49,20 @@ BOTTOM_SAFETY_DOTS = 8    # keep clear of the bottom label edge
 DOTS_PER_MM = 300.0 / 25.4
 
 # Media with a known label pitch (SIZE height). The page size comes from
-# the PPD; the pitch is what the printer needs to feed correctly.
+# the PPD; the pitch is what the printer needs to feed correctly, and
+# voffset moves the print down the label (see content_box).
 MEDIA = {
-    "LW_57x32": {"pitch": 38.6, "gap": 3.0},   # AM11354 57 x 32 mm
+    "LW_57x32": {"pitch": 38.6, "gap": 3.0, "voffset": 1.0},  # AM11354
 }
 DEFAULT_MEDIA = "LW_57x32"
 
-# Sizes added with ./add-size.sh carry their pitch and gap as PPD comments:
-#   *% lw-media LW_76x51 pitch=53.5 gap=3
+# Sizes added with ./add-size.sh carry their geometry as PPD comments:
+#   *% lw-media LW_76x51 pitch=53.5 gap=3 voffset=1
 # CUPS keeps PPD comments intact (checked against the installed PPD) and
 # hands the PPD to filters through the PPD env var, so the PPD is the single
 # place where a size is defined. MEDIA above only stays as a fallback.
+GEOMETRY_KEYS = ("pitch", "gap", "voffset")
+
 PPD_PATHS = (
     os.environ.get("PPD"),
     "/etc/cups/ppd/LW650XL_Labels.ppd",
@@ -86,7 +89,7 @@ def load_ppd_media(paths=PPD_PATHS):
                     spec[key] = float(value)
                 except ValueError:
                     pass
-            spec = {k: v for k, v in spec.items() if k in ("pitch", "gap")}
+            spec = {k: v for k, v in spec.items() if k in GEOMETRY_KEYS}
             if spec:
                 entry = dict(MEDIA.get(m.group(1), {}))
                 entry.update(spec)
@@ -145,13 +148,18 @@ def read_raster(input_bytes):
 
 
 # -------------------------------------------------------------- geometry ---
-def content_box(w_mm, h_mm):
-    """Printable area in bitmap dots: (x, y, width, height)."""
+def content_box(w_mm, h_mm, voffset_mm=0.0):
+    """Printable area in bitmap dots: (x, y, width, height).
+
+    The measured window is flush with the label's top edge, which prints the
+    design slightly high on the label (the vendor roll sits 1 mm lower for a
+    centred result), so the whole window can be moved down by voffset_mm.
+    """
     cw = int(round(w_mm * DOTS_PER_MM)) - LEFT_MARGIN_DOTS - RIGHT_SAFETY_DOTS
     ch = int(round(h_mm * DOTS_PER_MM)) - BOTTOM_SAFETY_DOTS
     cw = max(1, min(cw, HEAD_DOTS))
     ch = max(1, ch)
-    return 0, TOP_OFFSET_DOTS, cw, ch
+    return 0, TOP_OFFSET_DOTS + int(round(voffset_mm * DOTS_PER_MM)), cw, ch
 
 
 def rotate_cw(gray, w, h):
@@ -265,7 +273,7 @@ def find_media(size_w, size_h, table=None):
 
 
 def media_geometry(opts, w_mm, h_mm, table=None):
-    """(label_w_mm, label_h_mm, pitch_mm, gap_mm) for this job.
+    """(label_w_mm, label_h_mm, pitch_mm, gap_mm, voffset_mm) for this job.
 
     The label size is what the printer needs; the raster page size is only a
     fallback. Word/macOS does NOT send media=LW_57x32 but
@@ -286,12 +294,14 @@ def media_geometry(opts, w_mm, h_mm, table=None):
     spec = table.get(name) or find_media(size_w, size_h, table)
     pitch = float(opts.get("lw-pitch", spec["pitch"] if spec else size_h))
     gap = float(opts.get("lw-gap", spec["gap"] if spec else 3.0))
-    return size_w, size_h, pitch, gap
+    voffset = float(opts.get("lw-voffset", spec.get("voffset", 0.0) if spec else 0.0))
+    return size_w, size_h, pitch, gap, voffset
 
 
-def convert(input_bytes, opts=None):
-    """Full raster -> TSPL conversion."""
+def convert(input_bytes, opts=None, table=None):
+    """Full raster -> TSPL conversion. `table` overrides the PPD size catalog."""
     opts = opts or {}
+    table = media_table() if table is None else table
     density = int(opts.get("lw-density", 15))
     speed = int(opts.get("lw-speed", 1))
 
@@ -300,12 +310,12 @@ def convert(input_bytes, opts=None):
     for dpi_x, dpi_y, w, h, gray in read_raster(input_bytes):
         w_mm = w * 25.4 / dpi_x
         h_mm = h * 25.4 / dpi_y
-        size_w, size_h, pitch, gap = media_geometry(opts, w_mm, h_mm)
+        size_w, size_h, pitch, gap, voffset = media_geometry(opts, w_mm, h_mm, table)
         # Match the page to the label: Word's portrait raster for a landscape
         # label (or the other way round) is rotated back to the label.
         if (w > h) != (size_w > size_h):
             gray, w, h = rotate_cw(gray, w, h)
-        ox, oy, cw, ch = content_box(size_w, size_h)
+        ox, oy, cw, ch = content_box(size_w, size_h, voffset)
         dark = scale_to_box(gray, w, h, cw, ch)
         # The vendor app sends 444 rows for a 38.6 mm pitch (456 dots), i.e.
         # 12 dots of padding that end up in the gap. Match that exactly.

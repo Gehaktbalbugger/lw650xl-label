@@ -18,6 +18,7 @@ DEFAULT_HOST = "172.16.1.20"
 DEFAULT_PORT = 9100
 DEFAULT_SIZE = "57x32"    # mm, the AM11354 labels loaded in the printer
 DEFAULT_PITCH = 38.6      # mm, label + gap/liner (what SIZE expects)
+DEFAULT_VOFFSET = 1.0     # mm, moves the print down the label (centring)
 DEFAULT_DPI = 300
 
 # Printer geometry, measured on the hardware (see cups/lw650xl.py):
@@ -54,8 +55,11 @@ PPD_CANDIDATES = (
 )
 
 
+GEOMETRY_KEYS = ("pitch", "gap", "voffset")
+
+
 def media_from_ppd(size_w, size_h):
-    """(pitch_mm, gap_mm) recorded for this label size, or (None, None)."""
+    """{pitch, gap, voffset} recorded for this label size, or {}."""
     name = f"LW_{size_w:g}x{size_h:g}"
     for path in PPD_CANDIDATES:
         try:
@@ -70,11 +74,13 @@ def media_from_ppd(size_w, size_h):
         for tok in m.group(1).split():
             key, _, value = tok.partition("=")
             try:
-                found[key] = float(value)
+                val = float(value)
             except ValueError:
-                pass
-        return found.get("pitch"), found.get("gap")
-    return None, None
+                continue
+            if key in GEOMETRY_KEYS:
+                found[key] = val
+        return found
+    return {}
 
 
 def load_font(pt):
@@ -186,9 +192,10 @@ def build_tspl(args, img, dots_mm):
 
     bpr = HEAD_DOTS // 8
     target_h = int(round(args.pitch * DOTS_PER_MM)) - 12
-    canvas_h = max(TOP_OFFSET_DOTS + img.height, target_h)
+    oy = TOP_OFFSET_DOTS + int(round(args.voffset * DOTS_PER_MM))
+    canvas_h = max(oy + img.height, target_h)
     canvas = Image.new("1", (bpr * 8, canvas_h), 1)
-    canvas.paste(img, (0, TOP_OFFSET_DOTS))
+    canvas.paste(img, (0, oy))
     bits = canvas.tobytes("raw", "1")   # PIL '1' already packs white = 1
 
     parts = [
@@ -207,14 +214,14 @@ def build_tspl(args, img, dots_mm):
 
     if args.qr:
         x = max(0, img.width - int(30 * dots_mm))
-        y = TOP_OFFSET_DOTS + max(0, img.height - int(30 * dots_mm))
+        y = oy + max(0, img.height - int(30 * dots_mm))
         payload += f'QRCODE {x},{y},L,8,A,0,"{args.qr}"\r\n'.encode("ascii")
     if args.barcode:
         kind, _, code = args.barcode.partition(":")
         if not code:
             sys.exit("bad --barcode, use --barcode CODE128:YOURDATA")
         x = int(2 * dots_mm)
-        y = TOP_OFFSET_DOTS + max(0, img.height - int(12 * dots_mm))
+        y = oy + max(0, img.height - int(12 * dots_mm))
         payload += (
             f'BARCODE {x},{y},"{kind}",{int(12 * dots_mm)},2,4,0,1,100,"{code}"\r\n'
         ).encode("ascii")
@@ -262,6 +269,8 @@ def main():
     p.add_argument("--speed", type=int, default=1, help="labels per minute-ish")
     p.add_argument("--gap", type=float, default=None,
                    help="label gap in mm (default: from the PPD, else 3)")
+    p.add_argument("--voffset", type=float, default=None,
+                   help="print this many mm lower on the label (default: from the PPD)")
     p.add_argument("--dpi", type=int, default=DEFAULT_DPI, help="head resolution")
     p.add_argument("--preview", metavar="FILE.png", help="render to PNG instead of printing")
     args = p.parse_args()
@@ -269,16 +278,19 @@ def main():
     args.text = args.text.replace("\\n", "\n")
     args.size_w, args.size_h = parse_size(args.size)
     # Roll geometry: the PPD written by add-size.sh knows the pitch and gap.
-    pitch_hint, gap_hint = media_from_ppd(args.size_w, args.size_h)
+    hints = media_from_ppd(args.size_w, args.size_h)
+    known = (args.size_w, args.size_h) == (57.0, 32.0)
     if args.gap is None:
-        args.gap = gap_hint if gap_hint is not None else 3.0
+        args.gap = hints.get("gap", 3.0)
     if args.pitch is None:
-        if pitch_hint is not None:
-            args.pitch = pitch_hint
-        elif (args.size_w, args.size_h) == (57.0, 32.0):
+        if "pitch" in hints:
+            args.pitch = hints["pitch"]
+        elif known:
             args.pitch = DEFAULT_PITCH
         else:
             args.pitch = args.size_h + args.gap      # die-cut: label + gap
+    if args.voffset is None:
+        args.voffset = hints.get("voffset", DEFAULT_VOFFSET if known else 0.0)
     dots_mm = round(args.dpi / 25.4)  # 300 dpi -> 12 dots/mm
 
     img = render_label(args, dots_mm)

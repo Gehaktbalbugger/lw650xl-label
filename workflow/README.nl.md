@@ -267,17 +267,23 @@ gedefinieerd wordt. `add-size.sh` schrijft het papierformaat (dat je in Word
 kiest) plus één commentaarregel met de geometrie:
 
 ```bash
-./add-size.sh LW_76x51 "Logistiek 76x51 mm" 76 51 --gap 3 --pitch 54.5
+./add-size.sh LW_76x51 "Logistiek 76x51 mm" 76 51 --gap 3 --pitch 54.5 --voffset 1
 sudo ./install.sh
 ```
 
 ```
-*% lw-media LW_76x51 pitch=54.5 gap=3
+*% lw-media LW_76x51 pitch=54.5 gap=3 voffset=1
 ```
 
 Filter en `label`-CLI lezen die regel, dus Word, `lp` en de gedeelde inbox
-werken meteen mee — code aanpassen hoeft niet. `--gap` en `--pitch` mag je
-weglaten: dan is de afstand 3 mm en de steek = hoogte + afstand.
+werken meteen mee — code aanpassen hoeft niet. `--gap`, `--pitch` en
+`--voffset` mag je weglaten: dan is de afstand 3 mm, de steek = hoogte +
+afstand en begint de print aan de bovenrand van het etiket.
+
+**`--voffset`** schuift de hele print naar beneden op het etiket. Het
+meetsel van het printbare vlak begint precies op de bovenrand, waardoor een
+pagina die Word verticaal centreert iets te hoog staat; 1 mm gecentreerd de
+AM11354-rol. Met `--voffset 0` print je weer vanaf de bovenrand.
 
 **Steek (pitch) is de aanvoe-afstand per etiket, niet de etikethoogte.**
 Voor de 57 × 32 mm-rol is dat 38,6 mm. Loopt de printer langzaam scheef
@@ -343,6 +349,8 @@ in Word het aangepaste paginaformaat goed.
 - Controleer of de geladen rol bij de gekozen maat hoort.
 - Pas de etiketafstand aan: `lw-gap` (standaard 3 mm). Voor continu
   materiaal: `-o lw-gap=0` of een maat met `add-size.sh ... --gap 0`.
+- Staat de print te hoog of te laag op het etiket: `--voffset` in `add-size.sh`
+  (of eenmalig `-o lw-voffset=<mm>` / `--voffset <mm>`).
 - De feed-hoogte (`SIZE`) is de etiket*steek* (etiket + tussenruimte),
   niet de etikethoogte: 38,6 mm voor de 57 × 32 mm-rol. Voor een andere
   rol: `-o lw-pitch=<mm>`.
