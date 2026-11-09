@@ -154,6 +154,13 @@ measure them with a ruler print (see below):
   the head's reach** (the 89 mm tall AM99012 starts at -0.5 mm).
 - **bottom** — mm kept free at the label's bottom edge. Raise it to match an
   unreachable top edge so the print stays centred.
+- **gap** and **gapoff** — the gap length and, separately, how much plain
+  liner sits between the label's trailing edge and that gap. The square roll
+  is 25 mm label + 4 mm liner + 3 mm notch + 5 mm liner.
+- **sense** — `gap` (default) or `bline` for black marks. A 26 mm roll against
+  the left guide never reaches a sensor sitting mid-path, so `BLINE` just
+  stalls the printer with a paper error; what makes the jobs repeat is that
+  `SIZE height + gap` equals the true pitch.
 - **rows** — pin the bitmap height in dots instead of deriving `pitch - 12`.
   Labellife sends 356 rows for a 33.97 mm square roll; matching that exactly
   matched its registration.

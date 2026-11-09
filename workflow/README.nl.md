@@ -297,6 +297,13 @@ heter of hoger dan de standaardrol). Die vind je met een meet-etiket:
   niet geprint.
 - `--bottom` — mm die onderaan vrij blijft. Zet dit gelijk aan een onbereikbare
   bovenrand, dan is het printsel gecentreerd (AM99012: 1 mm bij -0,5 mm boven).
+- `--gap` en `--gapoff` — lengte van de kloof/het gaatje, en apart hoeveel
+  blanco liner er tussen het etiket en dat gaatje zit. Deze rol is
+  25 mm etiket + 4 mm liner + 3 mm gaatje + 5 mm liner.
+- `--sense` — `gap` (standaard) of `bline` voor zwarte merken. Een 26 mm-roll
+  tegen de linkergeleider bereikt een sensor in het midden van het pad nooit;
+  `BLINE` geeft dan alleen een papieren-fout. Wat de beurten wél herhaalbaar
+  maakt is dat `SIZE-hoogte + gap` gelijk is aan de echte steek.
 - `--rows` — hoogte van de bitmap in dots, in plaats van de standaard
   `steek - 12`. Labellife stuurt 356 rijen voor de vierkante rol; die waarde
   overnemen gaf dezelfde registratie als de vendor-app.
@@ -335,6 +342,11 @@ deel door 20.
 scheef of aan één kant afgesneden, meet de vier randen na met een kruis-etiket
 (0,0 in het midden, 1-mm-schaal, letters N/Z/W/O) en pas `--left`, `--top`,
 `--bottom` en `--voffset` aan met `add-size.sh` + `sudo ./install.sh`.
+
+**Regelmaat valt of staat met de voeding.** Deze printer telt `SIZE-hoogte +
+gap` als afstand per etiket. Voor de vierkante rol is dat 34 + 3 = 37 mm,
+gelijk aan de gemeten steek; vijf losse afdrukken vielen daarna exact same.
+Een verkeerde som zie je meteen: dan staat elk etiket iets hoger of lager.
 
 De watcher leest diezelfde PPD; alleen voor één afwijkende rol kun je
 `LW_GAP` of `LW_PITCH` in de LaunchDaemon zetten. Voor een eenmalige test:
