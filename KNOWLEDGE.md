@@ -85,7 +85,7 @@ we meetten op de vierkante rol, geldend whenever `rotate=270`:
 | **Top** (draagt de onbereikbare 2 mm) | x, bij x=0 | 0..23,5 | `rotate=270` klapt de ontwerprand hierheen |
 | **Bottom** | x, bij de rechterkant | x=23,5 | `right` klein houden (kader raakt de rand) |
 | **zijdes** | y | 4,4..29,9 | dit is de **feed-as**; `voffset`/`bottom` |
-| feed-richting | langs y, teken (+ of -) nog niet bevestigd | — | relevant alleen bij een asymmetrisch ontwerp |
+| **feed-richting** | langs y, naar **grote y** | — | **bevestigd**: canvas +y is de kant waarmee het etiket naar buiten komt |
 
 Twee regels voor diagnostics:
 
@@ -93,7 +93,10 @@ Twee regels voor diagnostics:
    kan na `rotate` ergens anders staan dan de aflezer verwacht. Gebruik pijlen
    met een letter (P/Q) op het vel zelf, of letters op vier verschillende
    randen, en laat de gebruiker letters aanwijzen.
-2. **Een canvas-grootte pagina door `convert()` sturen is fout.** De filter
+2. **Reken in millimeter, niet in `mm x dpi`-resten.** Een pijl op `26 x 11,811`
+   dots in een ontwerp van 295 dots valt van de rand af en verdwijnt spoorloos;
+   dat kostte één onleesbaar vel.
+3. **Een canvas-grootte pagina door `convert()` sturen is fout.** De filter
    schaalt élke inkomende pagina terug naar het printvlak; een vel van
    1280 x 356 dots wordt dus 278 x 295 dots en al je markeringen staan
    verkleind en verschoven. Diagnostiek over het hele canvas stuur je als

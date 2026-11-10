@@ -148,9 +148,11 @@ pullen van deze sessie.
 - Afstandsdopje rechts van de rol als mechanisch alternatief.
 - De T/B/L/R-markerstand in `./measure` bouwen, met de les erbij: alleen
   letters op het vel, geen woorden in overleg (zie KNOWLEDGE §4A).
-- **Open**: de feed-richting langs de y-as (+ of -) is nog niet bevestigd.
-  Vraag dat nooit in woorden maar met twee pijlen op één vel, of meet het met
-  een halve-ontwerp-proef (asymmetrisch teken aan één kant).
+- **Bevestigd**: de feed-richting is canvas **+y**. Het meetvel met één FEED-
+  pijl werd door de gebruiker als correct aangewezen.
+- Zet dit meetvel (kader + TOP/BOTTOM + FEED + etiketcirkel) om in een
+  vast commando, bij voorbeeld `./measure --markers`, zodat een nieuwe rol in
+  één afdruk is uit te meten zonder woorden te vertalen.
 - **Open**: de vierkante rol is nog NIET geïnstalleerd. In de driver staat de
   2-mm-versie (`left=1.5 right=3.0 voffset=4.5 bottom=3.5`). De grotere
   rechthoek `right=0.95 bottom=0 voffset=2.5` is alleen met per-taak-opties
