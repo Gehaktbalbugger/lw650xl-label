@@ -10,26 +10,32 @@ hier staat alleen **waar we zijn en wat de volgende stap is**.
 |---|---|
 | repo | https://github.com/Gehaktbalbugger/lw650xl-label (privé) |
 | releases | v1.0 (AM11354), v1.1 (AM99012), v1.2 (`./measure`), **v1.3 Latest** (S0929120) |
-| laatste commit | `b135fe2` "Docs: sense, gapoff and the SIZE+GAP feed rule…" |
+| laatste commit | `1630e35` (kennis + handoff), daarna de vierkante rol gecentreerd |
+| rollen | AM11354, AM99012 en **S0929120: 21,51 mm vierkant, 2 mm wit rondom**, gebruiker akkoord |
+| tag | **geen nieuwe tag** — v1.3 blijft Latest, in overleg pas later vastzetten |
 | iMac | filter + PPD geïnstalleerd en identiek aan de repo (`/usr/libexec/cups/filter/lw650xl.py`, `/etc/cups/ppd/LW650XL_Labels.ppd`), 12 maten in de PPD |
 | tests | `python3 test_filter.py` (40 checks), `test_measure.py` (20), `test_label.py` — alle OK |
 | MacBook | nog **niet** bijgewerkt: `cd ~/label-printer && git pull && sudo ./install.sh` |
 | `gh` CLI | staat in `~/.local/bin` (niet in PATH): `export PATH="$HOME/.local/bin:$PATH"` |
 | gereedschap | `brew` is op deze Mac kapot (mankende schrijfrechten op `/usr/local/share/man/man8`) — download rechtstreeks |
 
-Drie rollen werken: AM11354 (57×32), AM99012 (36×89 staand) en S0929120
-(26×25). De twee eerste zijn door de gebruiker afgetekend als "goed".
+Drie rollen werken en zijn door de gebruiker afgetekend: AM11354 (57×32),
+AM99012 (36×89 staand) en S0929120.
 
-## Wat de gebruiker nog niet goed vindt
+## De vierkante rol: stand van zaken
 
-**De vierkante rol.** Het printbare vierkant is 23,03 × 23,03 mm in een
-etiket van 26 × 25 mm: hij is kleiner dan het etiket en het vierkant-in-een
-vierkant ziet eruit alsof er ruimte verspild wordt. Uitspraak van de
-gebruiker: *"goed genoeg voor nu"*.
+Centreren is klaar: **21,51 × 21,51 mm met 2 mm wit rondom**. Het etiket bleek
+bij nadere meting **25,5 × 25,5 mm** (1 inch), niet 26 × 25 zoals de verpakking
+en ons eerste advies suggereerden; de bereikbare strook is 23,5 × 25,5 mm want
+2 mm valt links buiten x=0.
 
-Oorzaak (zie KNOWLEDGE §4.4): de inkt begint altijd op x=0 en het etiket
-steekt 1,5 mm voorbij die grens uit. Links is dus altijd 1,5 mm wit; om dat
-te wegnemen moet de kop verder links kunnen beginnen.
+Wit gemeten door de gebruiker: links 2,00 / rechts 1,99 / boven 2,03 / onder
+1,96 mm. Geometrie in de PPD: `left=1.5 right=3.0 top=1.9 voffset=4.5
+bottom=3.5 rotate=270 rows=356 pitch=33.97 gap=3`.
+
+Het vierkant vult 84% van de bereikbare breedte. Meer winnen kan alleen door
+die dode zone kleiner te maken (punten 1 en 2) of door het vierkant op te
+geven en de volle strook van 23,5 mm te gebruiken met scheef wit.
 
 ### Sporen om morgen op te pakken, in volgorde van hoop
 
@@ -123,9 +129,23 @@ gh release create v1.4 --title "…" --notes-file <(sed -n '/## 1.4/,/## 1.3/p' 
 Houd `CHANGELOG.md` bij: per versie de meetwaarden en de reden ervan, want die
 getallen zijn anders onherleidbaar uit de code.
 
-## Vraaggesteld aan de gebruiker (nog onbeantwoord)
+## Les van deze sessie: zo meet je, en zo niet
 
-- Of de vijf vierkante testetiketten exact same lagen (de driver gaf bij elke
-  beurt `DOING → DONE`, visueel beoordeeld nog niet bevestigd).
-- Of `SHIFT`/afstandsdopje geprobeerd mag worden, of dat het zo "goed genoeg"
-  blijft en we door naar volgende formaten.
+Een genummerde schaal aflezen **werkt niet** op deze rol: bij `rotate=270`
+wijzen N/Z/W/O de verkeerde kant op, en de getalletjes die buiten het etiket vallen
+(op de liner naast het kader) zijn onleesbaar. Drie afdrukken meten hielp niet.
+Eén vel met een kader en één letter per hoek — **T, B, L, R** — en de vraag
+"hoeveel wit tussen kader en rand per hoek" loste het in twee afdrukken op.
+
+Volgende rol dus meteen met het T/B/L/R-kader meten; dat hoort in `./measure`
+te komen als `--markers` in plaats van het kruis. Vraag dat als eerste na het
+pullen van deze sessie.
+
+## Nog open bij de start van de volgende sessie
+
+- `SHIFT` accepteert de firmware (`SHIFT 0` gaf geen `Cmd error`) maar is nooit
+  getest. Verzet het de kopstart zijdelings, dan win je ~2 mm.
+- Afstandsdopje rechts van de rol als mechanisch alternatief.
+- De T/B/L/R-markerstand in `./measure` bouwen.
+- Negen PPD-maten zijn nog nooit op een echte rol gemeten.
+

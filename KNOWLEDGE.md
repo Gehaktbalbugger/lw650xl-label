@@ -107,13 +107,15 @@ de `label`-CLI gelezen. CUPS houdt commentaarregels intact bij installatie
 |---|---|---|---|---|---|
 | AM11354 | 57 × 32 mm, liggend | — | 38,6 mm, gap 3 | `voffset=0.34` (4 dots), `left`/`right` default | printbaar 640 × 370 dots, door gebruiker als "in het midden" beoordeeld |
 | AM99012 / Dymo S0722400 | 36 × 89 mm, **staand** | — | 93 mm, gap 4 | `left=3 right=3 top=-0.5 bottom=1` | 30 × 88 mm, 3 mm wit rondom |
-| S0929120 / Dymo 30332 | gemeten **26 × 25 mm**, vierkant | 25 mm etiket + 4 mm liner + 3 mm gaatje + 5 mm liner | **37 mm** = `pitch 34 + gap 3` | `left=1.5 right=1.45 top=0 voffset=5.1 bottom=1.95 rotate=270` | 23,03 × 23,03 mm; marges 1,50/1,47 en 0,98/0,99 mm |
+| S0929120 / Dymo 30332 | **25,5 × 25,5 mm** (1 inch; het etiket is dus noch 26 × 25, noch exact 25 × 25) | 25,5 mm etiket + 4 mm liner + 3 mm gaatje + 5 mm liner | **36,97 mm** = `pitch 33,97 + gap 3` (canvas `rows=356`) | `left=1.5 right=3.0 top=1.9 voffset=4.5 bottom=3.5 rotate=270 rows=356` | **21,51 × 21,51 mm** vierkant, gemeten 2,00/1,99 mm en 2,03/1,96 mm wit |
 
-Bijbehorende metingen (etiketranden in bits van de bitmap, via het meetkruis):
+Bijbehorende etiketranden in bitmap-coordinaten (x = over de kop, y = voedingsrichting):
 
-- AM11354: x -2…55 mm, bovenrand 5,1 mm onder de oorsprong.
+- AM11354: x -2…55 mm, y 5,1…37,1 mm.
 - AM99012: x -3…33 mm, y -0,5…88,5 mm.
-- S0929120: x -1,5…24,5 mm, y 4,1…29,1 mm.
+- S0929120: x -2…23,5 mm, y 4,4…29,9 mm. De 2 mm links is onbereikbaar; de
+  bereikbare strook is dus 23,5 × 25,5 mm en het grootste gecentreerde
+  vierkant 21,5 mm.
 
 ## 6. CUPS-raster (cgpdftoraster, "RaS3")
 
@@ -170,3 +172,10 @@ Bijbehorende metingen (etiketranden in bits van de bitmap, via het meetkruis):
    etiketten en zorg dat `SIZE-hoogte + gap` er exact aan gelijk is.
 5. Twijfel over herhaalbaarheid: print vijf losse beurten van hetzelfde beeld
    en leg ze op elkaar.
+6. **Werkt beter dan een schaal aflezen**: print één vel met een kader en één
+   letter in elke hoek (T, B, L, R) en laat de gebruiker de witstroken per hoek
+   noemen. Bij een gedraaid rol (`rotate`) is een genummerde schaal onleesbaar:
+   de letters N/Z/W/O wijzen dan de verkeerde kant op, en getalletjes die
+   buiten het etiket vallen (op de liner) zijn al helemaal onbruikbaar. Deze
+   sessie is daar drie keer op vastgelopen voordat één vel met T/B/L/R het
+   in twee afdrukken oploste.
