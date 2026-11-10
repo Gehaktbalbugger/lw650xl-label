@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.4 — vierkante rol gecentreerd, meetgereedschap uitgebreid, kennis gedocumenteerd
+
+- De vierkante rol is gemeten en gecentreerd: etiket is **25,5 × 25,5 mm**
+  (1 inch), niet 26 × 25 zoals de verpakting en ons eerste advies zeiden.
+  2 mm links van x=0 is onbereikbaar, dus het grootste gecentreerde vierkant
+  is 21,51 mm met 2 mm wit rondom.
+- `lw-media` kreeg vier velden erbij: `rows` (bitmap-hoogte in dots; Labellife
+  stuurt 356 voor deze rol), `rotate` (90/270: het ontwerp zijwaarts, zoals de
+  vendor-app doet), `sense` (`gap`/`bline`) en `gapoff` (mm liner tussen
+  etiketeinde en de kloof). `add-size.sh` en de `label`-CLI volgen dat.
+- De PPD-parser bewaart nu ook niet-numerieke waarden (`sense=bline`); tot die
+  tijd werd er stilletjes `GAP` verstuurd.
+- `./measure`: `--rows`, `--rotate` en een `ladder`-stand (genummerde banden
+  over één voeding) voor rollen waarvan de startpositie onbekend is.
+- Regel die alles verklaart en nu gedocumenteerd staat: **`SIZE-hoogte + GAP`
+  is de afstand per etiket**. Labellife stuurt `SIZE 25 mm,33,97 mm` +
+  `GAP 3 mm` = 36,97 mm, precies de gemeten steek; overleg van ons kruis op
+  het hunne toont dezelfde plaats.
+- Test die de werkboom beschadigde (`git checkout` op de PPD) draait nu op een
+  kopie via `LW_PPD`, en een expliciete `--top 0` blijft behouden: nul is een
+  meting, geen ontbrekende optie.
+- Nieuwe documenten: **`KNOWLEDGE.md`** (alles wat aan de printer gemeten is,
+  inclusief de Labellife-capture en de commando-matrix) en **`HANDOFF.md`**
+  (stand van zaken, open punten, de les dat hoekletters T/B/L/R beter werken
+  dan een genummerde schaal bij een gedraaide rol).
+
 ## 1.3 — S0929120 (25 × 25 mm vierkant) en twee nieuwe rolknoppen
 
 - Nieuw formaat `LW_26x25`: de Dymo S0929120 / 30332-role is gemeten
@@ -33,6 +59,19 @@
   schalen op kleine etiketten.
 - `test_filter.py` (40 checks) en `test_measure.py` (20 checks) dekken
   `rows`, `rotate`, de inverse rotatie en de pitch/gap-doorvoer.
+
+## 1.2 — ./measure, een nieuwe rol in twee opdrachten
+
+- `./measure <breedte> <hoogte>` drukt één etiket met `0,0` in het midden van
+  het verwachte printvlak, 1-mm streepjes en N/Z/W/O op de verwachte randen,
+  als mode-0 TSPL direct naar poort 9100 — zonder driver en zonder root.
+- `./measure solve --N .. --Z .. --W .. --O ..` rekent de vier aflezingen om
+  naar `left`/`right`/`top`/`bottom` en drukt de passende
+  `add-size.sh`-opdracht af. De gebruikte middenpositie blijft in een
+  statusbestand achter, dus de aflezingen gaan niet meer verloren.
+- De berekening komt uit `cups/lw650xl.py` zelf: meten en printen rekenen
+  identiek. `--preview` en `--dry-run` tonen zonder te printen.
+- `test_measure.py` dekt de print/solve-roundtrip.
 
 ## 1.1 — AM99012 / Dymo S0722400 (36 × 89 mm, staand)
 
