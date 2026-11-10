@@ -315,6 +315,9 @@ def main():
                    help="keep this many mm free at the label's bottom edge (PPD, 0.7)")
     p.add_argument("--media-right", dest="media_right", type=float, default=None,
                    help="keep this many mm free at the label's right edge (PPD, 0.8)")
+    p.add_argument("--two", metavar="TEKST_B", default=None,
+                   help="twee aparte etiketten naast elkaar op deze rol (2-up); hoort bij rollen "
+                        "met twee kolommen zoals de AM11353")
     p.add_argument("--xoffset", type=float, default=None,
                    help="mm tussen de kopstart en de linker rand van de liner (PPD xoffset=)")
     p.add_argument("--rows", type=int, default=None,
@@ -375,7 +378,19 @@ def main():
         args.xoffset = hints.get("xoffset", 0.0)
     if args.rotate is None:
         args.rotate = int(hints.get("rotate", 0))
-    if args.rotate in (90, 270):
+    if args.two:
+        import copy
+        a2 = copy.copy(args)
+        a2.two = None
+        a2.box = (args.box[0], args.box[1], args.box[2], args.box[3] // 2)
+        a2.text = args.text
+        e_links = render_label(a2, dots_mm)
+        a2.text = args.two
+        e_rechts = render_label(a2, dots_mm)
+        img = Image.new("L", (a2.box[3] * 2, a2.box[2]), 1)
+        img.paste(e_links, (0, 0))
+        img.paste(e_rechts, (a2.box[3], 0))
+    elif args.rotate in (90, 270):
         # Render the page turned on its side, then rotate it back into the
         # label's print window. Only the design turns; the bitmap keeps
         # running across the 1280-dot head, which is what TSPL BITMAP needs.
