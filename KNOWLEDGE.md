@@ -75,6 +75,30 @@ van smalle rollen terug te winnen. Zie HANDOFF, punt "open".
    rol van 26 mm bereikt hem nooit, dus merkinformatie (BLINE) is daar waardeloos;
    `BLINE 12 mm` zette de printer zelfs in een papierfout.
 
+## 4A. Woordenschat: wat is Top, Bottom en feed
+
+Taal is hier de bron van drie verprinte velleten geweest. Dit is de tabel die
+we meetten op de vierkante rol, geldend whenever `rotate=270`:
+
+| rand van het etiket zoals de gebruiker hem bekijkt | as in canvas-coordinaten |bereik in mm | hoe je er komt |
+|---|---|---|---|
+| **Top** (draagt de onbereikbare 2 mm) | x, bij x=0 | 0..23,5 | `rotate=270` klapt de ontwerprand hierheen |
+| **Bottom** | x, bij de rechterkant | x=23,5 | `right` klein houden (kader raakt de rand) |
+| **zijdes** | y | 4,4..29,9 | dit is de **feed-as**; `voffset`/`bottom` |
+| feed-richting | langs y, teken (+ of -) nog niet bevestigd | — | relevant alleen bij een asymmetrisch ontwerp |
+
+Twee regels voor diagnostics:
+
+1. **Zet nooit woorden op een vel dat gedraaid wordt.** Tekst die "TOP" heten
+   kan na `rotate` ergens anders staan dan de aflezer verwacht. Gebruik pijlen
+   met een letter (P/Q) op het vel zelf, of letters op vier verschillende
+   randen, en laat de gebruiker letters aanwijzen.
+2. **Een canvas-grootte pagina door `convert()` sturen is fout.** De filter
+   schaalt élke inkomende pagina terug naar het printvlak; een vel van
+   1280 x 356 dots wordt dus 278 x 295 dots en al je markeringen staan
+   verkleind en verschoven. Diagnostiek over het hele canvas stuur je als
+   rauwe `BITMAP`-opdracht, een ontwerppagina als pagina op etiketformaat.
+
 ## 5. Geometrie per rol, alles in de PPD
 
 Eén commentaarregel per rol, door `add-size.sh` geschreven en door zowel de
