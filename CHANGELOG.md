@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.5 — vierkante rol geïnstalleerd op maximale breedte; coördinaten definitief
+
+- De S0929120-rol is gemeten en **geïnstalleerd** op de maximale rechthoek:
+  `pitch=33.97 gap=3 rows=356 left=1.5 right=1.4 top=1.9 voffset=2.5 bottom=0
+  rotate=270` → printbaar vlak 23,03 × 24,98 mm, wit 2,00 mm aan de bovenkant
+  (onbereikbaar), 0,47 mm beneden, 0,00 / 0,61 mm langs de voeding.
+- Eerste R/S-kaderlijn liep van het etiket af; `right` 0,95 → **1,4 mm** lost
+  dat op zonder meetbaar verlies.
+- **Coördinaten opgelost met een hoekvelletje** (P/Q/R/S): een gebruiker ziet
+  links/rechts langs de **canvas-y-as** (de voedingsrichting), boven/beneden
+  langs de canvas-x-as. Een normaal getekend ontwerp komt na `rotate=270`
+  rechtop op het etiket: er is géén ontwerpdraai nodig in Word of Excel.
+- De uitvaartkant is de **kleinste canvas-y**. Een eerdere, verkeerd
+  geïnterpreteerde "+y-bevestiging" is expliciet ingetrokken in de documentatie.
+- Nieuw: **`test-print.sh`** — dezelfde proefprinten met per-taak-opties
+  (`--status`, `--flush`, `--final`) en `--commit` om ze daarna in de PPD te
+  zetten en te installeren. Zo hoef je voor een test geen admin-rechten.
+- Twee valkuilen vastgelegd in `KNOWLEDGE.md`: een canvas-pagina door
+  `convert()` sturen schaalt het hele meetbeeld terug (vervormd vel), en
+  `26 × 11,811` dots in een ontwerp van 295 dots valt van de rand af
+  (onleesbare pijl). Diagnostiek benoemt posities alleen nog als
+  canvas-getal of hoekletter.
+- `./measure` kreeg `--rows`/`--rotate`; `KNOWLEDGE.md` §4A bevat nu de gemeten
+  mapping, `HANDOFF.md` de geïnstalleerde toestand en de restpunten.
+
 ## 1.4 — vierkante rol gecentreerd, meetgereedschap uitgebreid, kennis gedocumenteerd
 
 - De vierkante rol is gemeten en gecentreerd: etiket is **25,5 × 25,5 mm**
