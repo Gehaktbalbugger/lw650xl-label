@@ -30,6 +30,7 @@
 *OpenUI *PageSize/Media Size: PickOne
 *OrderDependency: 10 AnySetup *PageSize
 *DefaultPageSize: LW_57x32
+*PageSize LW_25x25/Twee keer 12,5 x 25 mm (AM11353 / Dymo 11353, als blok): "<</PageSize[72.57 70.87]/ImagingBBox null>>setpagedevice"
 *PageSize LW_26x25/Vierkant multipurpose 26x25 mm (S0929120 / Dymo 30332, gemeten): "<</PageSize[73.70 70.87]/ImagingBBox null>>setpagedevice"
 *PageSize LW_36x89/Adres 36x89 mm (AM99012 / Dymo S0722400, staand): "<</PageSize[102.05 252.28]/ImagingBBox null>>setpagedevice"
 *PageSize LW_57x32/Etiket 57x32 mm (AM11354): "<</PageSize[161.57 90.71]/ImagingBBox null>>setpagedevice"
@@ -47,6 +48,7 @@
 *OpenUI *PageRegion/Media Size: PickOne
 *OrderDependency: 10 AnySetup *PageRegion
 *DefaultPageRegion: LW_57x32
+*PageRegion LW_25x25/Twee keer 12,5 x 25 mm (AM11353 / Dymo 11353, als blok): "<</PageSize[72.57 70.87]/ImagingBBox null>>setpagedevice"
 *PageRegion LW_26x25/Vierkant multipurpose 26x25 mm (S0929120 / Dymo 30332, gemeten): "<</PageSize[73.70 70.87]/ImagingBBox null>>setpagedevice"
 *PageRegion LW_36x89/Adres 36x89 mm (AM99012 / Dymo S0722400, staand): "<</PageSize[102.05 252.28]/ImagingBBox null>>setpagedevice"
 *PageRegion LW_57x32/Etiket 57x32 mm (AM11354): "<</PageSize[161.57 90.71]/ImagingBBox null>>setpagedevice"
@@ -62,6 +64,7 @@
 *CloseUI: *PageRegion
 
 *DefaultImageableArea: LW_57x32
+*ImageableArea LW_25x25/Twee keer 12,5 x 25 mm (AM11353 / Dymo 11353, als blok): "0 0 72.57 70.87"
 *ImageableArea LW_26x25/Vierkant multipurpose 26x25 mm (S0929120 / Dymo 30332, gemeten): "0 0 73.70 70.87"
 *ImageableArea LW_36x89/Adres 36x89 mm (AM99012 / Dymo S0722400, staand): "0 0 102.05 252.28"
 *ImageableArea LW_57x32/Etiket 57x32 mm (AM11354): "0 0 161.57 90.71"
@@ -76,6 +79,7 @@
 *ImageableArea LW_62x100/Continu 62x100 mm: "0 0 175.75 283.46"
 
 *DefaultPaperDimension: LW_57x32
+*PaperDimension LW_25x25/Twee keer 12,5 x 25 mm (AM11353 / Dymo 11353, als blok): "72.57 70.87"
 *PaperDimension LW_26x25/Vierkant multipurpose 26x25 mm (S0929120 / Dymo 30332, gemeten): "73.70 70.87"
 *PaperDimension LW_36x89/Adres 36x89 mm (AM99012 / Dymo S0722400, staand): "102.05 252.28"
 *PaperDimension LW_57x32/Etiket 57x32 mm (AM11354): "161.57 90.71"
@@ -109,3 +113,4 @@
 *% lw-media LW_57x32 pitch=38.6 gap=3 voffset=0.34
 *% lw-media LW_36x89 pitch=93 gap=4 left=3 right=3 top=-0.5 bottom=1
 *% lw-media LW_26x25 pitch=33.97 gap=3 rows=356 left=1.5 right=1.4 top=1.9 voffset=2.5 bottom=0 rotate=270
+*% lw-media LW_25x25 pitch=34 gap=3 rows=354 xoffset=7.5 left=0 right=0 top=-0.5 bottom=0.7

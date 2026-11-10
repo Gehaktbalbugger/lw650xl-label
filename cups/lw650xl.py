@@ -78,12 +78,12 @@ DEFAULT_MEDIA = "LW_57x32"
 # hands the PPD to filters through the PPD env var, so the PPD is the single
 # place where a size is defined. MEDIA above only stays as a fallback.
 GEOMETRY_KEYS = ("pitch", "gap", "gapoff", "voffset", "left", "right", "top",
-              "bottom", "rows", "rotate", "sense")
+              "bottom", "rows", "rotate", "sense", "xoffset")
 SENSORS = ("sense",)
 
 Geometry = collections.namedtuple(
     "Geometry", "size_w size_h pitch gap gapoff voffset left right top bottom"
-                 " rows rotate sense")
+                 " rows rotate sense xoffset")
 
 PPD_PATHS = (
     os.environ.get("PPD"),
@@ -191,15 +191,19 @@ def print_window(geom, target_h):
     height is clamped to the canvas: the printer anchors the bitmap at its
     bottom edge, so growing the window would move the whole print.
     """
+    # De kop begint niet altijd op de linker rand van de liner: smalle rollen
+    # liggen in dit pad soms 6 mm rechts van x=0. xoffset schuift het hele
+    # printvlak daarnaartoe; left blijft de dode zone aan de linkerkant.
+    ox = max(0, int(round(geom.xoffset * DOTS_PER_MM)))
     dead = int(round(geom.left * DOTS_PER_MM))
     cw = (int(round(geom.size_w * DOTS_PER_MM)) - dead
           - int(round(geom.right * DOTS_PER_MM)))
     ch = int(round(geom.size_h * DOTS_PER_MM)) - int(round(geom.bottom * DOTS_PER_MM))
     # Rows below zero cannot be printed: the head starts at x/y 0.
     oy = max(0, int(round((geom.top + geom.voffset) * DOTS_PER_MM)))
-    cw = max(1, min(cw, HEAD_DOTS))
+    cw = max(1, min(cw, HEAD_DOTS - ox))
     ch = max(1, min(ch, target_h - oy))
-    return 0, oy, cw, ch
+    return ox, oy, cw, ch
 
 
 def rotate_cw(gray, w, h):
@@ -371,6 +375,7 @@ def media_geometry(opts, w_mm, h_mm, table=None):
         # gaatjes in de liner). Rols met merken moeten BLINE krijgen, anders
         # zoekt de sensor een kloof die er niet is en begint elke beurt elders.
         sense=sense,
+        xoffset=pick("xoffset", 0.0),
         gapoff=pick("gapoff", 0.0),
     )
 

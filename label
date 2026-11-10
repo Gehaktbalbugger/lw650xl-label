@@ -60,7 +60,7 @@ PPD_CANDIDATES = (
 
 
 GEOMETRY_KEYS = ("pitch", "gap", "gapoff", "voffset", "left", "right", "top",
-              "bottom", "rows", "rotate", "sense")
+              "bottom", "rows", "rotate", "sense", "xoffset")
 
 
 def media_from_ppd(size_w, size_h):
@@ -139,7 +139,7 @@ def fit_font(draw, text, font_pt, max_w, max_h, line_spacing=1.15):
 
 def content_box(size_w, size_h, left_mm=DEFAULT_LEFT_MM, top_mm=DEFAULT_TOP_MM,
                 voffset_mm=0.0, pitch_mm=None, bottom_mm=DEFAULT_BOTTOM_MM,
-                right_mm=DEFAULT_RIGHT_MM, rows=None):
+                right_mm=DEFAULT_RIGHT_MM, rows=None, xoffset_mm=0.0):
     """Label's print window in dots: (origin_y, width, height).
 
     `left_mm` is the dead zone between the label edge and the start of the
@@ -148,6 +148,7 @@ def content_box(size_w, size_h, left_mm=DEFAULT_LEFT_MM, top_mm=DEFAULT_TOP_MM,
     the height is clamped to the canvas: the printer anchors the bitmap at
     its bottom edge, so a taller canvas would move the whole print.
     """
+    ox = max(0, int(round(xoffset_mm * DOTS_PER_MM)))
     cw = (int(round(size_w * DOTS_PER_MM)) - int(round(left_mm * DOTS_PER_MM))
           - int(round(right_mm * DOTS_PER_MM)))
     ch = int(round(size_h * DOTS_PER_MM)) - int(round(bottom_mm * DOTS_PER_MM))
@@ -156,13 +157,13 @@ def content_box(size_w, size_h, left_mm=DEFAULT_LEFT_MM, top_mm=DEFAULT_TOP_MM,
     if pitch_mm:
         canvas = int(rows) if rows else int(round(pitch_mm * DOTS_PER_MM)) - 12
         ch = min(ch, canvas - oy)
-    return oy, max(1, ch), max(1, cw)
+    return ox, oy, max(1, ch), max(1, min(cw, HEAD_DOTS - ox))
 
 
 def render_label(args, dots_mm):
     """Render text (+optional logo) to a 1-bit PIL image covering the label."""
     from PIL import Image, ImageDraw
-    _oy, h_px, w_px = args.box
+    _ox, _oy, h_px, w_px = args.box
     img = Image.new("1", (w_px, h_px), 1)  # 1 = white
     draw = ImageDraw.Draw(img)
     margin = int(args.margin * dots_mm)
@@ -225,10 +226,10 @@ def build_tspl(args, img, dots_mm):
 
     bpr = HEAD_DOTS // 8
     target_h = int(args.rows) if args.rows else int(round(args.pitch * DOTS_PER_MM)) - 12
-    oy = args.box[0]
+    _ox, oy = args.box[0], args.box[1]
     canvas_h = max(oy + img.height, target_h)
     canvas = Image.new("1", (bpr * 8, canvas_h), 1)
-    canvas.paste(img, (0, oy))
+    canvas.paste(img, (_ox, oy))
     bits = canvas.tobytes("raw", "1")   # PIL '1' already packs white = 1
 
     parts = [
@@ -314,6 +315,8 @@ def main():
                    help="keep this many mm free at the label's bottom edge (PPD, 0.7)")
     p.add_argument("--media-right", dest="media_right", type=float, default=None,
                    help="keep this many mm free at the label's right edge (PPD, 0.8)")
+    p.add_argument("--xoffset", type=float, default=None,
+                   help="mm tussen de kopstart en de linker rand van de liner (PPD xoffset=)")
     p.add_argument("--rows", type=int, default=None,
                    help="pin the bitmap height in dots (PPD rows=; default pitch-12)")
     p.add_argument("--gapoff", type=float, default=None,
@@ -350,6 +353,7 @@ def main():
     args.right = None
     args.rows = None
     args.rotate = None
+    args.xoffset = None
     args.sense = None
     args.gapoff = None
     if args.bottom is None:
@@ -360,13 +364,15 @@ def main():
         args.rows = hints.get("rows")
     args.box = content_box(args.size_w, args.size_h, args.left, args.media_top,
                            args.voffset, args.pitch, args.bottom, args.right,
-                           args.rows)
+                           args.rows, args.xoffset)
     dots_mm = round(args.dpi / 25.4)  # 300 dpi -> 12 dots/mm
 
     if args.sense is None:
         args.sense = hints.get("sense", "gap")
     if args.gapoff is None:
         args.gapoff = hints.get("gapoff", 0.0)
+    if args.xoffset is None:
+        args.xoffset = hints.get("xoffset", 0.0)
     if args.rotate is None:
         args.rotate = int(hints.get("rotate", 0))
     if args.rotate in (90, 270):

@@ -134,6 +134,7 @@ de `label`-CLI gelezen. CUPS houdt commentaarregels intact bij installatie
 | `rows` | bitmap-hoogte in dots, overstemmt `pitch - 12` |
 | `rotate` | 90 of 270: het ontwerp zijwaarts; het bitmap-loopt alsnog over de kop |
 | `sense` | `gap` (default) of `bline` |
+| `xoffset` | mm tussen de kopstart (x=0) en de linker rand van de liner; nodig als de rol rechts van de kop begint |
 
 ### De drie rollen die nu werken
 
@@ -150,6 +151,31 @@ Bijbehorende etiketranden in bitmap-coordinaten (x = over de kop, y = voedingsri
 - S0929120: x -2…23,5 mm, y 4,4…29,9 mm. De 2 mm links is onbereikbaar; de
   bereikbare strook is dus 23,5 × 25,5 mm en het grootste gecentreerde
   vierkant 21,5 mm.
+
+### AM11353 / Dymo 11353: de rol begint rechts van de kop
+
+Labellife-capture (10 november, en1 bereikte de printer via 172.16.1.133):
+
+```
+SIZE 25.6 mm,34 mm · GAP 3 mm,0 mm · DENSITY 15 · SPEED 6
+BITMAP 0,0,160,354,4,,   PRINT 1,1
+```
+
+Liner-dwarsdoorsnede, door de gebruiker gemeten: `1,5 + 12,5 + 12,5 + 3,5 = 30 mm`,
+en de 1-mm liniaal leerde dat die liner bij **x = 6 mm** begint. Dus:
+
+| | x in bitmap-coordinaten |
+|---|---|
+| liner | 6,0 … 36,0 mm |
+| etiket A | 7,5 … 20,0 mm |
+| snijrail A/B | 20,0 mm |
+| etiket B | 20,0 … 32,5 mm |
+
+Gevolg: er is hier geen dode zone, maar een **verschuiving naar rechts**. Inkt
+begon bij ons altijd op x=0, dus elke proef stond 7,5 mm te ver links en viel
+aan de rechterkant van het vel af — dat verklaart de reeks "letters vallen af"
+en "pijl verkeerd". Daarvoor is `xoffset` ingevoerd. De voeding volgt weer uit
+onze eigen regel: `34 + 3 = 37 mm`, precies als de vendor.
 
 ## 6. CUPS-raster (cgpdftoraster, "RaS3")
 

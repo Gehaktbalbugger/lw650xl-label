@@ -5,7 +5,7 @@
 # Usage:  ./add-size.sh <name> <description> <width_mm> <height_mm>
 #                       [--gap <mm>] [--pitch <mm>] [--voffset <mm>]
 #                       [--left <mm>] [--right <mm>] [--top <mm>] [--bottom <mm>]
-#                       [--rows <n>]
+#                       [--rows <n>] [--xoffset <mm>]
 #
 # Examples:
 #   ./add-size.sh LW_76x51 "Logistics 76x51 mm" 76 51
@@ -40,6 +40,9 @@
 # --rotate   90 (clockwise) or 270 (counter-clockwise): print the page turned
 #            on its side, useful when the unreachable edge must fall along the
 #            feed direction instead of the label's left edge.
+# --xoffset  mm tussen de kopstart (x=0) en de linker rand van de liner. Een
+#            smallere rol die in het pad rechts van de kop ligt, heeft dit
+#            nodig: de AM11353-rol begint bij x=7,5 mm, niet bij x=0.
 # --rows     pin the bitmap height in dots. Default: pitch in dots minus 12,
 #            which is what the vendor app sends on most rolls; square rolls
 #            from Labellife came with e.g. 356 rows for a 33.97 mm pitch.
@@ -67,6 +70,7 @@ while [[ $# -gt 0 ]]; do
         --bottom) EXTRA+=("bottom=${2:?--bottom needs a value}"); shift 2 ;;
         --rows)   EXTRA+=("rows=${2:?--rows needs a value}"); shift 2 ;;
         --rotate) EXTRA+=("rotate=${2:?--rotate needs a value}"); shift 2 ;;
+        --xoffset) EXTRA+=("xoffset=${2:?--xoffset needs a value}"); shift 2 ;;
         --sense)  EXTRA+=("sense=${2:?--sense needs a value}"); shift 2 ;;
         *) echo "unknown option: $1" >&2; exit 1 ;;
     esac

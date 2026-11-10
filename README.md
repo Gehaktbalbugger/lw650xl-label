@@ -163,6 +163,10 @@ measure them with a ruler print (see below):
   liner sits between the label's trailing edge and that gap. The square roll
   is 25 mm label + 4 mm liner + 3 mm notch + 5 mm liner.
 - **sense** — `gap` (default) or `bline` for black marks. A 26 mm roll against
+- **xoffset** — mm between the head's x=0 and the liner's left edge. A narrow
+  roll can sit right of the head start (AM11353: liner begins at 6 mm, label at
+  7,5 mm); without this the print lands half off the label and no amount of
+  `left`/`right` can fix it.
   the left guide never reaches a sensor sitting mid-path, so `BLINE` just
   stalls the printer with a paper error; what makes the jobs repeat is that
   `SIZE height + gap` equals the true pitch.

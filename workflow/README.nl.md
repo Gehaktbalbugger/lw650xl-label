@@ -258,6 +258,7 @@ Standaard beschikbaar (uit de PPD):
 | `LW_89x36` | Adres breed 89 × 36 mm |
 | `LW_36x89` | Adres 36 × 89 mm (AM99012 / Dymo S0722400, **staand**) |
 | `LW_26x25` | Vierkant multipurpose 26 × 25 mm (S0929120 / Dymo 30332), zijwaarts geprint |
+| `LW_25x25` | Blok van twee etiketten 12,5 × 25 mm (AM11353 / Dymo 11353) |
 | `LW_89x28` | Adres 89 × 28 mm |
 | `LW_54x25` | Retour 54 × 25 mm |
 | `LW_50x12` | Hangmap 50 × 12 mm |
@@ -304,6 +305,10 @@ heter of hoger dan de standaardrol). Die vind je met een meet-etiket:
   tegen de linkergeleider bereikt een sensor in het midden van het pad nooit;
   `BLINE` geeft dan alleen een papieren-fout. Wat de beurten wél herhaalbaar
   maakt is dat `SIZE-hoogte + gap` gelijk is aan de echte steek.
+- `--xoffset` — mm tussen de kopstart (x=0) en de linker rand van de liner. Een
+  smallere rol kan in het pad rechts van de kop beginnen: de AM11353-rol heeft
+  een 30 mm liner die bij x=6 mm begint en etiket A op x=7,5 mm. Zonder deze
+  waarde staat elk vel 7,5 mm te ver links en valt het aan de rechterkant af.
 - `--rows` — hoogte van de bitmap in dots, in plaats van de standaard
   `steek - 12`. Labellife stuurt 356 rijen voor de vierkante rol; die waarde
   overnemen gaf dezelfde registratie als de vendor-app.

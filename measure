@@ -56,7 +56,7 @@ def resolve_geometry(lw, args):
     elif size_name(args.w, args.h) in table:
         opts["media"] = size_name(args.w, args.h)
     for key in ("pitch", "gap", "voffset", "left", "right", "top", "bottom",
-                "rotate", "rows"):
+                "rotate", "rows", "xoffset"):
         value = getattr(args, key.replace("-", "_"), None)
         if value is not None:
             opts[f"lw-{key}"] = str(value)
@@ -221,7 +221,7 @@ def cmd_print(lw, args):
             "lw-voffset": repr(geom.voffset), "lw-left": repr(geom.left),
             "lw-right": repr(geom.right), "lw-top": repr(geom.top),
             "lw-bottom": repr(geom.bottom), "lw-rotate": repr(geom.rotate),
-            "lw-rows": repr(geom.rows)}
+            "lw-rows": repr(geom.rows), "lw-xoffset": repr(geom.xoffset)}
     payload = lw.convert(as_raster(lw, img), opts)
     state = {
         "w": args.w, "h": args.h, "name": args.name or size_name(args.w, args.h),
@@ -355,6 +355,8 @@ def main():
                         default=None if key != "voffset" else 0.0, help=help_)
     ap.add_argument("--rotate", type=int, default=None, choices=(0, 90, 270),
                     help="het meetbeeld ook draaien, zoals deze rol print (PPD rotate=)")
+    ap.add_argument("--xoffset", type=float, default=None,
+                    help="mm tussen kopstart en linker rand van de liner (PPD xoffset=)")
     ap.add_argument("--rows", type=int, default=None,
                     help="bitmap-hoogte in dots; Labellife stuurt 356 voor deze rol")
     ap.add_argument("--band", type=float, default=4.0,
