@@ -151,9 +151,10 @@ pullen van deze sessie.
 - **Bevestigd en gecorrigeerd**: de uitvaartkant is de **kleinste canvas-y**
   (eerst mijn +y genoteerd, dat was een mislezing van een woordantwoord; het
   pijlvel wees het omgekeerde aan en dat werd door de gebruiker bevestigd).
-- **Open**: TOP/BOTTOM op het meetvel staan langs canvas-x, maar worden door
-  de gebruiker langs een andere as gelezen. Volgende vel: letters in de vier
-  hoeken, en posities alleen nog als canvas-getal of hoekletter benoemen.
+- **Opgelost**: de hoekletters P/Q/R/S bepaalden de leesrichting. Links/rechts
+  zit op de canvas-y-as, boven/beneden op de canvas-x-as, en een normaal
+  getekend ontwerp komt na `rotate=270` rechtop op het etiket (zie KNOWLEDGE
+  §4A). Er is dus geen ontwerpdraai nodig in Word/Excel.
 - Zet dit meetvel (kader + TOP/BOTTOM + FEED + etiketcirkel) om in een
   vast commando, bij voorbeeld `./measure --markers`, zodat een nieuwe rol in
   één afdruk is uit te meten zonder woorden te vertalen.

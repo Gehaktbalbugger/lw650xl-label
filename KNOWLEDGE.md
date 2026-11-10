@@ -75,38 +75,39 @@ van smalle rollen terug te winnen. Zie HANDOFF, punt "open".
    rol van 26 mm bereikt hem nooit, dus merkinformatie (BLINE) is daar waardeloos;
    `BLINE 12 mm` zette de printer zelfs in een papierfout.
 
-## 4A. Woordenschat: wat is Top, Bottom en feed
+## 4A. Coördinaten: wat op het etiket waar is
 
-Taal is hier de bron van drie verprinte velleten geweest. Dit is de tabel die
-we meetten op de vierkante rol, geldend whenever `rotate=270`:
+Definitief vastgesteld met een vel dat vier hoekletters draeg (P/Q/R/S) en
+waarvan de canvas-positie van elke letter bekend was. De gebruiker hield het
+etiket zoals hij het wil lezen:
 
-| rand van het etiket zoals de gebruiker hem bekijkt | as in canvas-coordinaten |bereik in mm | hoe je er komt |
-|---|---|---|---|
-| **Top** (draagt de onbereikbare 2 mm) | x, bij x=0 | 0..23,5 | `rotate=270` klapt de ontwerprand hierheen |
-| **Bottom** | x, bij de rechterkant | x=23,5 | `right` klein houden (kader raakt de rand) |
-| **zijdes** | y | 4,4..29,9 | dit is de **feed-as**; `voffset`/`bottom` |
-| **uitvaartkant** | de kant met de **kleinste** canvas-y | — | bevestigd met een pijlvel: de etiketrand op y=4,4 mm kwam het eerst naar buiten; y=29,9 mm is de achterkant |
+| zijn kijk | letters op het vel | canvas |
+|---|---|---|
+| linkerboven | P | x 3,64 / y 25,65 mm |
+| rechterboven | Q | x 3,64 / y 7,87 mm |
+| linkeronder | R | x 19,73 / y 25,65 mm |
+| rechteronder | S | x 19,73 / y 7,87 mm |
 
-Open punt: de letters **TOP** en **BOTTOM** op het meetvel staan langs de
-canvas-x-as, maar de gebruiker las de pijl "naar de B" wijzen, wat langs de
-y-as zou moeten. Eén meetvel met letters in de **vier hoeken** lost dat op;
- tot die tijd: beschrijf een positie altijd als canvas-coördinaat of als letter
- van het vel, nooit als boven/links/onder.
+Dus, met `rotate=270`:
 
-Twee regels voor diagnostics:
+| zijn richting | canvas |
+|---|---|
+| **boven** (draagt de 2 mm onbereikbaar) | kleine x, x=0 kant |
+| **beneden** | grote x (23,5 mm kant) |
+| **links** | grote y = achterkant |
+| **rechts** | kleine y = **uitvaartkant**, daar wijst de FEED-pijl heen |
 
-1. **Zet nooit woorden op een vel dat gedraaid wordt.** Tekst die "TOP" heten
-   kan na `rotate` ergens anders staan dan de aflezer verwacht. Gebruik pijlen
-   met een letter (P/Q) op het vel zelf, of letters op vier verschillende
-   randen, en laat de gebruiker letters aanwijzen.
-2. **Reken in millimeter, niet in `mm x dpi`-resten.** Een pijl op `26 x 11,811`
-   dots in een ontwerp van 295 dots valt van de rand af en verdwijnt spoorloos;
-   dat kostte één onleesbaar vel.
-3. **Een canvas-grootte pagina door `convert()` sturen is fout.** De filter
-   schaalt élke inkomende pagina terug naar het printvlak; een vel van
-   1280 x 356 dots wordt dus 278 x 295 dots en al je markeringen staan
-   verkleind en verschoven. Diagnostiek over het hele canvas stuur je als
-   rauwe `BITMAP`-opdracht, een ontwerppagina als pagina op etiketformaat.
+Twee conclusies die het waard zijn:
+
+1. Links/rechts zit op de **y-as** (de voedingsrichting), niet op de x-as. Al
+   mijn eerdere "pijl wijst naar de B"-interpretaties liepen dlatego stuk.
+2. Een ontwerp dat je normaal tekent (linksboven = linksboven) komt na
+   `rotate=270` **rechtop** op het etiket te staan: hoek voor hoek identiek.
+   Je hoeft je Word- of Python-ontwerp dus niet te draaien; alleen de
+   paginamaat moet passen bij het printbare vlak.
+
+Regel voor diagnostics: benoem een positie altijd als canvas-getal of als
+letter van het vel, nooit met boven/links/onder.
 
 ## 5. Geometrie per rol, alles in de PPD
 
