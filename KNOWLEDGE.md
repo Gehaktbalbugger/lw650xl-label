@@ -85,7 +85,13 @@ we meetten op de vierkante rol, geldend whenever `rotate=270`:
 | **Top** (draagt de onbereikbare 2 mm) | x, bij x=0 | 0..23,5 | `rotate=270` klapt de ontwerprand hierheen |
 | **Bottom** | x, bij de rechterkant | x=23,5 | `right` klein houden (kader raakt de rand) |
 | **zijdes** | y | 4,4..29,9 | dit is de **feed-as**; `voffset`/`bottom` |
-| **feed-richting** | langs y, naar **grote y** | — | **bevestigd**: canvas +y is de kant waarmee het etiket naar buiten komt |
+| **uitvaartkant** | de kant met de **kleinste** canvas-y | — | bevestigd met een pijlvel: de etiketrand op y=4,4 mm kwam het eerst naar buiten; y=29,9 mm is de achterkant |
+
+Open punt: de letters **TOP** en **BOTTOM** op het meetvel staan langs de
+canvas-x-as, maar de gebruiker las de pijl "naar de B" wijzen, wat langs de
+y-as zou moeten. Eén meetvel met letters in de **vier hoeken** lost dat op;
+ tot die tijd: beschrijf een positie altijd als canvas-coördinaat of als letter
+ van het vel, nooit als boven/links/onder.
 
 Twee regels voor diagnostics:
 

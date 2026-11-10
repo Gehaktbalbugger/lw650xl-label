@@ -148,8 +148,12 @@ pullen van deze sessie.
 - Afstandsdopje rechts van de rol als mechanisch alternatief.
 - De T/B/L/R-markerstand in `./measure` bouwen, met de les erbij: alleen
   letters op het vel, geen woorden in overleg (zie KNOWLEDGE §4A).
-- **Bevestigd**: de feed-richting is canvas **+y**. Het meetvel met één FEED-
-  pijl werd door de gebruiker als correct aangewezen.
+- **Bevestigd en gecorrigeerd**: de uitvaartkant is de **kleinste canvas-y**
+  (eerst mijn +y genoteerd, dat was een mislezing van een woordantwoord; het
+  pijlvel wees het omgekeerde aan en dat werd door de gebruiker bevestigd).
+- **Open**: TOP/BOTTOM op het meetvel staan langs canvas-x, maar worden door
+  de gebruiker langs een andere as gelezen. Volgende vel: letters in de vier
+  hoeken, en posities alleen nog als canvas-getal of hoekletter benoemen.
 - Zet dit meetvel (kader + TOP/BOTTOM + FEED + etiketcirkel) om in een
   vast commando, bij voorbeeld `./measure --markers`, zodat een nieuwe rol in
   één afdruk is uit te meten zonder woorden te vertalen.
