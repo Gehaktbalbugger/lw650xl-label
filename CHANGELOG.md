@@ -22,7 +22,7 @@
   1,0 mm boven/onder): `left=1.5 right=1.45 voffset=5.1 bottom=1.95`.
 - Belangrijkste inzicht: voor deze printer telt **SIZE-hoogte + GAP =
   de echte steek**. Met `SIZE 26 mm,34 mm` + `GAP 3 mm` (37 mm) vielen
-  vijf losse beurten exact same; zolang de som klopte maakte het de
+  vijf losse beurten exact gelijk; zolang de som klopte maakte het de
   sensor niet uit dat de gaatjes buiten het sensorbereik vallen.
 - Bug in `./measure`: de kruis-print stuurde `SIZE <w>,<h>` in plaats
   van de meegegeven `--pitch`/`--gap`, waardoor de printer te weinig

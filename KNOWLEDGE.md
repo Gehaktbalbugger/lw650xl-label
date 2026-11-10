@@ -22,7 +22,7 @@ werken.
   | `SSSGETCAP:OPEN` / `:CLOSE` | deksel of mediahefboom bewoog |
   | `Cmd error:<token>` | commando (of token) niet begrepen |
 
-## 2. Commando-matrix (gepied, één commando per verbinding)
+## 2. Commando-matrix (gepiept, één commando per verbinding)
 
 | aanvaard | geweigerd |
 |---|---|
@@ -62,7 +62,7 @@ van smalle rollen terug te winnen. Zie HANDOFF, punt "open".
 2. **`SIZE`-hoogte + `GAP`-lengte = de afstand per etiket.** Dat is wat de
    printer aanvoert. Klop die som niet, dan zoekt hij een referentie die er
    niet is en begint elke beurt elders. Klop ze wél, dan liggen vijf losse
-   beurten exact same — ook als de gaatjes/zelfs de kloof zelf niet door de
+   beurten exact gelijk — ook al zien de gaatjes of zelfs de kloof de sensor
    sensor gezien worden.
 3. De standaardvulling van de bitmap is `pitch_dots - 12` (dat is wat de
    vendor-app op de 57 × 32-rol stuurt: 444 rijen bij 456 dots). Rols die
@@ -95,7 +95,7 @@ de `label`-CLI gelezen. CUPS houdt commentaarregels intact bij installatie
 | `left` | dode zone: mm etiket links van x=0, onbereikbaar |
 | `right` | mm vrij aan de rechterkant; gelijk aan `left` = gecentreerd |
 | `top` | mm van bitmap-oorsprong tot de bovenrand van het etiket (mag negatief) |
-| `bottom` | mm vrij onderaan; op heet een onbereikbare bovenrand de spiegel van |
+| `bottom` | mm vrij onderaan; spiegelt een onbereikbare bovenrand |
 | `voffset` | schuift de hele print naar beneden (centrering met het oog beoordeeld) |
 | `rows` | bitmap-hoogte in dots, overstemmt `pitch - 12` |
 | `rotate` | 90 of 270: het ontwerp zijwaarts; het bitmap-loopt alsnog over de kop |
@@ -159,7 +159,31 @@ Bijbehorende etiketranden in bitmap-coordinaten (x = over de kop, y = voedingsri
 - Een test mag nooit `git checkout` op de werkboom doen; die van ons
   quietly vernietigde zo een zojuist gemeten rol.
 
-## 9. Hoe een nieuwe rol meten
+## 9. Bewijs: wat Labellife echt stuurt
+
+Twee keer gepiept met `tcpdump -i en0 tcp port 9100` op de vierkante rol.
+Woord voor woord identiek, alleen `DENSITY` volgde de keuze in de app:
+
+```
+SIZE 25 mm,33.97 mm
+REFERENCE 0,0
+GAP  3 mm, 0 mm
+OFFSET 0 mm
+DIRECTION 0,0
+DENSITY 15
+BITMAP 0,0,160,356,4,,<LZO-variant>
+PRINT 1,1
+SPEED 4
+```
+
+Wat deze capture opleverde: de breedte in de `SIZE` is het **etiket** (25 mm),
+de hoogte is de **voeding minus de gap** (33,97 + 3 ≈ 37 mm), het canvas is
+160 × **356** rijen, en mode 4 is hun eigen LZO-variant (twee komma's na de
+mode, daarna blokken). Een kruis dat wij met `rows=356 pitch=33.97` printen,
+valt exact op het kruis van Labellife — gecontroleerd door de twee etiketten
+op elkaar te leggen.
+
+## 10. Hoe een nieuwe rol meten
 
 1. `./measure <breedte> <hoogte> --name LW_XxY [--pitch .. --gap ..] [--rotate ..]`
    drukt één etiket met `0,0` in het midden van het verwachte printvlak,

@@ -40,11 +40,11 @@ geven en de volle strook van 23,5 mm te gebruiken met scheef wit.
 ### Sporen om morgen op te pakken, in volgorde van hoop
 
 1. **`SHIFT`** — de firmware accepteerde `SHIFT 0` (geen `Cmd error`), maar we
-   hebben nooit geprobeerd wat het doet. Waardeer: verzet het de start van de
+   hebben nooit geprobeerd wat het doet. Vraag: verzet het de start van de
    kop in dots? Test zonder veel etiketten te verbruiken:
    `printf '\r\nSHIFT 18\r\n' | nc -w2 172.16.1.20 9100` en daarna één
    vierkant printen; als de linkerrand minder wit wordt, is dit de knob om de
-   dode zone te recoveren. Probeer ook `SHIFT -18` en `SHIFT 400`.
+   dode zone terug te winnen. Probeer ook `SHIFT -18` en `SHIFT 400`.
 2. **Mechanisch**: de rol ligt tegen de linkergeleider. Als daar 1,5 mm
    ruimte bij gezet kan worden (dikker ringetje, stukje liner als spacer),
    schuift het hele etiket naar het midden van de kop en win je dezelfde

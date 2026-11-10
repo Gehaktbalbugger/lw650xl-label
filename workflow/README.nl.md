@@ -345,7 +345,7 @@ scheef of aan één kant afgesneden, meet de vier randen na met een kruis-etiket
 
 **Regelmaat valt of staat met de voeding.** Deze printer telt `SIZE-hoogte +
 gap` als afstand per etiket. Voor de vierkante rol is dat 34 + 3 = 37 mm,
-gelijk aan de gemeten steek; vijf losse afdrukken vielen daarna exact same.
+gelijk aan de gemeten steek; vijf losse afdrukken vielen daarna exact gelijk.
 Een verkeerde som zie je meteen: dan staat elk etiket iets hoger of lager.
 
 De watcher leest diezelfde PPD; alleen voor één afwijkende rol kun je
