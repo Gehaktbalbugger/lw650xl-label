@@ -12,6 +12,10 @@ Verwachte kolommen (hoofdletterongevoelig, Nederlandse of Engelse namen):
     gap       (optioneel)                  etiketafstand in mm (0 = continu)
 
 Ontbreekt de kolom 'text', dan wordt de eerste kolom als tekst gebruikt.
+
+Met --two-up worden opeenvolgende rijen GEPAARD: twee rijen samen vormen
+een blok met twee etiketten naast elkaar (bv. de AM11353, twee keer
+12,5 x 25 mm per blok). Rij 1 = linker etiket, rij 2 = rechter etiket.
 Het scheidingsteken (, of ;) wordt automatisch herkend.
 
 Gebruik:
@@ -77,6 +81,8 @@ def main():
     ap.add_argument("csv")
     ap.add_argument("--size", default="57x32", help="standaard etiketformaat in mm")
     ap.add_argument("--host", default=DEFAULT_HOST)
+    ap.add_argument("--two-up", action="store_true",
+                    help="paar opeenvolgende rijen toteen blok met twee etiketten naast elkaar")
     ap.add_argument("--dry-run", action="store_true", help="alleen tonen, niet printen")
     args = ap.parse_args()
 
@@ -93,8 +99,18 @@ def main():
         # geen herkenbare kopregel: eerste kolom = tekst
         records = [{"text": r[0] if r else ""} for r in rows]
 
+    blocks = [(rec, None) for rec in records]
+    if args.two_up:
+        # lege rijen eruit halen voordat we paren (anders verspringt het blok)
+        gevuld = []
+        for rec in records:
+            if (pick(rec, TEXT_KEYS) or "").strip():
+                gevuld.append(rec)
+        blocks = [(gevuld[i], gevuld[i+1] if i+1 < len(gevuld) else None)
+                  for i in range(0, len(gevuld), 2)]
+
     printed = 0
-    for i, rec in enumerate(records, start=1):
+    for i, (rec, recb) in enumerate(blocks, start=1):
         text = pick(rec, TEXT_KEYS)
         if not text:
             continue
@@ -123,16 +139,23 @@ def main():
         if gap:
             cmd += ["--gap", gap]
 
+        tekst2 = (pick(recb, TEXT_KEYS) or "").strip() if recb else ""
+        if args.two_up and not tekst2:
+            print(f"csv2labels: waarschuwing - rechter helft leeg (oneven aantal rijen)",
+                  file=sys.stderr)
+
         if args.dry_run:
+            cmd += ["--two", tekst2] if args.two_up else []
             print("DRY-RUN:", " ".join(repr(c) for c in cmd))
             printed += 1
             continue
 
+        cmd += ["--two", tekst2] if args.two_up else []
         try:
             subprocess.run(cmd, check=True)
             printed += 1
         except subprocess.CalledProcessError as e:
-            print(f"csv2labels: rij {i} mislukt (exit {e.returncode})", file=sys.stderr)
+            print(f"csv2labels: blok {i} mislukt (exit {e.returncode})", file=sys.stderr)
             return 1
         except FileNotFoundError:
             print(f"csv2labels: {LABEL} niet gevonden", file=sys.stderr)
