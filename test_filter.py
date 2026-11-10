@@ -231,6 +231,26 @@ def main():
     ok &= check("add-size.sh: exit 0", code == 0)
     os.path.exists(tmp_ppd) and os.unlink(tmp_ppd)
 
+    # --- 6a. AM11353: de liner begint rechts van de kopstart --------------
+    # Gemeten: liner x 6..36 mm, etiket A 7,5..20 mm, snijline 20 mm,
+    # etiket B 20..32,5 mm. Labellife stuurt SIZE 25.6 mm,34 mm + GAP 3 mm
+    # (37 mm voeding) met een bitmap van 354 regels.
+    dpi = lw.DOTS_PER_MM
+    tbl = dict(TABLE)
+    tbl["LW_25x25"] = {"pitch": 34.0, "gap": 3.0, "rows": 354.0, "xoffset": 7.5,
+                       "left": 0.0, "right": 0.0, "top": -0.5, "bottom": 0.7}
+    gb = lw.media_geometry(lw.parse_options("media=LW_25x25"), 25.6, 25.0, tbl)
+    tb = lw.canvas_rows(gb)
+    bxo, byo, bw, bh = lw.print_window(gb, tb)
+    ok &= check("AM11353: canvas 354 regels zoals de vendor", tb == 354)
+    ok &= check("AM11353: xoffset -> blok x %.2f..%.2f mm" % (bxo/dpi, (bxo+bw)/dpi),
+                abs(bxo/dpi - 7.5) < 0.1 and abs((bxo + bw)/dpi - 32.5) < 0.2)
+    ok &= check("AM11353: snijlijn op x = 20 mm", abs((bxo + bw/2)/dpi - 20.0) < 0.1)
+    # de vendor stuurt 25,6 mm: dat is het blok van 2 x 12,5 plus de snijrail.
+    # Ons介质blok is het echte etiket: 25,0 mm.
+    ok &= check("AM11353: blok 25,0 mm (twee keer 12,5)", abs(bw/dpi - 25.0) < 0.1)
+    ok &= check("AM11353: y begint op rij 0 door negatieve top", byo == 0)
+
     # --- 7. size metadata lives in the PPD (written by add-size.sh) --------
     with tempfile.NamedTemporaryFile("w", suffix=".ppd", delete=False) as f:
         f.write('*PPD-Adobe: "4.3"\n'
