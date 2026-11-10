@@ -141,6 +141,54 @@ Volgende rol dus meteen met het T/B/L/R-kader meten; dat hoort in `./measure`
 te komen als `--markers` in plaats van het kruis. Vraag dat als eerste na het
 pullen van deze sessie.
 
+## Les van deze sessie: zo meet je, en zo niet
+
+Een genummerde schaal aflezen **werkt niet** op deze rol: bij `rotate=270`
+wijzen N/Z/W/O de verkeerde kant op, en de getalletjes die buiten het etiket vallen
+(op de liner naast het kader) zijn onleesbaar. Drie afdrukken meten hielp niet.
+Eén vel met een kader en één letter per hoek — **T, B, L, R** — en de vraag
+"hoeveel wit tussen kader en rand per hoek" loste het in twee afdrukken op.
+
+Volgende rol dus meteen met het T/B/L/R-kader meten; dat hoort in `./measure`
+te komen als `--markers` in plaats van het kruis. Vraag dat als eerste na het
+pullen van deze sessie.
+
+## KAPOT: label --two prints bijna niets (oplossen vóór alles anders)
+
+Fysiek velletje bij de vierkante rol: "a few pixels" in plaats van twee
+etiketten. De fout zit in de **--two-composmetie van de CLI**, niet in de rol
+en niet in de filter.
+
+Wat er fout is (bewezen vandaag):
+
+- De compose bouwde de pagina in CANVAS-maten: `Image.new("L", (box[3]*2, box[2]))`
+  = 590 x 287 dots, terwijl de combinatie-pagina van het ontwerp
+  **295 x 287 dots** moet zijn (=naam-maten van het venster, niet de canvas).
+ Daarna paste hij op twee plekken: (0,0) en (295,0) — dús 0..590 dots ink op
+  canvas, terwijl het etiket pas van 7,5 mm begint en tot 32,5 mm; de overgang
+  van 32,5..57 mm viel dus buiten de kop/belichtbaar gebied. Gevolg: "a few
+  pixels" op het etiket.
+- Daarnaast: de enige rotatie in de flow (het `rotate=270`-stje) is door deze
+  conversie geslikt; de ontwerppagina is onaangepast gebleven toesü.
+
+De gerechte oplossing voor morgen (kleine patch, nauwkeurig analoog aan de
+enkele-label-pagina):
+
+```python
+# in run van label: de compose in het ONTWERP-frame
+swap = (args.box[0], args.box[2], args.box[1])   # zoals de enkele-label-flow
+a2 = copy.copy(args); a2.box = swap
+a2.box = (0, 0, swap[2], swap[3] // 2)            # halve pagina: (295 x 144)
+img = Image.new("L", (swap[3], swap[2]), 1)
+img.paste(render_label(a2, dots), (0, 0))
+a2.text = args.two
+img.paste(render_label(a2, dots), (swap[3] // 2, 0))
+img = img.rotate(-args.rotate, expand=True)        # in de enkele-label-vel
+```
+
+Daarna: rooktest zoals vandaag (vanger + bits-controle: beide halve kolommen
+inkt binnen x 7,5..32,5 mm) en dan pas fysiek printen.
+
 ## Nog open bij de start van de volgende sessie
 
 - `SHIFT` accepteert de firmware (`SHIFT 0` gaf geen `Cmd error`) maar is nooit
