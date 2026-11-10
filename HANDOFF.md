@@ -158,10 +158,12 @@ pullen van deze sessie.
 - Zet dit meetvel (kader + TOP/BOTTOM + FEED + etiketcirkel) om in een
   vast commando, bij voorbeeld `./measure --markers`, zodat een nieuwe rol in
   één afdruk is uit te meten zonder woorden te vertalen.
-- **Open**: de vierkante rol is nog NIET geïnstalleerd. In de driver staat de
-  2-mm-versie (`left=1.5 right=3.0 voffset=4.5 bottom=3.5`). De grotere
-  rechthoek `right=0.95 bottom=0 voffset=2.5` is alleen met per-taak-opties
-  geprobeerd; vastzetten met `./test-print.sh --commit` (vraagt wachtwoord).
+- **Geïnstalleerd**: de vierkante rol draait nu de maximale rechthoek
+  `left=1.5 right=1.4 top=1.9 voffset=2.5 bottom=0 rows=356 pitch=33.97 gap=3
+  rotate=270`. Printbaar vlak 23,03 × 24,98 mm; wit 2,00 mm aan de bovenkant
+  (dode zone), 0,47 mm beneden, en langs de y-randen 0,00 / 0,61 mm.
+- Restpunt: de uitvaartkant (uw rechts) heeft 0,00 mm reserve. Als die lijn
+  ooit net afloopt, verhoog `bottom` met 0,5 mm — niet `voffset`.
 - **Zijdeffect van dezelfde meting**: het etiket is 25,5 mm hoog in de
   feed-richting, maar de PPD-snaam `LW_26x25` geeft 25 mm, dus er blijft
   0,5 mm ongebruikt. `w=`/`h=`-overschrijving in `lw-media` is de nette fix.
