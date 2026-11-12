@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.7 (uittestaat) — `./measure --markers`: het T/B/L/R-vel als commando
+## 1.7 — `./measure --markers`: het T/B/L/R-vel als commando (12 nov, geïnstalleerd)
 
 - Nieuwe stand in `./measure`: `--markers` drukt **één vel** met het kader
   precies op de randen van het aangenomen printbare vlak plus één letter per

@@ -9,7 +9,7 @@ alleen **waar we zijn en wat de volgende stap is**.
 | | |
 |---|---|
 | repo | https://github.com/Gehaktbalbugger/lw650xl-label — **public** |
-| releases | **t/m v1.6** (Latest): v1.0 AM11354, v1.1 AM99012, v1.2 `./measure`, v1.3 S0929120, v1.4/v1.5 vierkant, v1.6 AM11353 2-up gefixt + gekalibreerd |
+| releases | **t/m v1.7** (Latest): v1.0 AM11354, v1.1 AM99012, v1.2 `./measure`, v1.3 S0929120, v1.4/v1.5 vierkant, v1.6 AM11353 2-up geijkt, v1.7 `./measure --markers` |
 | laatste commit | deze handoff op `0cadb4a` (KAPOT + status), daarna alleen doc-correcties |
 | rollen | **4 geïnstalleerd**: AM11354 (57×32), AM99012 (36×89 staand), S0929120 (vierkant, 2 mm rondom), AM11353 (`LW_25x25`, blok 2-up) |
 | afgetekend | **AM99012, AM11354** én de **AM11353 2-up** (vel van 12 nov: kaders, snijlood en Anna/Piet goedgekeurd); vierkante rol geïnstalleerd op 2 mm rondom |
@@ -203,14 +203,14 @@ identiek), Anna/Piet-vel goedgekeurd — beide etiketten gecentreerd, tekst
 zijwaarts zoals de vendor-app. Eens per rolwissel: de snijlood-lijn van
 `diag`-formaat terugprinten als herijking (KNOWLEDGE §AM11353).
 
-## Wat er nu op de iMac draait (v1.6, geïnstalleerd en afgetekend)
+## Wat er nu op de iMac draait (v1.7, geïnstalleerd en afgetekend)
 
 - **driver**: 4 rollen geïnstalleerd — AM11354, AM99012, S0929120 (2 mm rondom)
   en AM11353 als blok met de **gekalibreerde** regel
   `LW_25x25 pitch=34 gap=3 rows=354 xoffset=-2 top=4.5` (filter en PPD
   geïnstalleerd via `install.sh`, md5's identiek aan de repo).
 - AM99012, AM11354 en de AM11353 2-up: door de gebruiker afgetekend.
-- releases t/m **v1.6**; repo **public**.
+- releases t/m **v1.7**; repo **public**.
 
 ## Nog open bij de start van de volgende sessie
 
