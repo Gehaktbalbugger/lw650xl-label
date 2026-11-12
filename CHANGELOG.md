@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.6 (uittestaat) — AM11353 2-up gefixt: compositie in het ontwerp-frame
+
+- `label --two` composeert nu in het **ONTWERP-frame** (295 × 287/288 dots),
+  als twee halve pagina's van 295 × ~144 dots boven elkaar, en daarna pas
+  **de enkele-label-rotatie** (270°) erop: bovenste helft → linker kolom,
+  onderste → rechter. De oude opbouw was canvas-maten (590 × 287) zonder
+  rotatie; het beeld viel grotendeels buiten het blok (7,5..32,5 mm) — op
+  het vel "a few pixels". 2-up Forceert 270° als de PPD geen rotatie geeft,
+  want twee halve banen van 12,5 mm naast elkaar staan altijd op z'n kant.
+- **Bug in de rotatie-tak** meegenomen: `args.box` werd er een 3-tuple van
+  gemaakt terwijl `render_label` er 4 waarden uit haalt — dus elke
+  `rotate=270`-print via de CLI crashte ("niet enough values to unpack").
+  Nu een proper swap van h en w; het geroteerde beeld valt precies in het
+  meetvenster (getest op de vierkante rol: canvas 356, inkt binnen x/y-venster).
+- Rooktest in `test_label.py`: de vanger (TCP-verfanger) pakt de wire-bytes
+  en de bits-controle verifieert voor AM11353: BITMAP 160 B × 354 regels
+  (zoals de vendor-capture), inkt uitsluitend binnen het blok 7,5..32,5 mm,
+  beide halve kolommen dragen inkt, de snijlijn op x=20 mm blijft wit en
+  onder het etiket (rij ≥ 295) staat geen inkt. Fysiek printen is nog tegoed.
+- Twee CLI-draadjes gerepareerd: `--rows/--rotate/--xoffset/--sense/--gapoff`
+  werden na argparse onvoorwaardelijk op `None` gezet, waardoor PPD-hints
+  gebruikervlaggen altijd overschreven; en `--media-bottom`/`--media-right`
+  deden niets — ze zijn nu doorlussen naar het printvlak. `--two`-tekst vervangt
+  nu ook `\n` in regeleinden, zoals csv2labels documenteert.
+
 ## 1.5 — vierkante rol geïnstalleerd op maximale breedte; coördinaten definitief
 
 - De S0929120-rol is gemeten en **geïnstalleerd** op de maximale rechthoek:

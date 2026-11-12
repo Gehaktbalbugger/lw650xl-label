@@ -333,6 +333,8 @@ def main():
     args = p.parse_args()
 
     args.text = args.text.replace("\\n", "\n")
+    if args.two:
+        args.two = args.two.replace("\\n", "\n")   # csv2labels-documentatie: \n ook in de tweede tekst
     args.size_w, args.size_h = parse_size(args.size)
     # Roll geometry: the PPD written by add-size.sh knows the pitch and gap.
     hints = media_from_ppd(args.size_w, args.size_h)
@@ -352,17 +354,16 @@ def main():
         args.left = hints.get("left", DEFAULT_LEFT_MM)
     if args.media_top is None:
         args.media_top = hints.get("top", DEFAULT_TOP_MM)
+    # args.bottom/args.right kennen geen eigen CLI-optie: overschrijf vanuit
+    # --media-bottom/--media-right, anders de PPD-hint, anders de default.
     args.bottom = None
     args.right = None
-    args.rows = None
-    args.rotate = None
-    args.xoffset = None
-    args.sense = None
-    args.gapoff = None
     if args.bottom is None:
-        args.bottom = hints.get("bottom", DEFAULT_BOTTOM_MM)
+        args.bottom = (args.media_bottom if args.media_bottom is not None
+                       else hints.get("bottom", DEFAULT_BOTTOM_MM))
     if args.right is None:
-        args.right = hints.get("right", DEFAULT_RIGHT_MM)
+        args.right = (args.media_right if args.media_right is not None
+                      else hints.get("right", DEFAULT_RIGHT_MM))
     if args.rows is None:
         args.rows = hints.get("rows")
     # Eerst de rol-hints uit de PPD, DAN het printvlak: die volgorde is nu verkeerd
@@ -381,23 +382,33 @@ def main():
     if args.rotate is None:
         args.rotate = int(hints.get("rotate", 0))
     if args.two:
+        # 2-up: composeer in het ONTWERP-frame (op deze rol 295 × 288 dots),
+        # twee halve pagina's van 295 × 144 boven elkaar, en pas DAARNA de
+        # enkele-label-rotatie erop. De oude opbouw was in canvas-maten
+        # (590 × 287, later 294 rechtop): de helft van het beeld viel toen
+        # van de kop en de tekst stond op z'n kant niet goed — vandaar
+        # "a few pixels" op het velletje.
         import copy
-        from PIL import Image as _PILIMG
+        from PIL import Image
+        ox, oy, ch, cw = args.box
+        rot = args.rotate if args.rotate in (90, 270) else 270  # 2-up staat altijd op z'n kant
+        half = ch // 2
         a2 = copy.copy(args)
         a2.two = None
-        a2.box = (args.box[0], args.box[1], args.box[2], args.box[3] // 2)
+        a2.box = (ox, oy, half, cw)   # halve pagina: 295 × 144 dots
         a2.text = args.text
-        e_links = render_label(a2, dots_mm)
+        e_boven = render_label(a2, dots_mm)
         a2.text = args.two
-        e_rechts = render_label(a2, dots_mm)
-        img = _PILIMG.new("L", (a2.box[3] * 2, a2.box[2]), 1)
-        img.paste(e_links, (0, 0))
-        img.paste(e_rechts, (a2.box[3], 0))
+        e_onder = render_label(a2, dots_mm)
+        img = Image.new("1", (cw, ch), 1)   # het ontwerp-frame, niet de canvas
+        img.paste(e_boven, (0, 0))          # bovenste helft -> na rotatie links
+        img.paste(e_onder, (0, half))       # onderste helft -> na rotatie rechts
+        img = img.rotate(-rot, expand=True)
     elif args.rotate in (90, 270):
         # Render the page turned on its side, then rotate it back into the
         # label's print window. Only the design turns; the bitmap keeps
         # running across the 1280-dot head, which is what TSPL BITMAP needs.
-        args.box = (args.box[0], args.box[2], args.box[1])
+        args.box = (args.box[0], args.box[1], args.box[3], args.box[2])
         img = render_label(args, dots_mm)
         img = img.rotate(-args.rotate, expand=True)
     else:

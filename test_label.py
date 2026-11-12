@@ -19,16 +19,17 @@ HEAD_DOTS = 1280
 TOP_OFFSET = 60
 
 
-def capture_payload():
+def capture(cmd):
+    """Vanger: lokale TCP-printer nadoen en de exacte wire-bytes vastleggen."""
     srv = socket.socket()
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
+    srv.settimeout(20)
     port = srv.getsockname()[1]
-    sub = subprocess.run(
-        ["./label", "Guard-check\nAnna de Bakker",
-         "--host", "127.0.0.1", "--port", str(port)],
-        capture_output=True, text=True, timeout=15)
+    sub = subprocess.run(cmd + ["--host", "127.0.0.1", "--port", str(port)],
+                         capture_output=True, text=True, timeout=15)
+    assert sub.returncode == 0, f"CLI failed: {sub.stderr}"
     conn, _ = srv.accept()
     conn.settimeout(5)
     data = b""
@@ -42,8 +43,38 @@ def capture_payload():
         pass
     conn.close()
     srv.close()
-    assert sub.returncode == 0, f"CLI failed: {sub.stderr}"
     return data
+
+
+def unpack_bitmap(data):
+    start = data.index(b"BITMAP 0,0,")
+    m = re.match(rb"BITMAP 0,0,(\d+),(\d+),(\d+),", data[start:])
+    assert m, "BITMAP header required"
+    wb, hpx, mode = (int(x) for x in m.groups())
+    assert mode == 0, "BITMAP must be mode 0 (uncompressed)"
+    body = data[start + m.end():]
+    end = body.index(b"\r\nPRINT 1,1\r\n")
+    bits = body[:end]
+    assert len(bits) == wb * hpx, f"bitmap size {len(bits)} != {wb * hpx}"
+    assert b"\r\n" not in bits, "no CRLF inside the bitmap payload"
+    return wb, hpx, bits
+
+
+def ink_columns(bits, wb):
+    """Aantal donkere dots per koppositie x (bit 0 = geprint)."""
+    cols = []
+    for x in range(wb * 8):
+        byte, bit = divmod(x, 8)
+        n = 0
+        for row in range(len(bits) // wb):
+            if not bits[row * wb + byte] & (1 << (7 - bit)):
+                n += 1
+        cols.append(n)
+    return cols
+
+
+def capture_payload():
+    return capture(["./label", "Guard-check\nAnna de Bakker"])
 
 
 def main():
@@ -52,21 +83,10 @@ def main():
     assert data.startswith(b"\r\nDENSITY"), "payload must start with header"
     assert data.endswith(b"\r\nPRINT 1,1\r\n"), "PRINT trailer required"
     assert b"SIZE 57 mm,38.6 mm" in data, "57x32 media must use the 38.6 mm pitch"
-    assert b"BITMAP 0,0," in data
 
-    start = data.index(b"BITMAP 0,0,")
-    m = re.match(rb"BITMAP 0,0,(\d+),(\d+),(\d+),", data[start:])
-    assert m, "BITMAP header required"
-    wb, hpx, mode = (int(x) for x in m.groups())
-    assert mode == 0, "BITMAP must be mode 0 (uncompressed)"
+    wb, hpx, bits = unpack_bitmap(data)
     assert wb == HEAD_DOTS // 8, f"bitmap must span the full head ({HEAD_DOTS} dots)"
     assert hpx >= TOP_OFFSET + 300, "bitmap must cover the label area"
-
-    body = data[start + m.end():]
-    end = body.index(b"\r\nPRINT 1,1\r\n")
-    bits = body[:end]
-    assert len(bits) == wb * hpx, f"bitmap size {len(bits)} != {wb * hpx}"
-    assert b"\r\n" not in body[:end], "no CRLF inside the bitmap payload"
 
     dark = 0
     for b in bits:
@@ -79,6 +99,56 @@ def main():
     top = bits[: wb * TOP_OFFSET]
     assert all(b == 0xFF for b in top), "area above the label must be white"
 
+    # --- AM11353 (LW_25x25): --two door de vanger, bits-controle -----------
+    # Geometrie expliciet meegegeven (de PPD-regels van deze rol), zodat de
+    # test niet van een geïnstalleerde PPD afhangt: blok x 7,5..32,5 mm,
+    # xoffset 7,5, canvas 354 regels zoals de vendor, snijlijn op x = 20 mm.
+    data = capture(["./label", "Anna de Bakker\nKeukenstraat 12",
+                    "--two", "Piet Jansen\nBrugstraat 3",
+                    "--size", "25x25", "--pitch", "34", "--gap", "3",
+                    "--rows", "354", "--xoffset", "7.5",
+                    "--left", "0", "--media-right", "0",
+                    "--media-top", "-0.5", "--media-bottom", "0.7"])
+    assert b"SIZE 25 mm,34 mm" in data, "AM11353: SIZE must be the block + pitch"
+    wb2, hpx2, bits2 = unpack_bitmap(data)
+    assert wb2 == 160 and hpx2 == 354, \
+        f"AM11353: full head and 354 rows expected, got {wb2 * 8} x {hpx2}"
+    cols2 = ink_columns(bits2, wb2)
+    xs = [x for x, n in enumerate(cols2) if n]
+    assert xs, "AM11353: geen inkt gevonden"
+    assert xs[0] >= 89 and xs[-1] <= 376, \
+        f"AM11353: inkt x {xs[0]}..{xs[-1]} valt buiten blok 89..376 (7,5..31,9 mm)"
+    links, rechts = sum(cols2[89:236]), sum(cols2[236:376])
+    assert links > 200 and rechts > 200, \
+        f"AM11353: beide halve kolommen moeten inkt dragen (L={links}, R={rechts})"
+    assert cols2[236] == 0, "AM11353: de snijlijn op x=20 mm moet wit blijven"
+    pad2 = bits2[295 * wb2:]
+    assert all(b == 0xFF for b in pad2), \
+        "AM11353: na rij 295 (label-einde + bottom-veiligheid) mag geen inkt staan"
+    print(f"AM11353 2-up: inkt x {xs[0]}..{xs[-1]}, L={links} R={rechts} dots")
+
+    # --- vierkante rol: de (ooit crashende) rotate=270-tak ------------------
+    # LW_26x25 from KNOWLEDGE: ox=18, oy=52, window 272 x 295, canvas 356.
+    data = capture(["./label", "vierkant", "--size", "26x25",
+                    "--pitch", "33.97", "--gap", "3", "--rows", "356",
+                    "--left", "1.5", "--media-right", "1.4",
+                    "--media-top", "1.9", "--voffset", "2.5",
+                    "--media-bottom", "0", "--rotate", "270"])
+    wb3, hpx3, bits3 = unpack_bitmap(data)
+    assert wb3 == 160 and hpx3 == 356, \
+        f"vierkant: full head and 356 rows expected, got {wb3 * 8} x {hpx3}"
+    pad3 = bits3[:52 * wb3]
+    assert all(b == 0xFF for b in pad3), "vierkant: rijen vóór oy=52 moeten wit zijn"
+    cols3 = ink_columns(bits3, wb3)
+    xs = [x for x, n in enumerate(cols3) if n]
+    assert xs and 18 <= xs[0] and xs[-1] <= 290, \
+        f"vierkant: inkt x {xs[0]}..{xs[-1]} valt buiten window 18..290"
+    rows = [sum(1 for byte in bits3[r * wb3:(r + 1) * wb3] if byte != 0xFF)
+            for r in range(hpx3)]
+    ys = [y for y, n in enumerate(rows) if n]
+    assert ys[0] >= 52 and ys[-1] <= 346, \
+        f"vierkant: inkt y {ys[0]}..{ys[-1]} valt outside window 52..346"
+    print(f"vierkant rotate=270: inkt x {xs[0]}..{xs[-1]}, y {ys[0]}..{ys[-1]}")
     print("OK")
     return 0
 

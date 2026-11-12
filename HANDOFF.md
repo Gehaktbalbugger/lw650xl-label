@@ -12,7 +12,7 @@ alleen **waar we zijn en wat de volgende stap is**.
 | releases | **t/m v1.5** (Latest): v1.0 AM11354, v1.1 AM99012, v1.2 `./measure`, v1.3 S0929120, v1.4 vierkant gecentreerd, v1.5 vierkant maximaal |
 | laatste commit | deze handoff op `0cadb4a` (KAPOT + status), daarna alleen doc-correcties |
 | rollen | **4 geïnstalleerd**: AM11354 (57×32), AM99012 (36×89 staand), S0929120 (vierkant, 2 mm rondom), AM11353 (`LW_25x25`, blok 2-up) |
-| afgetekend | **AM99012 en AM11354** door de gebruiker; de 2-up-inkt van AM11353 is **nog nooit** op een rol gezet — zie KAPOT hieronder |
+| afgetekend | **AM99012 en AM11354** door de gebruiker; AM11353 2-up is **gefixt en rooktest-groen** — fysiek proefvelletje nog tegoed (zie OPGELOST hieronder) |
 | iMac | filter + PPD geïnstalleerd en identiek aan de repo (`/usr/libexec/cups/filter/lw650xl.py`, `/etc/cups/ppd/LW650XL_Labels.ppd`) |
 | tests | `python3 test_filter.py`, `test_measure.py`, `test_label.py` — alle OK |
 | MacBook | nog **niet** bijgewerkt: `cd ~/label-printer && git pull && sudo ./install.sh` |
@@ -132,8 +132,9 @@ getallen zijn anders onherleidbaar uit de code.
 ## Morgen in een nieuwe context (eerste taak: KAPOT)
 
 1. Repo klonen of pullen (github.com/Gehaktbalbugger/lw650xl-label, public),
-   dan `HANDOFF.md` openen: de sectie **KAPOT** hieronder is de eerste taak —
-   `label --two` repareren, rooktest, dan pas fysiek printen.
+   dan `HANDOFF.md` openen. De --two/2-up-fout is **opgelost en rooktest-
+   groen** (sectie OPGELOST hieronder); als eerste taak blijft over: één
+   **fysiek velletje op de AM11353** printen en aftekenen.
 2. Daarna het **T/B/L/R-marker-vel** in `./measure` bouwen als `--markers`
    (stond er al als les): een genummerde schaal aflezen **werkt niet** op deze
    rol — bij `rotate=270` wijzen N/Z/W/O de verkeerde kant op en de getalletjes
@@ -153,43 +154,55 @@ staat vast in KNOWLEDGE.md en CHANGELOG.md — er hoeft niets meer opgetoond
 te worden. Er is deze sessie niets kapotgemaakt: de iMac draait de state
 hierboven, de MacBook wacht op `git pull && sudo ./install.sh`.
 
-## KAPOT: label --two prints bijna niets
+## OPGELOST: label --two prints bijna niets (12 nov; fysiek printen nog tegoed)
 
 Fysiek velletje bij de vierkante rol leverde "a few pixels" in plaats van
-twee etiketten. De fout zit in de **--two-compositie van de CLI**, niet in
+twee etiketten. De fout zat in de **--two-compositie van de CLI**, niet in
 de rol en niet in de filter.
 
-**De fout** (vandaag bewezen): de compose was in **canvas-maten** —
+**De fout** (bewezen 10 nov): de compose was in **canvas-maten** —
 `Image.new("L", (box[3] * 2, box[2]))` = **590 × 287 dots** in plaats van de
 **295 × 288 ontwerp-dots** — en liet de rotatie vallen. De twee helften
 plakte hij op (0,0) en (295,0), dus 0..590 dots over de kop, terwijl het
 blok maar van 7,5 tot 32,5 mm loopt; het beeld viel daardoor vooral buiten
-het etiket — op het vel: "a few pixels".
+het etiket — op het vel: "a few pixels". Derde bug op dezelfde tak: de
+enke-label-rotatie-crash (`args.box` werd een 3-tuple, render_label
+wilde er 4 uit pakken) — `--rotate 270` crashte dus altijd al.
 
-**De gerechte oplossing** (kleine patch, analoog aan de enkele-label-pagina):
-compose in het ontwerp-frame, twee halve pagina's van 295 × 144 dots, daarna
-de enkele-label-rotatie erop:
+**De oplossing** (omgezet, precies zoals voorgeschreven): composeer in het
+ONTWERP-frame, twee halve pagina's van 295 × 144 dots boven elkaar, en pas
+daarna de enkele-label-rotatie erop (270°; bovenste helft wordt linkerkolom,
+onderste de rechter — zoals csv2labels belooft). In `label` staat nu:
 
 ```python
-# in main() van label — de --two-tak, in het ONTWERP-frame (295 × 288 dots):
-a2 = copy.copy(args); a2.two = None
-a2.box = (args.box[0], args.box[1], args.box[2] // 2, args.box[3])  # halve pagina: 295 × 144
-img = Image.new("L", (args.box[3], args.box[2]), 1)                # 295 × 288, niet 590 × 287
-img.paste(render_label(a2, dots_mm), (0, 0))                        # etiket A
-a2.text = args.two
-img.paste(render_label(a2, dots_mm), (0, args.box[2] // 2))         # etiket B
-img = img.rotate(-args.rotate, expand=True)                         # de enkele-label-rotatie erop
+ox, oy, ch, cw = args.box            # venster: (89, 0, 287, 295) op deze rol
+half = ch // 2                       # halve pagina: 295 × 143~144 dots
+a2.box = (ox, oy, half, cw)
+img = Image.new("1", (cw, ch), 1)    # 295 × 287/288 ontwerp-frame, géén canvas
+img.paste(e_boven, (0, 0))           # etiket A (linker kolom na rotatie)
+img.paste(e_onder, (0, half))        # etiket B (rechter kolom na rotatie)
+img = img.rotate(-rot, expand=True)  # de enkele-label-rotatie, rot=270 voor 2-up
 ```
 
-Daarna pas de **rooktest** (vanger + bits-controle: beide halve kolommen
-inkt binnen x 7,5..32,5 mm) en dan pas fysiek printen.
+**Rooktest gevangen** (`test_label.py`, vanger + bits-controle): canvas
+160 B × 354 regels zoals de vendor, inkt x 117..307 dots = 9,9..26,0 mm —
+binnen het blok 7,5..32,5 mm, beide halve kolommen inkt (L=2063 R=1567),
+snijlijn op 20 mm wit, en onder rij 295 geen inkt. Twee fixjes meegenomen:
+`--two`-tekst vervangt nu ook `\n` (csv2labels-documentatie), en de CLI-
+vlaggen `--rows/--rotate/--xoffset/--sense/--gapoff` werden door een reset
+na argparse altijd genegeerd — die reset is weg; `--media-bottom` en
+`--media-right` zijn nu echt doorlussen naar het printvlak.
+
+**Nog tegoed**: één fysiek velletje op de AM11353 (op de iMac: `git pull`,
+dan `./label "A" --two "B" --size 25x25`). Verwacht: twee leesbare
+etiketten naast elkaar, tekst zijwaarts zoals de vendor-app.
 
 ## Wat er nu op de iMac draait (nothing broken by this session)
 
 - **driver**: 4 rollen geïnstalleerd — AM11354, AM99012, S0929120 (2 mm rondom)
-  en AM11353 als blok. Nuance: `LW_25x25` staat wél ingeschreven, maar de
-  2-up-inkt is **NIET** geïnstalleerd — de --two-compositie (twee kolommen)
-  heeft nog nooit een rol beïnkt.
+  en AM11353 als blok. `LW_25x25` staat ingeschreven en de --two-compositie is
+  in de repo **gefixt met groene rooktest**, maar heeft nog steeds geen fysiek
+  vel beïnkt; filter en PPD zijn deze sessie niet gewijzigd.
 - AM99012 en AM11354: door de gebruiker afgetekend.
 - releases t/m **v1.5**; repo **public**.
 
