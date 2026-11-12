@@ -64,10 +64,11 @@ def resolve_geometry(lw, args):
     """Geometry from the PPD (if the size is known) with command-line overrides."""
     table = lw.load_ppd_media(PPD_PATHS)
     opts = {}
-    if args.name:
-        opts["media"] = args.name
-    elif size_name(args.w, args.h) in table:
-        opts["media"] = size_name(args.w, args.h)
+    # media ALTIJD meesturen, ook voor onbekende rollen: anders normaliseert
+    # media_geometry de paginadimensies (lange kant = breedte) en swapt hij
+    # staande maten — het hele meetvel komt dan persoons op papier (bug van
+    # de ongemeten PPD-maten, opgelost bij S0904980).
+    opts["media"] = args.name or size_name(args.w, args.h)
     for key in ("pitch", "gap", "voffset", "left", "right", "top", "bottom",
                 "rotate", "rows", "xoffset"):
         value = getattr(args, key.replace("-", "_"), None)
