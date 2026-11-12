@@ -165,7 +165,8 @@ def main():
           "-2.5" in out or "-2.50" in out)
 
     # --- onbekende rol met hoogte > breedte: NIET swappen (S0904980-bug) ---
-    code, out = run("104", "159", "--markers", "--dry-run")
+    code, out = run("104", "159", "--markers", "--pitch", "162", "--gap", "3",
+                    "--dry-run")
     check("onbekende rol: size blijft 104x159 (lange-kant-swap weg)",
           "0.00..103.21" in out and "5.08..160.95" in out)
 
