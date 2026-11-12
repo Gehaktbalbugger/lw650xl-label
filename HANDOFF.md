@@ -10,7 +10,7 @@ alleen **waar we zijn en wat de volgende stap is**.
 |---|---|
 | repo | https://github.com/Gehaktbalbugger/lw650xl-label — **public** |
 | releases | **t/m v1.5** (Latest): v1.0 AM11354, v1.1 AM99012, v1.2 `./measure`, v1.3 S0929120, v1.4 vierkant gecentreerd, v1.5 vierkant maximaal |
-| laatste commit | `0cadb4a` — deze handoff met de KAPOT-sectie |
+| laatste commit | deze handoff op `0cadb4a` (KAPOT + status), daarna alleen doc-correcties |
 | rollen | **4 geïnstalleerd**: AM11354 (57×32), AM99012 (36×89 staand), S0929120 (vierkant, 2 mm rondom), AM11353 (`LW_25x25`, blok 2-up) |
 | afgetekend | **AM99012 en AM11354** door de gebruiker; de 2-up-inkt van AM11353 is **nog nooit** op een rol gezet — zie KAPOT hieronder |
 | iMac | filter + PPD geïnstalleerd en identiek aan de repo (`/usr/libexec/cups/filter/lw650xl.py`, `/etc/cups/ppd/LW650XL_Labels.ppd`) |
