@@ -305,10 +305,12 @@ heter of hoger dan de standaardrol). Die vind je met een meet-etiket:
   tegen de linkergeleider bereikt een sensor in het midden van het pad nooit;
   `BLINE` geeft dan alleen een papieren-fout. Wat de beurten wél herhaalbaar
   maakt is dat `SIZE-hoogte + gap` gelijk is aan de echte steek.
-- `--xoffset` — mm tussen de kopstart (x=0) en de linker rand van de liner. Een
-  smallere rol kan in het pad rechts van de kop beginnen: de AM11353-rol heeft
-  een 30 mm liner die bij x=6 mm begint en etiket A op x=7,5 mm. Zonder deze
-  waarde staat elk vel 7,5 mm te ver links en valt het aan de rechterkant af.
+- `--xoffset` — mm tussen de kopstart (x=0) en de linker rand van de liner;
+  **mag negatief** zijn. De AM11353 is fysiek geijkt (kaders + snijlood,
+  12 nov): de 30 mm-liner begint bij x ≈ −3,5 mm en etiket A op −2,0 mm —
+  de linker 2 mm van A ligt dus buiten bereik en wordt weggeknippen, de
+  snijrail staat op x = 10,5 mm. Zonder deze waarde staat het hele vel te
+  ver rechts en valt de rechter baan van de liner af.
 - `--rows` — hoogte van de bitmap in dots, in plaats van de standaard
   `steek - 12`. Labellife stuurt 356 rijen voor de vierkante rol; die waarde
   overnemen gaf dezelfde registratie als de vendor-app.

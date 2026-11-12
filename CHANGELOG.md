@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.6 (uittestaat) — AM11353 2-up gefixt: compositie in het ontwerp-frame
+## 1.6 — AM11353 2-up gefixt én fysiek gekalibreerd (12 november, goedgekeurd)
 
 - `label --two` composeert nu in het **ONTWERP-frame** (295 × 287/288 dots),
   als twee halve pagina's van 295 × ~144 dots boven elkaar, en daarna pas
@@ -16,14 +16,27 @@
   meetvenster (getest op de vierkante rol: canvas 356, inkt binnen x/y-venster).
 - Rooktest in `test_label.py`: de vanger (TCP-verfanger) pakt de wire-bytes
   en de bits-controle verifieert voor AM11353: BITMAP 160 B × 354 regels
-  (zoals de vendor-capture), inkt uitsluitend binnen het blok 7,5..32,5 mm,
-  beide halve kolommen dragen inkt, de snijlijn op x=20 mm blijft wit en
-  onder het etiket (rij ≥ 295) staat geen inkt. Fysiek printen is nog tegoed.
+  (zoals de vendor-capture), inkt binnen het bereik 0..271 dots, beide halve
+  kolommen dragen inkt, de snijlijn blijft wit en de witranden vóór rij 53
+  en ná rij 348 (top=4,5 mm) zijn leeg.
 - Twee CLI-draadjes gerepareerd: `--rows/--rotate/--xoffset/--sense/--gapoff`
   werden na argparse onvoorwaardelijk op `None` gezet, waardoor PPD-hints
   gebruikervlaggen altijd overschreven; en `--media-bottom`/`--media-right`
   deden niets — ze zijn nu doorlussen naar het printvlak. `--two`-tekst vervangt
   nu ook `\n` in regeleinden, zoals csv2labels documenteert.
+- **Fysieke kalibratie van de rol** (3 voedingen, 12 nov): het oude liner-verhaal
+  (x 6..36, blok 7,5..32,5, rail 20 mm — 1-mm-liniaal + Labellife) klopte niet;
+  eerste velletje landde 10 mm te rechts en 5 mm te vroeg. Twee kaders van
+  6 × 10 mm gecentreerd na xoffset −2,5/top 4,5; een loodlijn van 0,25 mm
+  pinpointte de rail op **x = 10,5 mm** → definitief `xoffset=-2 top=4.5`.
+  Zie KNOWLEDGE §AM11353; les: één snijlijn-lood kalibreert een 2-up-rol.
+- **Negatieve xoffset** is nu een legaal concept: `content_box` (CLI) en
+  `print_window` (filter) knippen de onbereikbare strip links van kop-x=0
+  weg; `pack_canvas` negeert pixels met `px < 0` (was negatief indexeren!).
+  `test_filter` 6a en de rooktest draaien op de gemeten getallen.
+- Geïnstalleerd op de iMac (`install.sh`, md5 filter/PPD identiek aan de
+  repo); `./label --two` zonder vlaggen composeert vanaf de geïnstalleerde
+  PPD-rules 295 × 295. Vel goedgekeurd door de gebruiker.
 
 ## 1.5 — vierkante rol geïnstalleerd op maximale breedte; coördinaten definitief
 

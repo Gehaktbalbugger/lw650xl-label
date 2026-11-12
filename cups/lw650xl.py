@@ -192,16 +192,17 @@ def print_window(geom, target_h):
     bottom edge, so growing the window would move the whole print.
     """
     # De kop begint niet altijd op de linker rand van de liner: smalle rollen
-    # liggen in dit pad soms 6 mm rechts van x=0. xoffset schuift het hele
-    # printvlak daarnaartoe; left blijft de dode zone aan de linkerkant.
-    ox = max(0, int(round(geom.xoffset * DOTS_PER_MM)))
+    # liggen in dit pad soms aan weerskanten van x=0. xoffset schuift het hele
+    # printvlak; een negatieve ox betekent dat de liner links van de kop begint
+    # en pack knipt die onbereikbare strip weg. left blijft de dode zone.
+    ox = int(round(geom.xoffset * DOTS_PER_MM))
     dead = int(round(geom.left * DOTS_PER_MM))
     cw = (int(round(geom.size_w * DOTS_PER_MM)) - dead
           - int(round(geom.right * DOTS_PER_MM)))
     ch = int(round(geom.size_h * DOTS_PER_MM)) - int(round(geom.bottom * DOTS_PER_MM))
     # Rows below zero cannot be printed: the head starts at x/y 0.
     oy = max(0, int(round((geom.top + geom.voffset) * DOTS_PER_MM)))
-    cw = max(1, min(cw, HEAD_DOTS - ox))
+    cw = max(1, min(cw, HEAD_DOTS - max(0, ox)))
     ch = max(1, min(ch, target_h - oy))
     return ox, oy, cw, ch
 
@@ -280,6 +281,8 @@ def pack_canvas(dark, box_w, box_h, ox, oy, target_h):
         for x in range(box_w):
             if row[x]:
                 px = ox + x
+                if px < 0:
+                    continue        # linker van kop-x=0 is onbereikbaar: knip
                 out[base + (px >> 3)] &= ~(0x80 >> (px & 7))
     return bpr, canvas_h, bytes(out)
 

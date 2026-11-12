@@ -163,13 +163,15 @@ measure them with a ruler print (see below):
   liner sits between the label's trailing edge and that gap. The square roll
   is 25 mm label + 4 mm liner + 3 mm notch + 5 mm liner.
 - **sense** — `gap` (default) or `bline` for black marks. A 26 mm roll against
-- **xoffset** — mm between the head's x=0 and the liner's left edge. A narrow
-  roll can sit right of the head start (AM11353: liner begins at 6 mm, label at
-  7,5 mm); without this the print lands half off the label and no amount of
-  `left`/`right` can fix it.
   the left guide never reaches a sensor sitting mid-path, so `BLINE` just
   stalls the printer with a paper error; what makes the jobs repeat is that
   `SIZE height + gap` equals the true pitch.
+- **xoffset** — mm between the head's x=0 and the liner's left edge; may be
+  negative. The AM11353 was calibrated on paper (centred 6×10 mm boxes plus
+  a seam plumb-line, 12 nov): its 30 mm liner starts at x ≈ −3,5 mm and
+  label A at −2,0 mm, so the leftmost 2 mm of A is out of reach and gets
+  clipped; the cut rail sits at x = 10,5 mm. Without this the whole sheet
+  lands 10 mm too far right and the second lane falls off the liner.
 - **rows** — pin the bitmap height in dots instead of deriving `pitch - 12`.
   Labellife sends 356 rows for a 33.97 mm square roll; matching that exactly
   matched its registration.

@@ -100,15 +100,17 @@ def main():
     assert all(b == 0xFF for b in top), "area above the label must be white"
 
     # --- AM11353 (LW_25x25): --two door de vanger, bits-controle -----------
-    # Geometrie expliciet meegegeven (de PPD-regels van deze rol), zodat de
-    # test niet van een geïnstalleerde PPD afhangt: blok x 7,5..32,5 mm,
-    # xoffset 7,5, canvas 354 regels zoals de vendor, snijlijn op x = 20 mm.
+    # Fysiek bewezen geometrie (kader- en snijlijnlood 12 nov): blok x
+    # -2,0..23,0 mm met snijlijn op 10,5 mm; labeltop 4,5 mm onder de
+    # oorsprong; canvas 354 regels zoals de vendor. De linker 2,0 mm van
+    # baan A ligt links van kop-x=0: die strip knipt weg, inkt blijft
+    # binnen x 0..271 dots.
     data = capture(["./label", "Anna de Bakker\nKeukenstraat 12",
                     "--two", "Piet Jansen\nBrugstraat 3",
                     "--size", "25x25", "--pitch", "34", "--gap", "3",
-                    "--rows", "354", "--xoffset", "7.5",
+                    "--rows", "354", "--xoffset", "-2",
                     "--left", "0", "--media-right", "0",
-                    "--media-top", "-0.5", "--media-bottom", "0.7"])
+                    "--media-top", "4.5", "--media-bottom", "0"])
     assert b"SIZE 25 mm,34 mm" in data, "AM11353: SIZE must be the block + pitch"
     wb2, hpx2, bits2 = unpack_bitmap(data)
     assert wb2 == 160 and hpx2 == 354, \
@@ -116,15 +118,18 @@ def main():
     cols2 = ink_columns(bits2, wb2)
     xs = [x for x, n in enumerate(cols2) if n]
     assert xs, "AM11353: geen inkt gevonden"
-    assert xs[0] >= 89 and xs[-1] <= 376, \
-        f"AM11353: inkt x {xs[0]}..{xs[-1]} valt buiten blok 89..376 (7,5..31,9 mm)"
-    links, rechts = sum(cols2[89:236]), sum(cols2[236:376])
-    assert links > 200 and rechts > 200, \
+    assert xs[0] >= 0 and xs[-1] <= 271, \
+        f"AM11353: inkt x {xs[0]}..{xs[-1]} valt buiten bereik 0..271 (0..23,0 mm)"
+    links, rechts = sum(cols2[0:124]), sum(cols2[124:272])
+    assert links > 150 and rechts > 150, \
         f"AM11353: beide halve kolommen moeten inkt dragen (L={links}, R={rechts})"
-    assert cols2[236] == 0, "AM11353: de snijlijn op x=20 mm moet wit blijven"
-    pad2 = bits2[295 * wb2:]
+    assert cols2[124] == 0, "AM11353: de snijlijn op x=10,5 mm moet wit blijven"
+    pad_top = bits2[:53 * wb2]
+    assert all(b == 0xFF for b in pad_top), \
+        "AM11353: de 4,5 mm vóór het label (rij < 53) moeten wit zijn"
+    pad2 = bits2[349 * wb2:]
     assert all(b == 0xFF for b in pad2), \
-        "AM11353: na rij 295 (label-einde + bottom-veiligheid) mag geen inkt staan"
+        "AM11353: na rij 348 (label + top 4,5 mm) mag geen inkt staan"
     print(f"AM11353 2-up: inkt x {xs[0]}..{xs[-1]}, L={links} R={rechts} dots")
 
     # --- vierkante rol: de (ooit crashende) rotate=270-tak ------------------

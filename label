@@ -148,7 +148,9 @@ def content_box(size_w, size_h, left_mm=DEFAULT_LEFT_MM, top_mm=DEFAULT_TOP_MM,
     the height is clamped to the canvas: the printer anchors the bitmap at
     its bottom edge, so a taller canvas would move the whole print.
     """
-    ox = max(0, int(round(xoffset_mm * DOTS_PER_MM)))
+    ox = int(round(xoffset_mm * DOTS_PER_MM))   # mag negatief zijn: de liner
+    # begint dan links van kop-x=0; die strip is onbereikbaar en wordt bij het
+    # opplakken op de canvas weggeknipt (PIL paste en de filter-klik doen dat).
     cw = (int(round(size_w * DOTS_PER_MM)) - int(round(left_mm * DOTS_PER_MM))
           - int(round(right_mm * DOTS_PER_MM)))
     ch = int(round(size_h * DOTS_PER_MM)) - int(round(bottom_mm * DOTS_PER_MM))
@@ -157,7 +159,7 @@ def content_box(size_w, size_h, left_mm=DEFAULT_LEFT_MM, top_mm=DEFAULT_TOP_MM,
     if pitch_mm:
         canvas = int(rows) if rows else int(round(pitch_mm * DOTS_PER_MM)) - 12
         ch = min(ch, canvas - oy)
-    return ox, oy, max(1, ch), max(1, min(cw, HEAD_DOTS - ox))
+    return ox, oy, max(1, ch), max(1, min(cw, HEAD_DOTS - max(0, ox)))
 
 
 def render_label(args, dots_mm):

@@ -9,10 +9,10 @@ alleen **waar we zijn en wat de volgende stap is**.
 | | |
 |---|---|
 | repo | https://github.com/Gehaktbalbugger/lw650xl-label — **public** |
-| releases | **t/m v1.5** (Latest): v1.0 AM11354, v1.1 AM99012, v1.2 `./measure`, v1.3 S0929120, v1.4 vierkant gecentreerd, v1.5 vierkant maximaal |
+| releases | **t/m v1.6** (Latest): v1.0 AM11354, v1.1 AM99012, v1.2 `./measure`, v1.3 S0929120, v1.4/v1.5 vierkant, v1.6 AM11353 2-up gefixt + gekalibreerd |
 | laatste commit | deze handoff op `0cadb4a` (KAPOT + status), daarna alleen doc-correcties |
 | rollen | **4 geïnstalleerd**: AM11354 (57×32), AM99012 (36×89 staand), S0929120 (vierkant, 2 mm rondom), AM11353 (`LW_25x25`, blok 2-up) |
-| afgetekend | **AM99012 en AM11354** door de gebruiker; AM11353 2-up is **gefixt en rooktest-groen** — fysiek proefvelletje nog tegoed (zie OPGELOST hieronder) |
+| afgetekend | **AM99012, AM11354** én de **AM11353 2-up** (vel van 12 nov: kaders, snijlood en Anna/Piet goedgekeurd); vierkante rol geïnstalleerd op 2 mm rondom |
 | iMac | filter + PPD geïnstalleerd en identiek aan de repo (`/usr/libexec/cups/filter/lw650xl.py`, `/etc/cups/ppd/LW650XL_Labels.ppd`) |
 | tests | `python3 test_filter.py`, `test_measure.py`, `test_label.py` — alle OK |
 | MacBook | nog **niet** bijgewerkt: `cd ~/label-printer && git pull && sudo ./install.sh` |
@@ -20,7 +20,7 @@ alleen **waar we zijn en wat de volgende stap is**.
 | gereedschap | `brew` is op deze Mac kapot (mankende schrijfrechten op `/usr/local/share/man/man8`) — download rechtstreeks |
 
 Vier rollen in de driver: AM99012 en AM11354 zijn afgetekend, S0929120 staat
-geïnstalleerd met 2 mm rondom, AM11353 als blok — 2-up nog niet beïnk (KAPOT).
+geïnstalleerd met 2 mm rondom, AM11353 is 2-up geijkt en goedgekeurd (v1.6).
 
 ## De vierkante rol: stand van zaken
 
@@ -132,9 +132,9 @@ getallen zijn anders onherleidbaar uit de code.
 ## Morgen in een nieuwe context (eerste taak: KAPOT)
 
 1. Repo klonen of pullen (github.com/Gehaktbalbugger/lw650xl-label, public),
-   dan `HANDOFF.md` openen. De --two/2-up-fout is **opgelost en rooktest-
-   groen** (sectie OPGELOST hieronder); als eerste taak blijft over: één
-   **fysiek velletje op de AM11353** printen en aftekenen.
+   dan `HANDOFF.md` openen. De --two/2-up-tak is **opgelost, geijkt,
+   geïnstalleerd en goedgekeurd in v1.6** — er is geen fysieke test meer
+   tegoed behalve de MacBook (punt 3).
 2. Daarna het **T/B/L/R-marker-vel** in `./measure` bouwen als `--markers`
    (stond er al als les): een genummerde schaal aflezen **werkt niet** op deze
    rol — bij `rotate=270` wijzen N/Z/W/O de verkeerde kant op en de getalletjes
@@ -154,7 +154,7 @@ staat vast in KNOWLEDGE.md en CHANGELOG.md — er hoeft niets meer opgetoond
 te worden. Er is deze sessie niets kapotgemaakt: de iMac draait de state
 hierboven, de MacBook wacht op `git pull && sudo ./install.sh`.
 
-## OPGELOST: label --two prints bijna niets (12 nov; fysiek printen nog tegoed)
+## OPGELOST: label --two prints bijna niets (v1.6; fysiek geijkt en goedgekeurd)
 
 Fysiek velletje bij de vierkante rol leverde "a few pixels" in plaats van
 twee etiketten. De fout zat in de **--two-compositie van de CLI**, niet in
@@ -163,51 +163,61 @@ de rol en niet in de filter.
 **De fout** (bewezen 10 nov): de compose was in **canvas-maten** —
 `Image.new("L", (box[3] * 2, box[2]))` = **590 × 287 dots** in plaats van de
 **295 × 288 ontwerp-dots** — en liet de rotatie vallen. De twee helften
-plakte hij op (0,0) en (295,0), dus 0..590 dots over de kop, terwijl het
-blok maar van 7,5 tot 32,5 mm loopt; het beeld viel daardoor vooral buiten
-het etiket — op het vel: "a few pixels". Derde bug op dezelfde tak: de
-enke-label-rotatie-crash (`args.box` werd een 3-tuple, render_label
-wilde er 4 uit pakken) — `--rotate 270` crashte dus altijd al.
+plakte hij op (0,0) en (295,0), dus 0..590 dots over de kop; het beeld viel
+daardoor vooral buiten het etiket — op het vel: "a few pixels". Derde bug op
+dezelfde tak: de enkele-label-rotatie-crash (`args.box` werd een 3-tuple,
+`render_label` wilde er 4 uit pakken) — `--rotate 270` crashte dus altijd al.
 
 **De oplossing** (omgezet, precies zoals voorgeschreven): composeer in het
-ONTWERP-frame, twee halve pagina's van 295 × 144 dots boven elkaar, en pas
-daarna de enkele-label-rotatie erop (270°; bovenste helft wordt linkerkolom,
-onderste de rechter — zoals csv2labels belooft). In `label` staat nu:
+ONTWERP-frame, twee halve pagina's boven elkaar, en pas daarna de
+enke-label-rotatie erop (270°; bovenste helft wordt linkerkolom, onderste de
+rechter — zoals csv2labels belooft). In `label` staat nu:
 
 ```python
-ox, oy, ch, cw = args.box            # venster: (89, 0, 287, 295) op deze rol
-half = ch // 2                       # halve pagina: 295 × 143~144 dots
+ox, oy, ch, cw = args.box            # venster: (-24, 53, 295, 295) na kalibratie
+half = ch // 2                       # halve pagina: 295 × ~144 dots
 a2.box = (ox, oy, half, cw)
-img = Image.new("1", (cw, ch), 1)    # 295 × 287/288 ontwerp-frame, géén canvas
+img = Image.new("1", (cw, ch), 1)    # ontwerp-frame, géén canvas
 img.paste(e_boven, (0, 0))           # etiket A (linker kolom na rotatie)
 img.paste(e_onder, (0, half))        # etiket B (rechter kolom na rotatie)
 img = img.rotate(-rot, expand=True)  # de enkele-label-rotatie, rot=270 voor 2-up
 ```
 
+**Daarna bleek ook de rolgeometrie anders** (12 nov, drie voedingen): het eerste
+gecomposeerde vel landde 10 mm te ver rechts en 5 mm te vroeg — de oude
+liner-aanname (7,5..32,5 mm) was door liniaal + Labellife nooit fysiek
+bewezen. Kaders van 6 × 10 mm werden gecentreerd met `xoffset=-2,5 top=4,5`;
+een loodlijn van 0,25 mm pinpointte de snijrail op **10,5 mm** → definitief
+`xoffset=-2`. Negatieve xoffset knipt de onbereikbare 2 mm van baan A weg
+(`content_box`/`print_window`/`pack_canvas` zijn daarop aangepast).
+
 **Rooktest gevangen** (`test_label.py`, vanger + bits-controle): canvas
-160 B × 354 regels zoals de vendor, inkt x 117..307 dots = 9,9..26,0 mm —
-binnen het blok 7,5..32,5 mm, beide halve kolommen inkt (L=2063 R=1567),
-snijlijn op 20 mm wit, en onder rij 295 geen inkt. Twee fixjes meegenomen:
+160 B × 354 regels zoals de vendor, inkt binnen 0..271 dots, beide halve
+kolommen inkt, snijlijn wit, rijen < 53 en ≥ 348 leeg. Fixjes meegenomen:
 `--two`-tekst vervangt nu ook `\n` (csv2labels-documentatie), en de CLI-
 vlaggen `--rows/--rotate/--xoffset/--sense/--gapoff` werden door een reset
 na argparse altijd genegeerd — die reset is weg; `--media-bottom` en
 `--media-right` zijn nu echt doorlussen naar het printvlak.
 
-**Nog tegoed**: één fysiek velletje op de AM11353 (op de iMac: `git pull`,
-dan `./label "A" --two "B" --size 25x25`). Verwacht: twee leesbare
-etiketten naast elkaar, tekst zijwaarts zoals de vendor-app.
+**Afgetekend**: geïnstalleerd op de iMac (rsync + `install.sh`, md5's
+identiek), Anna/Piet-vel goedgekeurd — beide etiketten gecentreerd, tekst
+zijwaarts zoals de vendor-app. Eens per rolwissel: de snijlood-lijn van
+`diag`-formaat terugprinten als herijking (KNOWLEDGE §AM11353).
 
-## Wat er nu op de iMac draait (nothing broken by this session)
+## Wat er nu op de iMac draait (v1.6, geïnstalleerd en afgetekend)
 
 - **driver**: 4 rollen geïnstalleerd — AM11354, AM99012, S0929120 (2 mm rondom)
-  en AM11353 als blok. `LW_25x25` staat ingeschreven en de --two-compositie is
-  in de repo **gefixt met groene rooktest**, maar heeft nog steeds geen fysiek
-  vel beïnkt; filter en PPD zijn deze sessie niet gewijzigd.
-- AM99012 en AM11354: door de gebruiker afgetekend.
-- releases t/m **v1.5**; repo **public**.
+  en AM11353 als blok met de **gekalibreerde** regel
+  `LW_25x25 pitch=34 gap=3 rows=354 xoffset=-2 top=4.5` (filter en PPD
+  geïnstalleerd via `install.sh`, md5's identiek aan de repo).
+- AM99012, AM11354 en de AM11353 2-up: door de gebruiker afgetekend.
+- releases t/m **v1.6**; repo **public**.
 
 ## Nog open bij de start van de volgende sessie
 
+- AM11353: de linker **2,0 mm van baan A** valt links van kop-x=0 en wordt
+  weggeknippen. `SHIFT` (punt hieronder) zou die strook misschien kunnen
+  terughalen — de kop dan 24 dots later laten beginnen.
 - `SHIFT` accepteert de firmware (`SHIFT 0` gaf geen `Cmd error`) maar is nooit
   getest. Verzet het de kopstart zijdelings, dan win je ~2 mm.
 - Afstandsdopje rechts van de rol als mechanisch alternatief.

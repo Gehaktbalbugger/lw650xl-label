@@ -143,6 +143,7 @@ de `label`-CLI gelezen. CUPS houdt commentaarregels intact bij installatie
 | AM11354 | 57 × 32 mm, liggend | — | 38,6 mm, gap 3 | `voffset=0.34` (4 dots), `left`/`right` default | printbaar 640 × 370 dots, door gebruiker als "in het midden" beoordeeld |
 | AM99012 / Dymo S0722400 | 36 × 89 mm, **staand** | — | 93 mm, gap 4 | `left=3 right=3 top=-0.5 bottom=1` | 30 × 88 mm, 3 mm wit rondom |
 | S0929120 / Dymo 30332 | **25,5 × 25,5 mm** (1 inch; het etiket is dus noch 26 × 25, noch exact 25 × 25) | 25,5 mm etiket + 4 mm liner + 3 mm gaatje + 5 mm liner | **36,97 mm** = `pitch 33,97 + gap 3` (canvas `rows=356`) | `left=1.5 right=3.0 top=1.9 voffset=4.5 bottom=3.5 rotate=270 rows=356` | **21,51 × 21,51 mm** vierkant, gemeten 2,00/1,99 mm en 2,03/1,96 mm wit |
+| AM11353 / Dymo 11353 | blok **2 × 12,5 × 25 mm** (2-up) | liner 30 mm: −3,5…26,5; rail 10,5; 34 + 3 = 37 mm steek | **34 mm**, gap 3 (canvas `rows=354`) | `xoffset=-2 top=4.5 left=0 right=0 bottom=0` (2-up forceert rotatie 270) | fysiek geijkt met kaders + snijlood (12 nov); beide banen gecentreerd, goedgekeurd |
 
 Bijbehorende etiketranden in bitmap-coordinaten (x = over de kop, y = voedingsrichting):
 
@@ -152,7 +153,7 @@ Bijbehorende etiketranden in bitmap-coordinaten (x = over de kop, y = voedingsri
   bereikbare strook is dus 23,5 × 25,5 mm en het grootste gecentreerde
   vierkant 21,5 mm.
 
-### AM11353 / Dymo 11353: de rol begint rechts van de kop
+### AM11353 / Dymo 11353: de rol begint LINKS van de kopstart (fysiek gekalibreerd)
 
 Labellife-capture (10 november, en1 bereikte de printer via 172.16.1.133):
 
@@ -161,21 +162,30 @@ SIZE 25.6 mm,34 mm · GAP 3 mm,0 mm · DENSITY 15 · SPEED 6
 BITMAP 0,0,160,354,4,,   PRINT 1,1
 ```
 
-Liner-dwarsdoorsnede, door de gebruiker gemeten: `1,5 + 12,5 + 12,5 + 3,5 = 30 mm`,
-en de 1-mm liniaal leerde dat die liner bij **x = 6 mm** begint. Dus:
+Oude aanname — **op 12 november door de fysiek weerlegd**: de 1-mm liniaal
+zei dat de liner bij x = 6 mm begon (blok 7,5..32,5, snijlijn 20 mm). Eerste
+gedrukte velletjes landden echter 10 mm te ver rechts en 5 mm te vroeg in de
+voeding; twee kaders van 6 × 10 mm werden daarna keurig gecentreerd, en een
+loodlijn van 0,25 mm op de vermeende snijlijn (x = 10 mm) viel 0,5 mm **op
+etiket A**. De gemeten waarheid, sindsdien in de PPD:
 
 | | x in bitmap-coordinaten |
 |---|---|
-| liner | 6,0 … 36,0 mm |
-| etiket A | 7,5 … 20,0 mm |
-| snijrail A/B | 20,0 mm |
-| etiket B | 20,0 … 32,5 mm |
+| liner | −3,5 … 26,5 mm |
+| etiket A | −2,0 … 10,5 mm (linker 2,0 mm: dode zone vóór kop-x=0) |
+| snijrail A/B | 10,5 mm = dot 124 |
+| etiket B | 10,5 … 23,0 mm |
+| label bovenkant | rij 53 = 4,5 mm onder de bitmap-oorsprong (top=4,5) |
 
-Gevolg: er is hier geen dode zone, maar een **verschuiving naar rechts**. Inkt
-begon bij ons altijd op x=0, dus elke proef stond 7,5 mm te ver links en viel
-aan de rechterkant van het vel af — dat verklaart de reeks "letters vallen af"
-en "pijl verkeerd". Daarvoor is `xoffset` ingevoerd. De voeding volgt weer uit
-onze eigen regel: `34 + 3 = 37 mm`, precies als de vendor.
+`xoffset` is hier dus **negatief**: de liner begint links van de kopstart en
+onbereikbare strip wordt weggeknippen (CLI: `canvas.paste` met negatieve ox;
+filter: `pack_canvas` negeert `px < 0`). De voeding volgt weer uit onze eigen
+regel: `34 + 3 = 37 mm`, precies als de vendor.
+
+**Les 2-up-kalibratie**: één loodlijn van 3 dots op de verwachte voeg is het
+snelste meetinstrument voor zo'n rol — één voeding, één getal, geen
+nummerieke schaal die bijrotateerd misleest. Zet de rol opnieuw? Print de
+loodlijn terug; hij hoort in het groefje te staan.
 
 ## 6. CUPS-raster (cgpdftoraster, "RaS3")
 
