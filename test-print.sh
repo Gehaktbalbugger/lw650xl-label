@@ -44,12 +44,12 @@ case "$ROL" in
 esac
 
 if [[ "$MODE" == "flush" ]]; then
-    # volle breedte benutten: alleen de dode zone links blijft over
+    # use the full width: only the dead zone on the left remains
     RIGHT=0; BOTTOM=0; VOFFSET="$TOP"
 fi
 
 if [[ "$MODE" == "status" || -z "$PDF" ]]; then
-    echo "rol $ROL: pitch=$PITCH gap=$GAP rows=$ROWS rotate=$ROTATE"
+    echo "roll $ROL: pitch=$PITCH gap=$GAP rows=$ROWS rotate=$ROTATE"
     echo "left=$LEFT right=$RIGHT top=$TOP voffset=$VOFFSET bottom=$BOTTOM"
     echo "geinstalleerde PPD:"
     grep -o "lw-media $ROL.*" /etc/cups/ppd/$QUEUE.ppd 2>/dev/null || echo "  (geen lw-media-regel gevonden)"

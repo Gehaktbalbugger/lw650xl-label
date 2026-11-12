@@ -1,6 +1,6 @@
 #!/bin/bash
-# Installeer de gedeelde etiketten-inbox + automatische watcher.
-# Moet als root draaien (het script vraagt zelf om sudo).
+# Install the shared label inbox + automatic watcher.
+# Must run as root (the script asks for sudo itself).
 #
 #   sudo ./install-workflow.sh
 #
@@ -23,10 +23,10 @@ echo "== Gedeelde map =="
 mkdir -p "$BASE/inbox" "$BASE/printed" "$BASE/failed" "$BASE/logs" "$APP"
 chown -R "$REAL_USER:staff" "$BASE"
 chmod 755 "$BASE" "$BASE/printed" "$BASE/failed" "$BASE/logs"
-chmod 1777 "$BASE/inbox"          # iedereen mag er PDF's/CSV's in droppen
+chmod 1777 "$BASE/inbox"          # anyone may drop PDFs/CSVs in it
 echo "   $BASE/inbox"
 
-echo "== Runtime kopiëren naar $APP =="
+echo "== Copying runtime to $APP =="
 cp "$HERE/print-inbox.sh" "$HERE/pdfmedia.py" "$HERE/csv2labels.py" \
    "$HERE/../label" "$HERE/../lzo.py" "$HERE/../cups/lw650xl-labels.ppd" "$APP/"
 chmod 755 "$SCRIPT" "$APP/pdfmedia.py" "$APP/csv2labels.py" "$APP/label"

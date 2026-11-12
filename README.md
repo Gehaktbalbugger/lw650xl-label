@@ -22,18 +22,24 @@ It contains three ways to print:
    that matches the label in the printer.
 3. **Shared inbox** (`workflow/`) — Word/Excel on any system on the home
    network drops a PDF or CSV into a shared folder; this iMac prints it.
-   No driver on the clients. See **[workflow/README.nl.md](workflow/README.nl.md)**
-   (Dutch) and run `./setup.sh` once.
+   No driver on the clients. See **[workflow/README.md](workflow/README.md)**
+   and run `./setup.sh` once.
 
 ## Status
 
 - **Verified on hardware**: geometry, polarity and framing were checked
   against the vendor app's own traffic (captured with `tcpdump`) and with
   ruler/edge test prints on an AM11354 57 × 32 mm roll.
+- **Five rolls calibrated and signed off** (12 Nov 2026): AM11354 57×32,
+  AM99012 36×89 portrait, S0929120 square 25.5×25.5, AM11353 2-up block
+  (physically calibrated with a cut-line plumb), S0904980 104×159 shipping
+  label (max ink) — each with its measured `lw-media` line in the PPD.
 - **End-to-end**: PDF in the shared inbox → watcher → CUPS → printer
   produces a correctly aligned label (job `LW650XL_Labels-148`).
 - **Word directly**: printing straight to the queue from Word — including a
   multi-page landscape label document — produces one aligned label per page.
+  Verified again on 12 Nov with the S0904980 shipping label (frame + circle
+  test on the printable boundary).
 - **CLI tests**: `python3 test_label.py` (framing + geometry check via a
   fake TCP printer) and `python3 lzo.py` (legacy LZO round-trip) pass.
 - **Filter tests**: `python3 test_filter.py` builds real cgpdftoraster
@@ -266,7 +272,7 @@ This installs the queue (shared via IPP/Bonjour), creates the SMB share
 watcher. Any system can then drop a **PDF** (Word: *Label_NaarPrinter*
 macro) or a **CSV** (Excel: one label per row) into that folder; the iMac
 converts it to TSPL and prints it. Full Dutch guide:
-[`workflow/README.nl.md`](workflow/README.nl.md).
+[`workflow/README.md`](workflow/README.md).
 
 ## Files
 

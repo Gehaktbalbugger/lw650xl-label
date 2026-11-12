@@ -85,13 +85,13 @@ def main():
 
     sizes = ppd_sizes(args.ppd)
 
-    # 1) exacte match met een bekende etiketmaat
+    # 1) exact match with a known label size
     for name, sw, sh in sizes:
         if abs(w - sw) <= TOL_PT and abs(h - sh) <= TOL_PT:
             print(f"media={name}")
             return 0
 
-    # 2) pagina staat 90 graden gedraaid t.o.v. de etiketmaat
+    # 2) page is rotated 90 degrees relative to the label size
     for name, sw, sh in sizes:
         if abs(w - sh) <= TOL_PT and abs(h - sw) <= TOL_PT:
             print(f"media={name}")
@@ -102,8 +102,8 @@ def main():
     if not (28.0 <= w <= 341.0 and 14.0 <= h <= 652.0):
         print(
             f"pdfmedia: pagina is {w * MM_PER_PT:.1f} x {h * MM_PER_PT:.1f} mm; "
-            "dat past niet op deze printer (max. 120 x 230 mm). "
-            "Zet in Word/Excel het paginformaat gelijk aan het etiket.",
+            "does not fit this printer (max. 120 x 230 mm). "
+            "Set the page size in Word/Excel equal to the label.",
             file=sys.stderr,
         )
         return 2

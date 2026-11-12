@@ -87,7 +87,7 @@ def main():
     code, out = run("solve", "--N", str(N), "--Z", str(Z), "--W", str(W), "--O", str(O),
                     "--state", state)
     check("solve: without --pitch it asks for a measurement",
-          "meet nog de steek" in out and "--pitch" not in out.split("./add-size.sh")[1])
+          "measure the pitch next" in out and "--pitch" not in out.split("./add-size.sh")[1])
 
     # --- 4. a roll that sits fully in reach ---------------------------------
     st2 = json.load(open(state))
@@ -99,12 +99,12 @@ def main():
     check("solve: reachable left edge needs no left/right trim",
           "--left" not in out.split("./add-size.sh")[1])
 
-    # --- marker-vel: T/B/L/R-kader + solve --T --B --L --R -----------------
+    # --- marker sheet: T/B/L/R frame + solve --T --B --L --R ---------------
     mstate = tempfile.mktemp(suffix=".json")
     code, out = run("36", "89", "--name", "LW_36x89", "--markers",
                     "--dry-run", "--state", mstate)
     check("markers: exit 0", code == 0)
-    check("markers: TSPL naar de volle kop", "BITMAP 0,0,160," in out)
+    check("markers: TSPL to the full head", "BITMAP 0,0,160," in out)
     check("markers: framesuggestie in de tekst", "solve --T" in out)
     st = json.load(open(mstate))
     check("markers: state onthoudt modus en rotatie",
@@ -113,10 +113,10 @@ def main():
     check("markers: frame = oud printbaar vlak",
           abs(fr.get("x1", 0) - 30.06) < 0.3 and fr.get("y0") is not None)
 
-    # image == window: geen vervorming, het kader VALT op de vensterranden
+    # image == window: no distortion, the frame falls on the window edges
     png = tempfile.mktemp(suffix=".png")
     code, out = run("26", "25", "--markers", "--preview", png, "--state", mstate)
-    check("markers: gedraaide rol gebruikt rotate uit de PPD",
+    check("markers: rotated roll uses rotate from the PPD",
           json.load(open(mstate))["rotate"] == 270)
     from PIL import Image
     im = Image.open(png)
@@ -132,36 +132,36 @@ def main():
                     "--state", mstate)
     check("markers solve: exit 0", code == 0)
     cmd = out.split("./add-size.sh")[1] if "./add-size.sh" in out else ""
-    check("markers solve: T/B werd links/rechts (left 2,0)", "--left 2" in cmd)
-    check("markers solve: gemeten breedte over de kop ~25,5 mm",
+    check("markers solve: T/B became left/right (left 2.0)", "--left 2" in cmd)
+    check("markers solve: measured width across the head ~25.5 mm",
           "25.5" in out)
-    check("markers solve: herinnering aan de snijlood-lijn",
-          "loodlijn" in out)
+    check("markers solve: reminds about the plumb-line sheet",
+          "plumb-line" in out)
 
     # rotatie 0: T/B blijven boven/beneden, L/R links/rechts
     code, out = run("36", "89", "--markers", "--dry-run", "--state", mstate)
     code, out = run("solve", "--T", "1", "--B", "1", "--L", "0", "--R", "0",
                     "--state", mstate)
     cmd = out.split("./add-size.sh")[1] if "./add-size.sh" in out else ""
-    check("markers solve: rot0 laat left/right met rust (geen dode zone)",
+    check("markers solve: rot0 leaves left/right alone (no dead zone)",
           "--left" not in cmd)
-    check("markers solve: rot0 T/B gaat naar de voeding (--top)", "--top" in cmd)
+    check("markers solve: rot0 maps T/B to the feed (--top)", "--top" in cmd)
 
     code, out = run("solve", "--T", "1", "--state", mstate)
     check("markers solve: te weinig letters = foutmelding",
           code != 0 and "--B" in out)
 
-    # --- plumb: snijlood als vast commando ---------------------------------
+    # --- plumb: the cut plumb line as a fixed command ----------------------
     code, out = run("plumb", "25", "25", "--dry-run")
     check("plumb: exit 0", code == 0)
-    check("plumb: lood op de sporen van de geijkte rol",
-          "lood op x 10.4" in out or "lood op x 10.5" in out)
+    check("plumb: line tracks the calibrated roll's rail",
+          "plumb at x 10.4" in out or "plumb at x 10.5" in out)
     code, out = run("plumb", "25", "25", "--report", "0.5")
     check("plumb: +0,5 mm op A verhogen xoffset met 0,5",
           "-1.5" in out and "--xoffset -1.5" in out)
     check("plumb: report drukt niet (rekent alleen)", "DRY-RUN" not in out)
     code, out = run("plumb", "25", "25", "--report", "-0.5")
-    check("plumb: afwijking naar B verlagen xoffset",
+    check("plumb: deviation toward B lowers xoffset",
           "-2.5" in out or "-2.50" in out)
 
     # --- onbekende rol met hoogte > breedte: NIET swappen (S0904980-bug) ---
@@ -169,7 +169,7 @@ def main():
     #  dus een maat die ver van elke tabelrij zit)
     code, out = run("104", "179", "--name", "LW_104x179", "--markers",
                     "--pitch", "162", "--gap", "3", "--dry-run")
-    check("onbekende rol: size blijft 104x179 (lange-kant-swap weg)",
+    check("unknown roll: size stays 104x179 (long-side swap gone)",
           "0.00..103.21" in out and "5.08..160.95" in out)
 
     os.path.exists(mstate) and os.unlink(mstate)

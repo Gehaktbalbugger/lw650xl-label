@@ -1,221 +1,222 @@
 # Changelog
 
-## 1.8 (uittestaat) — S0904980 geregistreerd; `plumb`-modus; onbekende-rollen-bugfix
+## 1.8 (staged) — S0904980 registered; `plumb` mode; unknown-roll bugfix
 
-- Nieuwe rol **S0904980** (104,2 × 159,9 mm verzendetiket): vendor gevangen met
-  tcpdump (`SIZE 104,162 · GAP 3 · DENSITY 10 · SPEED 4`), gemeten met
-  `--markers --pitch 162 --gap 3` (binnen 0,2 mm), geregistreerd op
-  **max inkt**: `left=0 right=2 top=0.6 bottom=0`, canvas 1901 (vendor 1902).
-  Frame-proef via de CUPS-route bevestigde het na `top 0.08 → 0.6`: een marge
-  van 0 mm naast een lijn van 0,5 mm valt af — 0,5-0,6 mm is de ondergrens
-  (les al bekend van de tangent-test, nu bevestigd op een tweede rol).
-- **`./measure plumb`**: het snijlood-velletje als vast commando — lijn in de
-  verwachte snijgroef plus puntjes op de baanmiddens; `--report <mm>` rekent
-  de afwijking (positief = lijn op A) direct om naar de nieuwe `xoffset` en
-  print de `add-size.sh`-opdracht. 5 checks.
-- **Bugfix** `resolve_geometry`: voor rollen zonder `lw-media`-regel kreeg de
-  opts-map **geen media-key**, waarop `media_geometry` de paginagrootte
-  normaliseerde naar de lange kant ("long side is label width" — bedoeld voor
-  Word-portretten). Elke `./measure <w> <h>` op een ongemeten PPD-maat met
-  hoogte > breedte kwam dus persoons/verkeerd op papier — het S0904980-
-  kadervel onthulde het (kader x 0..108,4 = volle kop, y tot 103). Nu wordt
-  `media=<LW_bxh>` altijd meegestuurd; swap-check in `test_measure.py`.
-- Bij onbekende rollen blijft de default-pitch `hoogte` (niet hoogte+gap):
-  geef bij de eerste meting de vendor-pitch expliciet mee (`--pitch 162
-  --gap 3` voor S0904980), of registreer eerst via `add-size.sh`.
-- tcpdump-recept voor de vendor-capture staat in HANDOFF §S0904980.
+- New roll **S0904980** (104.2 × 159.9 mm shipping label): vendor captured with
+  tcpdump (`SIZE 104,162 · GAP 3 · DENSITY 10 · SPEED 4`), measured with
+  `--markers --pitch 162 --gap 3` (within 0.2 mm), registered at
+  **max ink**: `left=0 right=2 top=0.6 bottom=0`, canvas 1901 (vendor 1902).
+  Frame proof via the CUPS route confirmed it after `top 0.08 → 0.6`: a
+  0 mm margin next to a 0.5 mm line falls off — 0.5-0.6 mm is the lower
+  bound (lesson already known from the tangent test, now confirmed on a
+  second roll).
+- **`./measure plumb`**: the cut plumb line as a fixed command — line in the
+  expected cut groove plus dots on the lane centers; `--report <mm>` converts
+  the deviation (positive = line on A) directly into the new `xoffset` and
+  prints the `add-size.sh` command. 5 checks.
+- **Bugfix** `resolve_geometry`: for rolls without an `lw-media` line the
+  opts map carried **no media key**, so `media_geometry` normalized the page
+  size to the long side ("long side is label width" — meant for Word
+  portraits). Every `./measure <w> <h>` on an unmeasured PPD size with
+  height > width came out sideways/wrong on paper — the S0904980 marker
+  sheet revealed it (frame x 0..108.4 = full head, y up to 103). Now
+  `media=<LW_bxh>` is always sent; swap check in `test_measure.py`.
+- On unknown rolls the default pitch stays `height` (not height+gap): pass
+  the vendor pitch explicitly on the first measurement (`--pitch 162
+  --gap 3` for S0904980), or register first via `add-size.sh`.
+- The tcpdump recipe for the vendor capture is in HANDOFF §S0904980.
 
-## 1.7 — `./measure --markers`: het T/B/L/R-vel als commando (12 nov, geïnstalleerd)
+## 1.7 — `./measure --markers`: the T/B/L/R sheet as a command (12 Nov, installed)
 
-- Nieuwe stand in `./measure`: `--markers` drukt **één vel** met het kader
-  precies op de randen van het aangenomen printbare vlak plus één letter per
-  kant (T B L R), elk met de kroon naar zijn eigen etiketrand. De letters
-  staan in **canvas-coördinaten** en worden met `lw-orient=off` +
-  `lw-rotate=0` 1:1 op het venster gezet — dus geen schaalvervorming en
-  geen N/Z/W/O-richtingsverdriet bij `rotate=270` (de les van §4A/§10).
-- `./measure solve --T <mm> --B <mm> --L <mm> --R <mm>` leest de vier
-  witstroken tussen kader en etiketrand; `MARKER_EDGES` mapt ze per rotatie
-  terug naar kop-richting/voeding (270: T/B→left/right, L/R→top/bottom;
-  de 90-mapping staat er als spiegelbeeld, nog **ongeijkt**). Output:
-  gemeten maat, labellijnen in bitmap-mm, centrumcorrectie en de
-  `add-size.sh`-opdracht (inclusief `--xoffset` bij een verschoven rol, en de
-  reminder voor het snijlood-velletje).
-- Filter: `lw-orient=off` zet de auto-oriëntatiedraai uit (nodig voor een
-  raster dat al venster-shape in canvas-oriëntatie is). Standaard aan, dus
-  geen gedrag verandert voor printen via Word/CLI.
-- `test_measure.py`: 15 nieuwe checks — state, frame==venster, rastermaat
-  1:1, rot0- én rot270-doorrekenen, ontbrekende letters = fout.
-- Fysiek getest op de AM11353 (laatst op main, ná de tag): het kader van de
-  onbereikbare L-rand ontbreekt — de negatieve-xoffset-knip werkt dus op
-  papier; R/B op 0 mm bevestigen de ijk. Daarna de `gap = pitch − hoogte`-
-  afleiding uit de markers-solve gehaald (te optimistisch bij rollen met
-  extra liner om de kloof): losse `--gap`-notitie in de plaats.
+- New mode in `./measure`: `--markers` prints **one sheet** with the frame
+  exactly on the edges of the assumed printable area plus one letter per side
+  (T B L R), each with its crown toward its own label edge. The letters are
+  drawn in **canvas coordinates** and placed 1:1 on the window with
+  `lw-orient=off` + `lw-rotate=0` — no scale distortion and no N/Z/W/O
+  direction confusion at `rotate=270` (the lesson of §4A/§10).
+- `./measure solve --T <mm> --B <mm> --L <mm> --R <mm>` reads the four white
+  gaps between frame and label edge; `MARKER_EDGES` maps them back per
+  rotation to head-direction/feed (270: T/B→left/right, L/R→top/bottom;
+  the 90 mapping sits there as the mirror image, still **uncalibrated**).
+  Output: measured size, label lines in bitmap mm, center correction and the
+  `add-size.sh` command (including `--xoffset` on a shifted roll, and the
+  reminder for the plumb-line sheet).
+- Filter: `lw-orient=off` switches off the auto-orientation rotation (needed
+  for a raster that is already window-shaped in canvas orientation). On by
+  default, so nothing changes for printing via Word/CLI.
+- `test_measure.py`: 15 new checks — state, frame==window, raster size 1:1,
+  rot0 and rot270 conversions, missing letters = error.
+- Physically tested on the AM11353 (on main, after the tag): the frame line
+  of the unreachable L edge is absent — so the negative-xoffset clip works
+  on paper; R/B at 0 mm confirm the calibration. Then the
+  `gap = pitch − height` inference was removed from markers-solve (too
+  optimistic on rolls with extra liner around the notch): a separate
+  `--gap` note instead.
 
-## 1.6 — AM11353 2-up gefixt én fysiek gekalibreerd (12 november, goedgekeurd)
+## 1.6 — AM11353 2-up fixed and physically calibrated (12 November, approved)
 
-- `label --two` composeert nu in het **ONTWERP-frame** (295 × 287/288 dots),
-  als twee halve pagina's van 295 × ~144 dots boven elkaar, en daarna pas
-  **de enkele-label-rotatie** (270°) erop: bovenste helft → linker kolom,
-  onderste → rechter. De oude opbouw was canvas-maten (590 × 287) zonder
-  rotatie; het beeld viel grotendeels buiten het blok (7,5..32,5 mm) — op
-  het vel "a few pixels". 2-up Forceert 270° als de PPD geen rotatie geeft,
-  want twee halve banen van 12,5 mm naast elkaar staan altijd op z'n kant.
-- **Bug in de rotatie-tak** meegenomen: `args.box` werd er een 3-tuple van
-  gemaakt terwijl `render_label` er 4 waarden uit haalt — dus elke
-  `rotate=270`-print via de CLI crashte ("niet enough values to unpack").
-  Nu een proper swap van h en w; het geroteerde beeld valt precies in het
-  meetvenster (getest op de vierkante rol: canvas 356, inkt binnen x/y-venster).
-- Rooktest in `test_label.py`: de vanger (TCP-verfanger) pakt de wire-bytes
-  en de bits-controle verifieert voor AM11353: BITMAP 160 B × 354 regels
-  (zoals de vendor-capture), inkt binnen het bereik 0..271 dots, beide halve
-  kolommen dragen inkt, de snijlijn blijft wit en de witranden vóór rij 53
-  en ná rij 348 (top=4,5 mm) zijn leeg.
-- Twee CLI-draadjes gerepareerd: `--rows/--rotate/--xoffset/--sense/--gapoff`
-  werden na argparse onvoorwaardelijk op `None` gezet, waardoor PPD-hints
-  gebruikervlaggen altijd overschreven; en `--media-bottom`/`--media-right`
-  deden niets — ze zijn nu doorlussen naar het printvlak. `--two`-tekst vervangt
-  nu ook `\n` in regeleinden, zoals csv2labels documenteert.
-- **Fysieke kalibratie van de rol** (3 voedingen, 12 nov): het oude liner-verhaal
-  (x 6..36, blok 7,5..32,5, rail 20 mm — 1-mm-liniaal + Labellife) klopte niet;
-  eerste velletje landde 10 mm te rechts en 5 mm te vroeg. Twee kaders van
-  6 × 10 mm gecentreerd na xoffset −2,5/top 4,5; een loodlijn van 0,25 mm
-  pinpointte de rail op **x = 10,5 mm** → definitief `xoffset=-2 top=4.5`.
-  Zie KNOWLEDGE §AM11353; les: één snijlijn-lood kalibreert een 2-up-rol.
-- **Negatieve xoffset** is nu een legaal concept: `content_box` (CLI) en
-  `print_window` (filter) knippen de onbereikbare strip links van kop-x=0
-  weg; `pack_canvas` negeert pixels met `px < 0` (was negatief indexeren!).
-  `test_filter` 6a en de rooktest draaien op de gemeten getallen.
-- Geïnstalleerd op de iMac (`install.sh`, md5 filter/PPD identiek aan de
-  repo); `./label --two` zonder vlaggen composeert vanaf de geïnstalleerde
-  PPD-rules 295 × 295. Vel goedgekeurd door de gebruiker.
+- `label --two` now composes in the **DESIGN frame** (295 × 287/288 dots),
+  as two half pages of 295 × ~144 dots stacked, and only then applies
+  **the single-label rotation** (270°): top half → left column, bottom →
+  right. The old build was canvas coordinates (590 × 287) without rotation;
+  the image fell mostly outside the block (7.5..32.5 mm) — on the sheet,
+  "a few pixels". 2-up forces 270° when the PPD gives no rotation, because
+  two half lanes of 12.5 mm side by side are always sideways.
+- **Bug in the rotation branch** taken along: `args.box` was turned into a
+  3-tuple while `render_label` unpacks 4 values — so every `rotate=270`
+  print via the CLI crashed ("not enough values to unpack"). Now a clean h/w
+  swap; the rotated image lands exactly in the measurement window (tested on
+  the square roll: canvas 356, ink inside the x/y window).
+- Smoke test in `test_label.py`: the catcher (TCP listener) grabs the wire
+  bytes and the bits check verifies for AM11353: BITMAP 160 B × 354 rows
+  (like the vendor capture), ink within 0..271 dots, both half columns carry
+  ink, the cut line stays white and the white bands before row 53 and after
+  row 348 (top=4.5 mm) are empty.
+- Two CLI wires repaired: `--rows/--rotate/--xoffset/--sense/--gapoff` were
+  unconditionally set to `None` after argparse, so PPD hints always overrode
+  user flags; and `--media-bottom`/`--media-right` did nothing — they now
+  reach the print plane. `--two` text now also replaces `\n` for line breaks,
+  as csv2labels documents.
+- **Physical calibration of the roll** (3 feeds, 12 Nov): the old liner story
+  (x 6..36, block 7.5..32.5, rail 20 mm — 1 mm ruler + Labellife) was wrong;
+  the first sheet landed 10 mm too far right and 5 mm too early. Two 6 × 10 mm
+  boxes were centered after xoffset −2.5/top 4.5; a 0.25 mm plumb line pinned
+  the rail at **x = 10.5 mm** → final `xoffset=-2 top=4.5`. See KNOWLEDGE
+  §AM11353; lesson: one cut-line plumb calibrates a 2-up roll.
+- **Negative xoffset** is now a legal concept: `content_box` (CLI) and
+  `print_window` (filter) clip the unreachable strip left of head-x=0;
+  `pack_canvas` ignores pixels with `px < 0` (it used to negative-index!).
+  `test_filter` 6a and the smoke test run on the measured numbers.
+- Installed on the iMac (`install.sh`, filter/PPD md5 identical to the repo);
+  `./label --two` without flags composes 295 × 295 from the installed PPD
+  rules. Sheet approved by the user.
 
-## 1.5 — vierkante rol geïnstalleerd op maximale breedte; coördinaten definitief
+## 1.5 — square roll installed at maximum width; coordinates final
 
-- De S0929120-rol is gemeten en **geïnstalleerd** op de maximale rechthoek:
+- The S0929120 roll was measured and **installed** at the maximum rectangle:
   `pitch=33.97 gap=3 rows=356 left=1.5 right=1.4 top=1.9 voffset=2.5 bottom=0
-  rotate=270` → printbaar vlak 23,03 × 24,98 mm, wit 2,00 mm aan de bovenkant
-  (onbereikbaar), 0,47 mm beneden, 0,00 / 0,61 mm langs de voeding.
-- Eerste R/S-kaderlijn liep van het etiket af; `right` 0,95 → **1,4 mm** lost
-  dat op zonder meetbaar verlies.
-- **Coördinaten opgelost met een hoekvelletje** (P/Q/R/S): een gebruiker ziet
-  links/rechts langs de **canvas-y-as** (de voedingsrichting), boven/beneden
-  langs de canvas-x-as. Een normaal getekend ontwerp komt na `rotate=270`
-  rechtop op het etiket: er is géén ontwerpdraai nodig in Word of Excel.
-- De uitvaartkant is de **kleinste canvas-y**. Een eerdere, verkeerd
-  geïnterpreteerde "+y-bevestiging" is expliciet ingetrokken in de documentatie.
-- Nieuw: **`test-print.sh`** — dezelfde proefprinten met per-taak-opties
-  (`--status`, `--flush`, `--final`) en `--commit` om ze daarna in de PPD te
-  zetten en te installeren. Zo hoef je voor een test geen admin-rechten.
-- Twee valkuilen vastgelegd in `KNOWLEDGE.md`: een canvas-pagina door
-  `convert()` sturen schaalt het hele meetbeeld terug (vervormd vel), en
-  `26 × 11,811` dots in een ontwerp van 295 dots valt van de rand af
-  (onleesbare pijl). Diagnostiek benoemt posities alleen nog als
-  canvas-getal of hoekletter.
-- `./measure` kreeg `--rows`/`--rotate`; `KNOWLEDGE.md` §4A bevat nu de gemeten
-  mapping, `HANDOFF.md` de geïnstalleerde toestand en de restpunten.
+  rotate=270` → printable area 23.03 × 24.98 mm, white 2.00 mm at the top
+  (unreachable), 0.47 mm at the bottom, 0.00 / 0.61 mm along the feed.
+- The first R/S frame line ran off the label; `right` 0.95 → **1.4 mm** fixes
+  that without measurable loss.
+- **Coordinates solved with a corner sheet** (P/Q/R/S): a user sees left/right
+  along the **canvas y axis** (the feed direction), up/down along the canvas
+  x axis. A normally drawn design comes out upright on the label after
+  `rotate=270`: no design rotation needed in Word or Excel.
+- The exit side is the **smallest canvas y**. An earlier, misread "+y
+  confirmation" is explicitly retracted in the documentation.
+- New: **`test-print.sh`** — the same proof prints with per-job options
+  (`--status`, `--flush`, `--final`) and `--commit` to then put them into the
+  PPD and install. That way a test needs no admin rights.
+- Two pitfalls recorded in `KNOWLEDGE.md`: sending a canvas page through
+  `convert()` scales the whole measurement image back (distorted sheet), and
+  `26 × 11.811` dots in a 295-dot design falls off the edge (unreadable
+  arrow). Diagnostics now name positions only as canvas numbers or corner
+  letters.
+- `./measure` gained `--rows`/`--rotate`; `KNOWLEDGE.md` §4A now carries the
+  measured mapping, `HANDOFF.md` the installed state and the rest points.
 
-## 1.4 — vierkante rol gecentreerd, meetgereedschap uitgebreid, kennis gedocumenteerd
+## 1.4 — square roll centered, measuring tools extended, knowledge documented
 
-- De vierkante rol is gemeten en gecentreerd: etiket is **25,5 × 25,5 mm**
-  (1 inch), niet 26 × 25 zoals de verpakting en ons eerste advies zeiden.
-  2 mm links van x=0 is onbereikbaar, dus het grootste gecentreerde vierkant
-  is 21,51 mm met 2 mm wit rondom.
-- `lw-media` kreeg vier velden erbij: `rows` (bitmap-hoogte in dots; Labellife
-  stuurt 356 voor deze rol), `rotate` (90/270: het ontwerp zijwaarts, zoals de
-  vendor-app doet), `sense` (`gap`/`bline`) en `gapoff` (mm liner tussen
-  etiketeinde en de kloof). `add-size.sh` en de `label`-CLI volgen dat.
-- De PPD-parser bewaart nu ook niet-numerieke waarden (`sense=bline`); tot die
-  tijd werd er stilletjes `GAP` verstuurd.
-- `./measure`: `--rows`, `--rotate` en een `ladder`-stand (genummerde banden
-  over één voeding) voor rollen waarvan de startpositie onbekend is.
-- Regel die alles verklaart en nu gedocumenteerd staat: **`SIZE-hoogte + GAP`
-  is de afstand per etiket**. Labellife stuurt `SIZE 25 mm,33,97 mm` +
-  `GAP 3 mm` = 36,97 mm, precies de gemeten steek; overleg van ons kruis op
-  het hunne toont dezelfde plaats.
-- Test die de werkboom beschadigde (`git checkout` op de PPD) draait nu op een
-  kopie via `LW_PPD`, en een expliciete `--top 0` blijft behouden: nul is een
-  meting, geen ontbrekende optie.
-- Nieuwe documenten: **`KNOWLEDGE.md`** (alles wat aan de printer gemeten is,
-  inclusief de Labellife-capture en de commando-matrix) en **`HANDOFF.md`**
-  (stand van zaken, open punten, de les dat hoekletters T/B/L/R beter werken
-  dan een genummerde schaal bij een gedraaide rol).
+- The square roll was measured and centered: the label is **25.5 × 25.5 mm**
+  (1 inch), not 26 × 25 as the packaging and our first advice said.
+  2 mm left of x=0 is unreachable, so the largest centered square is
+  21.51 mm with 2 mm of white all around.
+- `lw-media` gained four fields: `rows` (bitmap height in dots; Labellife
+  sends 356 for this roll), `rotate` (90/270: the design sideways, like the
+  vendor app), `sense` (`gap`/`bline`) and `gapoff` (mm of liner between the
+  label end and the gap). `add-size.sh` and the `label` CLI follow that.
+- The PPD parser now also stores non-numeric values (`sense=bline`); until
+  then a silent `GAP` was sent.
+- `./measure`: `--rows`, `--rotate` and a `ladder` mode (numbered bands over
+  one feed) for rolls whose start position is unknown.
+- The rule that explains everything, now documented: **`SIZE height + GAP` is
+  the distance per label**. Labellife sends `SIZE 25 mm,33.97 mm` +
+  `GAP 3 mm` = 36.97 mm, exactly the measured pitch; overlaying our cross on
+  theirs shows the same position.
+- The test that damaged the working tree (`git checkout` on the PPD) now runs
+  on a copy via `LW_PPD`, and an explicit `--top 0` is kept: zero is a
+  measurement, not a missing option.
+- New documents: **`KNOWLEDGE.md`** (everything measured on the printer,
+  including the Labellife capture and the command matrix) and **`HANDOFF.md`**
+  (state of play, open points, the lesson that corner letters T/B/L/R work
+  better than a numbered scale on a rotated roll).
 
-## 1.3 — S0929120 (25 × 25 mm vierkant) en twee nieuwe rolknoppen
+## 1.3 — S0929120 (25 × 25 mm square) and two new roll knobs
 
-- Nieuw formaat `LW_26x25`: de Dymo S0929120 / 30332-role is gemeten
-  26 × 25 mm (niet 25 × 25). De rollijn is: 25 mm etiket, 4 mm liner,
-  3 mm gaatje, 5 mm liner = 37 mm steek.
-  Een 25 × 25 Word-pagina wordt er automatisch naartoe gemapt.
-- De roldefinities kregen twee velden erbij:
-  `rows` (bitmaphoogte in dots; standaard `pitch - 12`, zoals de
-  vendor-app stuurt) en `rotate` (90 / 270: het ontwerp zijwaarts
-  printen). `add-size.sh` kreeg `--rows` en `--rotate`.
-- Labellife bleek voor deze rol `SIZE 25 mm,33.97 mm`, `GAP 3 mm` en
-  356 bitmapproeren te sturen; met die waarden en 0,6 mm wit rondom
-  staat het beeld gecentreerd. Eerdere aannames (steek 38 mm,
-  tussenruimte 13 mm) waren de reden dat de printer elke beurt elders
-  begon: die kloof bestaat niet, dus de gap-zoeker sprong rond.
-- Inkt kan niet linkser dan x=0; bij een smallere rol is dat een
-  fysieke dode zone. Centreren doe je door rechts evenveel in te
-  leveren als links onbereikbaar is. Het grootste gecentreerde vierkant
-  op deze rol is daarmee 23,03 × 23,03 mm (1,5 mm links/rechts,
-  1,0 mm boven/onder): `left=1.5 right=1.45 voffset=5.1 bottom=1.95`.
-- Belangrijkste inzicht: voor deze printer telt **SIZE-hoogte + GAP =
-  de echte steek**. Met `SIZE 26 mm,34 mm` + `GAP 3 mm` (37 mm) vielen
-  vijf losse beurten exact gelijk; zolang de som klopte maakte het de
-  sensor niet uit dat de gaatjes buiten het sensorbereik vallen.
-- Bug in `./measure`: de kruis-print stuurde `SIZE <w>,<h>` in plaats
-  van de meegegeven `--pitch`/`--gap`, waardoor de printer te weinig
-  voerde en het beeld half op de liner belandde. Beide meetmodi sturen
-  nu exact de berekende geometrie.
-- `./measure` kreeg een `ladder`-stand (genummerde banden over één
-  voeding) om te zien waar een rol begint, en `--step` voor leesbare
-  schalen op kleine etiketten.
-- `test_filter.py` (40 checks) en `test_measure.py` (20 checks) dekken
-  `rows`, `rotate`, de inverse rotatie en de pitch/gap-doorvoer.
+- New size `LW_26x25`: the Dymo S0929120 / 30332 roll measured 26 × 25 mm
+  (not 25 × 25). The roll line is: 25 mm label, 4 mm liner, 3 mm notch,
+  5 mm liner = 37 mm pitch. A 25 × 25 Word page is mapped onto it
+  automatically.
+- The roll definitions gained two fields: `rows` (bitmap height in dots;
+  default `pitch - 12`, like the vendor app sends) and `rotate` (90 / 270:
+  print the design sideways). `add-size.sh` gained `--rows` and `--rotate`.
+- Labellife turned out to send `SIZE 25 mm,33.97 mm`, `GAP 3 mm` and 356
+  bitmap rows for this roll; with those values and 0.6 mm of white all
+  around the image stands centered. Earlier assumptions (pitch 38 mm,
+  spacing 13 mm) were why the printer started every feed elsewhere: that
+  gap does not exist, so the gap-hunter jumped around.
+- Ink cannot go left of x=0; on a narrower roll that is a physical dead
+  zone. Center by giving up on the right as much as is unreachable on the
+  left. The largest centered square on this roll is thereby
+  23.03 × 23.03 mm (1.5 mm left/right, 1.0 mm top/bottom):
+  `left=1.5 right=1.45 voffset=5.1 bottom=1.95`.
+- Key insight: for this printer **SIZE height + GAP = the real pitch**. With
+  `SIZE 26 mm,34 mm` + `GAP 3 mm` (37 mm) five loose feeds landed exactly
+  identical; as long as the sum was right the sensor did not care that the
+  notches fall outside its range.
+- Bug in `./measure`: the cross print sent `SIZE <w>,<h>` instead of the
+  given `--pitch`/`--gap`, so the printer under-fed and the image landed
+  half on the liner. Both measuring modes now send exactly the computed
+  geometry.
+- `./measure` gained a `ladder` mode (numbered bands over one feed) to see
+  where a roll starts, and `--step` for readable scales on small labels.
+- `test_filter.py` (40 checks) and `test_measure.py` (20 checks) cover
+  `rows`, `rotate`, the inverse rotation and the pitch/gap pass-through.
 
-## 1.2 — ./measure, een nieuwe rol in twee opdrachten
+## 1.2 — ./measure, a new roll in two commands
 
-- `./measure <breedte> <hoogte>` drukt één etiket met `0,0` in het midden van
-  het verwachte printvlak, 1-mm streepjes en N/Z/W/O op de verwachte randen,
-  als mode-0 TSPL direct naar poort 9100 — zonder driver en zonder root.
-- `./measure solve --N .. --Z .. --W .. --O ..` rekent de vier aflezingen om
-  naar `left`/`right`/`top`/`bottom` en drukt de passende
-  `add-size.sh`-opdracht af. De gebruikte middenpositie blijft in een
-  statusbestand achter, dus de aflezingen gaan niet meer verloren.
-- De berekening komt uit `cups/lw650xl.py` zelf: meten en printen rekenen
-  identiek. `--preview` en `--dry-run` tonen zonder te printen.
-- `test_measure.py` dekt de print/solve-roundtrip.
+- `./measure <width> <height>` prints one label with `0,0` in the middle of
+  the expected printable area, 1 mm ticks and N/Z/W/O on the expected edges,
+  as mode-0 TSPL straight to port 9100 — no driver and no root.
+- `./measure solve --N .. --Z .. --W .. --O ..` converts the four readings
+  into `left`/`right`/`top`/`bottom` and prints the matching `add-size.sh`
+  command. The used center position is kept in a state file, so readings no
+  longer get lost.
+- The computation comes from `cups/lw650xl.py` itself: measuring and printing
+  compute identically. `--preview` and `--dry-run` show without printing.
+- `test_measure.py` covers the print/solve round trip.
 
-## 1.1 — AM99012 / Dymo S0722400 (36 × 89 mm, staand)
+## 1.1 — AM99012 / Dymo S0722400 (36 × 89 mm, portrait)
 
-- Nieuw formaat `LW_36x89`: deze rol staat 90° anders op de printer dan de
-  AM11354 — 36 mm over de kop, 89 mm in de voederrichting, steek 93 mm.
-- Rolpositionering is nu per maat instelbaar in de PPD: `left`, `right`,
-  `top` and `bottom` naast `pitch`, `gap` en `voffset`
+- New size `LW_36x89`: this roll sits 90° differently on the printer than the
+  AM11354 — 36 mm across the head, 89 mm in the feed direction, pitch 93 mm.
+- Roll positioning is now configurable per size in the PPD: `left`, `right`,
+  `top` and `bottom` next to `pitch`, `gap` and `voffset`
   (`*% lw-media LW_36x89 pitch=93 gap=4 left=3 right=3 top=-0.5 bottom=1`).
-- `left`/`right`/`top`/`bottom` zijn ook als CUPS-optie (`-o lw-right=3`) en
-  als CLI-optie (`--media-right 3`, `--media-top`, `--media-bottom`) te zetten.
-- Het model klopt nu met de werkelijkheid: een negatieve `top` (etiket begint
-  boven het bereik van de kop) wordt afgekapt op rij 0, en inkt kan niet
-  linkser dan x=0 — dus is de rechterkant van het printsel met evenveel
-  ingeleverd als de onbereikbare linkerrand. Gemeten marges: 3,34 / 3,28 mm
-  (W/O) en 0,84 / 0,87 mm (N/Z).
-- `add-size.sh` kreeg `--left`, `--right`, `--top` en `--bottom`; handleiding
-  (NL) en README beschrijven hoe je een rol met een meet-etiket afleest.
-- `test_filter.py`: 34 checks, inclusief de AM99012-geometrie en de
-  gelijke marges links/rechts.
+- `left`/`right`/`top`/`bottom` are settable as a CUPS option (`-o lw-right=3`)
+  and as CLI options (`--media-right 3`, `--media-top`, `--media-bottom`).
+- The model now matches reality: a negative `top` (label starts above the
+  head's reach) is clamped to row 0, and ink cannot go left of x=0 — so the
+  right side of the print gives up as much as the unreachable left edge.
+  Measured margins: 3.34 / 3.28 mm (W/E) and 0.84 / 0.87 mm (N/S).
+- `add-size.sh` gained `--left`, `--right`, `--top` and `--bottom`; the
+  manual (NL) and README describe how to read a roll with a measurement
+  label.
+- `test_filter.py`: 34 checks, including the AM99012 geometry and the equal
+  left/right margins.
 
-## 1.0 — eerste werkende versie
+## 1.0 — first working version
 
-- TSPL `BITMAP` mode 0, bit 1 = wit, 1-op-1 op de 1280-dots kop.
-- Meetbaar gecentreerde geometrie voor de AM11354 (57 × 32 mm, steek 38,6 mm,
-  printbaar vlak x 0–640, `voffset` 0,34 mm).
-- CUPS-filter die de rasters van cgpdftoraster echt uitleest: header van 1796
-  bytes per pagina, syncwoord alleen vóór pagina 1, en meerdere pagina's =
-  meerdere etiketten.
-- Word-achtige opties worden ongedaan gemaakt: `media=Custom.90.71x161.57`
-  + `orientation-requested=4` (etiket komt staand binnen → 90° rechtsom
-  terugdraaien) en de PPD-keuze via `com.apple.print.PageToPaperMappingMediaName`.
-- Gedeelde SMB-inbox (Labelprinter) met launchd-watcher, Word- en Excel-macro's,
-  `label`-CLI, `setup.sh` / `install.sh` / `add-size.sh`, tests.
+- TSPL `BITMAP` mode 0, bit 1 = white, 1:1 on the 1280-dot head.
+- Measurably centered geometry for the AM11354 (57 × 32 mm, pitch 38.6 mm,
+  printable area x 0–640, `voffset` 0.34 mm).
+- CUPS filter that really reads the cgpdftoraster rasters: 1796-byte header
+  per page, sync word only before page 1, and multiple pages = multiple
+  labels.
+- Word-like options are undone: `media=Custom.90.71x161.57` +
+  `orientation-requested=4` (label arrives standing → rotate 90° clockwise
+  back) and the PPD choice via
+  `com.apple.print.PageToPaperMappingMediaName`.
+- Shared SMB inbox (Labelprinter) with launchd watcher, Word and Excel
+  macros, `label` CLI, `setup.sh` / `install.sh` / `add-size.sh`, tests.

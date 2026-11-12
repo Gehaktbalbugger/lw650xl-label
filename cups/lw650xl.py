@@ -62,9 +62,9 @@ DEFAULT_RIGHT_MM = RIGHT_SAFETY_DOTS / DOTS_PER_MM     # ~0.8 mm shy of the edge
 # the PPD; the pitch is what the printer needs to feed correctly, and
 # voffset moves the print down the label (see content_box).
 MEDIA = {
-    # AM11354 57 x 32 mm, liggend; 2 mm dode zone links, 5,1 mm tot de bovenrand
+    # AM11354 57 x 32 mm, landscape; 2 mm dead zone on the left, 5.1 mm to the top edge
     "LW_57x32": {"pitch": 38.6, "gap": 3.0, "voffset": 0.34},
-    # AM99012 / Dymo S0722400 36 x 89 mm, staand op de rol: smaller en lager
+    # AM99012 / Dymo S0722400 36 x 89 mm, portrait on the roll: narrower and lower
     # 3 mm of the label hangs past the head's left end and cannot be printed,
     # so the right side is trimmed to the same 3 mm to keep the print centred.
     "LW_36x89": {"pitch": 93.0, "gap": 4.0, "left": 3.0, "right": 3.0,
@@ -191,10 +191,10 @@ def print_window(geom, target_h):
     height is clamped to the canvas: the printer anchors the bitmap at its
     bottom edge, so growing the window would move the whole print.
     """
-    # De kop begint niet altijd op de linker rand van de liner: smalle rollen
-    # liggen in dit pad soms aan weerskanten van x=0. xoffset schuift het hele
-    # printvlak; een negatieve ox betekent dat de liner links van de kop begint
-    # en pack knipt die onbereikbare strip weg. left blijft de dode zone.
+    # The head does not always start at the liner's left edge: narrow rolls
+    # can sit on either side of x=0 in this path. xoffset shifts the whole
+    # print plane; a negative ox means the liner starts left of the head and
+    # pack clips that unreachable strip. left stays the dead zone.
     ox = int(round(geom.xoffset * DOTS_PER_MM))
     dead = int(round(geom.left * DOTS_PER_MM))
     cw = (int(round(geom.size_w * DOTS_PER_MM)) - dead
@@ -374,9 +374,10 @@ def media_geometry(opts, w_mm, h_mm, table=None):
         # by turning the page: the unreachable strip then falls along the feed
         # direction, where voffset/rows can centre it.
         rotate=int(pick("rotate", 0.0)) % 360,
-        # sense: "gap" (doorzichtig ertussen) of "bline" (zwarte merken /
-        # gaatjes in de liner). Rols met merken moeten BLINE krijgen, anders
-        # zoekt de sensor een kloof die er niet is en begint elke beurt elders.
+        # sense: "gap" (transparent between) or "bline" (black marks /
+        # notches in the liner). Rolls with marks need BLINE, otherwise the
+        # sensor hunts for a gap that isn't there and starts every feed
+        # elsewhere.
         sense=sense,
         xoffset=pick("xoffset", 0.0),
         gapoff=pick("gapoff", 0.0),

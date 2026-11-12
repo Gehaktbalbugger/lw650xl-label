@@ -12,4 +12,4 @@ launchctl bootout system/com.benno.labelprinter.watcher 2>/dev/null || true
 rm -f "$PLIST"
 sharing -r Labelprinter 2>/dev/null || true
 
-echo "Watcher en share verwijderd. Bestanden staan nog in /Users/Shared/Labelprinter."
+echo "Watcher and share removed. Files remain in /Users/Shared/Labelprinter."

@@ -61,7 +61,7 @@ def unpack_bitmap(data):
 
 
 def ink_columns(bits, wb):
-    """Aantal donkere dots per koppositie x (bit 0 = geprint)."""
+    """Number of dark dots per head position x (bit 0 = printed)."""
     cols = []
     for x in range(wb * 8):
         byte, bit = divmod(x, 8)
@@ -100,11 +100,10 @@ def main():
     assert all(b == 0xFF for b in top), "area above the label must be white"
 
     # --- AM11353 (LW_25x25): --two door de vanger, bits-controle -----------
-    # Fysiek bewezen geometrie (kader- en snijlijnlood 12 nov): blok x
-    # -2,0..23,0 mm met snijlijn op 10,5 mm; labeltop 4,5 mm onder de
-    # oorsprong; canvas 354 regels zoals de vendor. De linker 2,0 mm van
-    # baan A ligt links van kop-x=0: die strip knipt weg, inkt blijft
-    # binnen x 0..271 dots.
+    # Physically proven geometry (box and cut plumb 12 Nov): block x
+    # -2.0..23.0 mm with the cut line at 10.5 mm; label top 4.5 mm below the
+    # origin; canvas 354 rows like the vendor. The left 2.0 mm of lane A sits
+    # left of head-x=0: that strip is clipped, ink stays within x 0..271 dots.
     data = capture(["./label", "Anna de Bakker\nKeukenstraat 12",
                     "--two", "Piet Jansen\nBrugstraat 3",
                     "--size", "25x25", "--pitch", "34", "--gap", "3",
@@ -119,11 +118,11 @@ def main():
     xs = [x for x, n in enumerate(cols2) if n]
     assert xs, "AM11353: geen inkt gevonden"
     assert xs[0] >= 0 and xs[-1] <= 271, \
-        f"AM11353: inkt x {xs[0]}..{xs[-1]} valt buiten bereik 0..271 (0..23,0 mm)"
+        f"AM11353: ink x {xs[0]}..{xs[-1]} outside range 0..271 (0..23.0 mm)"
     links, rechts = sum(cols2[0:124]), sum(cols2[124:272])
     assert links > 150 and rechts > 150, \
-        f"AM11353: beide halve kolommen moeten inkt dragen (L={links}, R={rechts})"
-    assert cols2[124] == 0, "AM11353: de snijlijn op x=10,5 mm moet wit blijven"
+        f"AM11353: both half columns must carry ink (L={links}, R={rechts})"
+    assert cols2[124] == 0, "AM11353: the cut line at x=10.5 mm must stay white"
     pad_top = bits2[:53 * wb2]
     assert all(b == 0xFF for b in pad_top), \
         "AM11353: de 4,5 mm vóór het label (rij < 53) moeten wit zijn"

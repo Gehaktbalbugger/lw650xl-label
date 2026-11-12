@@ -1,248 +1,248 @@
-# Wat we weten over de LW650XL PRO
+# What we know about the LW650XL PRO
 
-Verzamelde bevindingen van het reverse-engineeren en afstellen van deze
-printer. Elk punt is gemeten aan de echte printer, niet uit documentatie —
-de fabrieksheet klopt voor deze firmware niet. Zie `HANDOFF.md` om verder te
-werken.
+Findings collected while reverse-engineering and tuning this printer. Every
+point was measured on the real printer, not taken from documentation — the
+factory sheet is wrong for this firmware. See `HANDOFF.md` to continue the
+work.
 
-## 1. De hardware
+## 1. The hardware
 
-- LW650XL PRO is een herdoopte **Aimo 650** (Xiamen Aimo Technology).
-- Direct-thermaal, zwart-wit, 300 dpi, **1280 dots kop ≈ 108 mm**.
-- Taal: **TSPL** over raw TCP **poort 9100**. USB-beschuiging bestaat ook,
-  maar alles hier is via het netwerk geverifieerd.
-- 1 dot = 25,4/300 = **0,0847 mm**. Fijnste instelbare stap is dus ~0,085 mm;
-  "0,3 mm" bestaat fysiek niet, wel 3 dots = 0,254 mm of 4 dots = 0,339 mm.
-- De printer praat terug op dezelfde poort:
+- LW650XL PRO is a re-badged **Aimo 650** (Xiamen Aimo Technology).
+- Direct thermal, black-and-white, 300 dpi, **1280-dot head ≈ 108 mm**.
+- Language: **TSPL** over raw TCP **port 9100**. USB exists as well, but
+  everything here was verified over the network.
+- 1 dot = 25.4/300 = **0.0847 mm**. The finest adjustable step is ~0.085 mm;
+  "0.3 mm" does not physically exist, but 3 dots = 0.254 mm or 4 dots =
+  0.339 mm do.
+- The printer talks back on the same port:
 
-  | melding | betekenis |
+  | message | meaning |
   |---|---|
-  | `SSSGETPRINTING:DOING` → `:DONE` | taak geaccepteerd en afgedrukt |
-  | `SSSGETPAPER:NO` | geen papier / sensor vindt geen referentie |
-  | `SSSGETCAP:OPEN` / `:CLOSE` | deksel of mediahefboom bewoog |
-  | `Cmd error:<token>` | commando (of token) niet begrepen |
+  | `SSSGETPRINTING:DOING` → `:DONE` | job accepted and printed |
+  | `SSSGETPAPER:NO` | no paper / sensor finds no reference |
+  | `SSSGETCAP:OPEN` / `:CLOSE` | the lid or media lever moved |
+  | `Cmd error:<token>` | command (or token) not understood |
 
-## 2. Commando-matrix (gepiept, één commando per verbinding)
+## 2. Command matrix (sniffed, one command per connection)
 
-| aanvaard | geweigerd |
+| accepted | refused |
 |---|---|
 | `SIZE`, `GAP`, `BLINE`, `REFERENCE`, `OFFSET`, `DIRECTION`, `DENSITY`, `SPEED`, `CLS`, `BITMAP`, `PRINT`, `SET TEAR ON`, `SHIFT`, `SET MEDIA GAP` | `GAPAUTO`, `SET MEDIA MARK`, `SET BACK`, `SET SHIFT`, `VREF`, `PRINTM`, `SSSGETMEDIA:`, `SSSGETDEVINFO:`, `SSSGETSTATUS:` |
 
-Alleen deze lijst is daadwerkelijk gepiept. Commando's die er niet staan
-(`CODEPAGE`, `PAUSE`, `FORMFEED`, …) zijn ongetest — ze zijn niet afgewezen,
-maar ook niet bevestigd.
+Only this list was actually sniffed. Commands not on it (`CODEPAGE`, `PAUSE`,
+`FORMFEED`, …) are untested — they were not refused, but not confirmed either.
 
-Let op bij pelen: de printer antwoordt **asynchroon en één stap later** dan
-het commando dat je net stuurde. Eén commando per TCP-verbinding, anders
-schuiven de antwoorden weg en lees je `Cmd error:GAP` bij een `SPEED`-regel.
+Careful with piped probing: the printer answers **asynchronously, one step
+later** than the command you just sent. One command per TCP connection,
+otherwise the answers shift and you read `Cmd error:GAP` on a `SPEED` line.
 
-**`SHIFT` is aanvaard maar nooit uitgeprobeerd.** Als het de startpositie van
-de kop in dots verzet, is het de enige manier om de onbereikbare linkerrand
-van smalle rollen terug te winnen. Zie HANDOFF, punt "open".
+**`SHIFT` is accepted but never explored.** If it moves the head start in
+dots, it is the only way to win back the unreachable left edge of narrow
+rolls. See HANDOFF, the "open" item.
 
-## 3. BITMAP-formaat
+## 3. BITMAP format
 
-- **mode 0 = ongecomprimeerd** en dat is wat werkt.
-- Syntaxis: `BITMAP x,y,breedte_in_bytes,hoogte,mode,` — het binaire payload
-  begint **meteen na de laatste komma**: geen lengteveld, geen CRLF.
-- **Bit 1 = wit, bit 0 = geprint punt.** Rijtjes MSB-first, per rij afgerond
-  naar bytes. Een 1280-dots bitmap is dus 160 bytes per rij.
-- mode 3 (classic LZO) wordt door deze firmware **stilletjes inslikd**: de
-  printer meldt DONE maar print niets. mode 4 is de LZO-variant van de vendor
-  zelf: 18 blokken van `[4-byte LE lengte][data]`, elk eindigend op `11 00 00`;
-  ons `lzo.py` kan het niet decoderen en dat hoeft niet meer.
-- De bitmap wordt **1-op-1 op de kop** gelegd: een 57 mm-etiket beslaat het
-  linker deel van de 1280 dots, de rest is lege liner.
+- **mode 0 = uncompressed**, and that is what works.
+- Syntax: `BITMAP x,y,width_in_bytes,height,mode,` — the binary payload starts
+  **right after the last comma**: no length field, no CRLF.
+- **Bit 1 = white, bit 0 = printed dot.** Rows MSB-first, each row padded to
+  whole bytes. A 1280-dot bitmap is therefore 160 bytes per row.
+- mode 3 (classic LZO) is **silently swallowed** by this firmware: the printer
+  reports DONE but prints nothing. mode 4 is the vendor's own LZO variant:
+  18 blocks of `[4-byte LE length][data]`, each ending in `11 00 00`; our
+  `lzo.py` cannot decode it and no longer needs to.
+- The bitmap is laid **1:1 on the head**: a 57 mm label occupies the left part
+  of the 1280 dots, the rest is empty liner.
 
-## 4. Registratie: dit is de kern
+## 4. Registration: this is the core
 
-1. **De printer verankert de bitmap aan de ONDERKANT.** Een hogere bitmap
-   schuift het beeld dus omhoog op het etiket. Wil je een kort etiket, vul de
-   bitmap dan op tot de volledige voedinghoogte; anders gaat het beeld misplaatst.
-2. **`SIZE`-hoogte + `GAP`-lengte = de afstand per etiket.** Dat is wat de
-   printer aanvoert. Klop die som niet, dan zoekt hij een referentie die er
-   niet is en begint elke beurt elders. Klop ze wél, dan liggen vijf losse
-   beurten exact gelijk — ook al zien de gaatjes of zelfs de kloof de sensor
-   sensor gezien worden.
-3. De standaardvulling van de bitmap is `pitch_dots - 12` (dat is wat de
-   vendor-app op de 57 × 32-rol stuurt: 444 rijen bij 456 dots). Rols die
-   dat patroon breken, pinnen hun hoogte met `rows=`.
-4. **Inkt kan niet linkser dan x=0.** Een smalle rol die tegen de linkergeleider
-   ligt, steelt daardoor mm van het etiket die software nooit kan halen.
-   Centreren doe je door rechts evenveel in te leveren als links onbereikbaar
-   is (`left` = `right`), niet door te verschuiven.
-5. De sensor zit in het **midden van het media-pad** (~54 mm van links). Een
-   rol van 26 mm bereikt hem nooit, dus merkinformatie (BLINE) is daar waardeloos;
-   `BLINE 12 mm` zette de printer zelfs in een papierfout.
+1. **The printer anchors the bitmap at its BOTTOM.** A taller bitmap moves
+   the image up the label. Want a short label? Pad the bitmap to the full
+   feed height, otherwise the image lands misplaced.
+2. **`SIZE` height + `GAP` length = the distance per label.** That is what
+   the printer feeds. If that sum is wrong, it hunts for a reference that
+   isn't there and starts every feed elsewhere. Get it right and five loose
+   feeds land exactly identical — even though the notches or even the gap
+   may not be seen by the sensor.
+3. The default bitmap fill is `pitch_dots - 12` (that is what the vendor app
+   sends on the 57 × 32 roll: 444 rows at 456 dots). Rolls that break this
+   pattern pin their height with `rows=`.
+4. **Ink cannot go left of x=0.** A narrow roll resting against the left
+   guide therefore steals millimetres from the label that no software can
+   recover. Center by giving up on the right as much as is unreachable on the
+   left (`left` = `right`), not by shifting.
+5. The sensor sits in the **middle of the media path** (~54 mm from the
+   left). A 26 mm roll never reaches it, so mark information (BLINE) is
+   useless there; `BLINE 12 mm` even put the printer in a paper error.
 
-## 4A. Coördinaten: wat op het etiket waar is
+## 4A. Coordinates: what is true on the label
 
-Definitief vastgesteld met een vel dat vier hoekletters draeg (P/Q/R/S) en
-waarvan de canvas-positie van elke letter bekend was. De gebruiker hield het
-etiket zoals hij het wil lezen:
+Settled definitively with a sheet carrying four corner letters (P/Q/R/S)
+whose canvas positions were known. The user held the label the way they read
+it:
 
-| zijn kijk | letters op het vel | canvas |
+| their view | letters on the sheet | canvas |
 |---|---|---|
-| linkerboven | P | x 3,64 / y 25,65 mm |
-| rechterboven | Q | x 3,64 / y 7,87 mm |
-| linkeronder | R | x 19,73 / y 25,65 mm |
-| rechteronder | S | x 19,73 / y 7,87 mm |
+| top-left | P | x 3.64 / y 25.65 mm |
+| top-right | Q | x 3.64 / y 7.87 mm |
+| bottom-left | R | x 19.73 / y 25.65 mm |
+| bottom-right | S | x 19.73 / y 7.87 mm |
 
-Dus, met `rotate=270`:
+So, with `rotate=270`:
 
-| zijn richting | canvas |
+| their direction | canvas |
 |---|---|
-| **boven** (draagt de 2 mm onbereikbaar) | kleine x, x=0 kant |
-| **beneden** | grote x (23,5 mm kant) |
-| **links** | grote y = achterkant |
-| **rechts** | kleine y = **uitvaartkant**, daar wijst de FEED-pijl heen |
+| **up** (carries the 2 mm unreachable) | small x, the x=0 side |
+| **down** | large x (the 23.5 mm side) |
+| **left** | large y = the rear |
+| **right** | small y = the **exit side**, where the FEED arrow points |
 
-Twee conclusies die het waard zijn:
+Two conclusions worth keeping:
 
-1. Links/rechts zit op de **y-as** (de voedingsrichting), niet op de x-as. Al
-   mijn eerdere "pijl wijst naar de B"-interpretaties liepen dlatego stuk.
-2. Een ontwerp dat je normaal tekent (linksboven = linksboven) komt na
-   `rotate=270` **rechtop** op het etiket te staan: hoek voor hoek identiek.
-   Je hoeft je Word- of Python-ontwerp dus niet te draaien; alleen de
-   paginamaat moet passen bij het printbare vlak.
+1. Left/right sits on the **y axis** (the feed direction), not the x axis.
+   All my earlier "the arrow points at B" interpretations failed because of
+   that.
+2. A design drawn the normal way (top-left = top-left) comes out **upright**
+   on the label after `rotate=270`: corner for corner identical. You do not
+   need to rotate your Word or Python design; only the page size must match
+   the printable area.
 
-Regel voor diagnostics: benoem een positie altijd als canvas-getal of als
-letter van het vel, nooit met boven/links/onder.
+Rule for diagnostics: always name a position as a canvas number or as a
+letter of the sheet, never as up/left/down.
 
-## 5. Geometrie per rol, alles in de PPD
+## 5. Geometry per roll, all in the PPD
 
-Eén commentaarregel per rol, door `add-size.sh` geschreven en door zowel de
-CUPS-filter (`$PPD`-omgeving, fallback `/etc/cups/ppd/LW650XL_Labels.ppd`) als
-de `label`-CLI gelezen. CUPS houdt commentaarregels intact bij installatie
-(geverifieerd).
+One comment line per roll, written by `add-size.sh` and read by both the CUPS
+filter (`$PPD` environment, fallback `/etc/cups/ppd/LW650XL_Labels.ppd`) and
+the `label` CLI. CUPS keeps comment lines intact on install (verified).
 
 ```
-*% lw-media <naam> pitch=.. gap=.. [gapoff=..] [left=..] [right=..]
+*% lw-media <name> pitch=.. gap=.. [gapoff=..] [left=..] [right=..]
                [top=..] [bottom=..] [voffset=..] [rows=..] [rotate=..] [sense=..]
 ```
 
-| veld | betekenis |
+| field | meaning |
 |---|---|
-| `pitch` | wat de printer per etiket aanvoert (SIZE-hoogte), niet de etikethoogte |
-| `gap` | lengte van de kloof / het merk / het gaatje |
-| `gapoff` | mm blanco liner tussen etiketeinde en die kloof |
-| `left` | dode zone: mm etiket links van x=0, onbereikbaar |
-| `right` | mm vrij aan de rechterkant; gelijk aan `left` = gecentreerd |
-| `top` | mm van bitmap-oorsprong tot de bovenrand van het etiket (mag negatief) |
-| `bottom` | mm vrij onderaan; spiegelt een onbereikbare bovenrand |
-| `voffset` | schuift de hele print naar beneden (centrering met het oog beoordeeld) |
-| `rows` | bitmap-hoogte in dots, overstemmt `pitch - 12` |
-| `rotate` | 90 of 270: het ontwerp zijwaarts; het bitmap-loopt alsnog over de kop |
-| `sense` | `gap` (default) of `bline` |
-| `xoffset` | mm tussen de kopstart (x=0) en de linker rand van de liner; nodig als de rol rechts van de kop begint |
+| `pitch` | what the printer feeds per label (SIZE height), not the label height |
+| `gap` | length of the gap / mark / notch |
+| `gapoff` | mm of plain liner between the label end and that gap |
+| `left` | dead zone: mm of label left of x=0, unreachable |
+| `right` | mm free on the right; equal to `left` = centered |
+| `top` | mm from the bitmap origin to the label's top edge (may be negative) |
+| `bottom` | mm free at the bottom; mirrors an unreachable top edge |
+| `voffset` | shifts the whole print down (centering judged by eye) |
+| `rows` | bitmap height in dots, overrides `pitch - 12` |
+| `rotate` | 90 or 270: the design sideways; the bitmap still runs across the head |
+| `sense` | `gap` (default) or `bline` |
+| `xoffset` | mm between the head start (x=0) and the liner's left edge; needed when the roll begins right of the head |
 
-### De drie rollen die nu werken
+### The five rolls that work now
 
-| rol | maat | rollijn | pitch | geometrie | resultaat |
+| roll | size | roll line | pitch | geometry | result |
 |---|---|---|---|---|---|
-| AM11354 | 57 × 32 mm, liggend | — | 38,6 mm, gap 3 | `voffset=0.34` (4 dots), `left`/`right` default | printbaar 640 × 370 dots, door gebruiker als "in het midden" beoordeeld |
-| AM99012 / Dymo S0722400 | 36 × 89 mm, **staand** | — | 93 mm, gap 4 | `left=3 right=3 top=-0.5 bottom=1` | 30 × 88 mm, 3 mm wit rondom |
-| S0929120 / Dymo 30332 | **25,5 × 25,5 mm** (1 inch; het etiket is dus noch 26 × 25, noch exact 25 × 25) | 25,5 mm etiket + 4 mm liner + 3 mm gaatje + 5 mm liner | **36,97 mm** = `pitch 33,97 + gap 3` (canvas `rows=356`) | `left=1.5 right=3.0 top=1.9 voffset=4.5 bottom=3.5 rotate=270 rows=356` | **21,51 × 21,51 mm** vierkant, gemeten 2,00/1,99 mm en 2,03/1,96 mm wit |
-| AM11353 / Dymo 11353 | blok **2 × 12,5 × 25 mm** (2-up) | liner 30 mm: −3,5…26,5; rail 10,5; 34 + 3 = 37 mm steek | **34 mm**, gap 3 (canvas `rows=354`) | `xoffset=-2 top=4.5 left=0 right=0 bottom=0` (2-up forceert rotatie 270) | fysiek geijkt met kaders + snijlood (12 nov); beide banen gecentreerd, goedgekeurd |
-| S0904980 | **104,2 × 159,9 mm** verzendetiket (nominal 104 × 159) | steek **162 mm** = 159 + 3 (vendor `SIZE 104,162`), gap 3, canvas 1901 (vendor 1902) | `left=0 right=2 top=0.6 bottom=0` — **max inkt**; vendor drukt density 10, speed 4 | gemeten met `--markers` binnen 0,2 mm; frame-proef op de CUPS-route bevestigde na top 0,08 → 0,6; 2 mm-dode zone links, zelfde kop-begrenzing als de vierkante rol | goedgekeurd 12 nov |
+| AM11354 | 57 × 32 mm, landscape | — | 38.6 mm, gap 3 | `voffset=0.34` (4 dots), `left`/`right` default | printable 640 × 370 dots, judged "in the middle" by the user |
+| AM99012 / Dymo S0722400 | 36 × 89 mm, **portrait** | — | 93 mm, gap 4 | `left=3 right=3 top=-0.5 bottom=1` | 30 × 88 mm, 3 mm white all around |
+| S0929120 / Dymo 30332 | **25.5 × 25.5 mm** (1 inch; the label is neither 26 × 25 nor exactly 25 × 25) | 25.5 mm label + 4 mm liner + 3 mm notch + 5 mm liner | **36.97 mm** = `pitch 33.97 + gap 3` (canvas `rows=356`) | `left=1.5 right=3.0 top=1.9 voffset=4.5 bottom=3.5 rotate=270 rows=356` | **21.51 × 21.51 mm** square, measured white 2.00/1.99 mm and 2.03/1.96 mm |
+| AM11353 / Dymo 11353 | block **2 × 12.5 × 25 mm** (2-up) | liner 30 mm: −3.5…26.5; rail 10.5; 34 + 3 = 37 mm pitch | **34 mm**, gap 3 (canvas `rows=354`) | `xoffset=-2 top=4.5 left=0 right=0 bottom=0` (2-up forces rotation 270) | physically calibrated with boxes + plumb line (12 Nov); both lanes centered, approved |
+| S0904980 | **104.2 × 159.9 mm** shipping label (nominal 104 × 159) | pitch **162 mm** = 159 + 3 (vendor `SIZE 104,162`), gap 3, canvas 1901 (vendor 1902) | `left=0 right=2 top=0.6 bottom=0` — **max ink**; the vendor prints density 10, speed 4 | measured with `--markers` within 0.2 mm; frame proof on the CUPS route confirmed after top 0.08 → 0.6; 2 mm dead zone left, the same head-boundary as the square roll | approved 12 Nov |
 
-Bijbehorende etiketranden in bitmap-coordinaten (x = over de kop, y = voedingsrichting):
+Matching label edges in bitmap coordinates (x = across the head, y = feed
+direction):
 
-- AM11354: x -2…55 mm, y 5,1…37,1 mm.
-- AM99012: x -3…33 mm, y -0,5…88,5 mm.
-- S0929120: x -2…23,5 mm, y 4,4…29,9 mm. De 2 mm links is onbereikbaar; de
-  bereikbare strook is dus 23,5 × 25,5 mm en het grootste gecentreerde
-  vierkant 21,5 mm.
+- AM11354: x −2…55 mm, y 5.1…37.1 mm.
+- AM99012: x −3…33 mm, y −0.5…88.5 mm.
+- S0929120: x −2…23.5 mm, y 4.4…29.9 mm. The 2 mm on the left is unreachable;
+  the reachable strip is therefore 23.5 × 25.5 mm and the largest centered
+  square 21.5 mm.
+- S0904980: x −2.0…102.2 mm (2 mm on the left unreachable, head boundary), y
+  0.6…159.9 mm; ink band at maximum reach.
 
-- S0904980: x −2,0…102,2 mm (2 mm links onbereikbaar, kop-begrenzing), y
-  0,6…159,9 mm; inktband op max bereik.
+### AM11353 / Dymo 11353: the roll begins LEFT of the head start (physically calibrated)
 
-### AM11353 / Dymo 11353: de rol begint LINKS van de kopstart (fysiek gekalibreerd)
-
-Labellife-capture (10 november, en1 bereikte de printer via 172.16.1.133):
+Labellife capture (10 November, en1 reached the printer via 172.16.1.133):
 
 ```
 SIZE 25.6 mm,34 mm · GAP 3 mm,0 mm · DENSITY 15 · SPEED 6
 BITMAP 0,0,160,354,4,,   PRINT 1,1
 ```
 
-Oude aanname — **op 12 november door de fysiek weerlegd**: de 1-mm liniaal
-zei dat de liner bij x = 6 mm begon (blok 7,5..32,5, snijlijn 20 mm). Eerste
-gedrukte velletjes landden echter 10 mm te ver rechts en 5 mm te vroeg in de
-voeding; twee kaders van 6 × 10 mm werden daarna keurig gecentreerd, en een
-loodlijn van 0,25 mm op de vermeende snijlijn (x = 10 mm) viel 0,5 mm **op
-etiket A**. De gemeten waarheid, sindsdien in de PPD:
+Old assumption — **physically refuted on 12 November**: the 1 mm ruler said
+the liner started at x = 6 mm (block 7.5..32.5, cut line 20 mm). The first
+printed sheets landed 10 mm too far right and 5 mm too early in the feed,
+though; two 6 × 10 mm boxes were then neatly centered, and a 0.25 mm plumb
+line on the supposed cut line (x = 10 mm) fell 0.5 mm **onto label A**. The
+measured truth, since then in the PPD:
 
-| | x in bitmap-coordinaten |
+| | x in bitmap coordinates |
 |---|---|
-| liner | −3,5 … 26,5 mm |
-| etiket A | −2,0 … 10,5 mm (linker 2,0 mm: dode zone vóór kop-x=0) |
-| snijrail A/B | 10,5 mm = dot 124 |
-| etiket B | 10,5 … 23,0 mm |
-| label bovenkant | rij 53 = 4,5 mm onder de bitmap-oorsprong (top=4,5) |
-| label onderkant | ~29,5 mm (kader-rij 348; testlijn 29,85 viel erbuiten) |
+| liner | −3.5 … 26.5 mm |
+| label A | −2.0 … 10.5 mm (the left 2.0 mm: dead zone before head-x=0) |
+| cut rail A/B | 10.5 mm = dot 124 |
+| label B | 10.5 … 23.0 mm |
+| label top | row 53 = 4.5 mm below the bitmap origin (top=4.5) |
+| label bottom | ~29.5 mm (frame row 348; test line 29.85 fell outside) |
 
-De tangent-test (lijnen op 3,99/29,85 mm) bewaakt beide flanken: de
-labelbovenkant ligt in (4,0, 4,4], de onderkant in [29,5, 29,9). Bij een
-aflezing van 0,5 mm naast een lijn van 0,25 mm is dát het instrument,
-niet de PPD.
+The tangent test (lines at 3.99/29.85 mm) guards both flanks: the label top
+lies in (4.0, 4.4], the bottom in [29.5, 29.9). With a 0.5 mm reading next to
+a 0.25 mm line, that instrument decides — not the PPD.
 
-`xoffset` is hier dus **negatief**: de liner begint links van de kopstart en
-onbereikbare strip wordt weggeknippen (CLI: `canvas.paste` met negatieve ox;
-filter: `pack_canvas` negeert `px < 0`). De voeding volgt weer uit onze eigen
-regel: `34 + 3 = 37 mm`, precies als de vendor.
+`xoffset` is therefore **negative** here: the liner starts left of the head
+start and the unreachable strip is clipped (CLI: `canvas.paste` with a
+negative ox; filter: `pack_canvas` ignores `px < 0`). The pitch follows our
+own rule again: `34 + 3 = 37 mm`, exactly like the vendor.
 
-**Les 2-up-kalibratie**: één loodlijn van 3 dots op de verwachte voeg is het
-snelste meetinstrument voor zo'n rol — één voeding, één getal, geen
-nummerieke schaal die bijrotateerd misleest. Zet de rol opnieuw? Print de
-loodlijn terug; hij hoort in het groefje te staan.
+**2-up calibration lesson**: a single 3-dot plumb line on the expected seam
+is the fastest measuring instrument for such a roll — one feed, one number,
+no numbered scale that misleads when rotated. Re-seated the roll? Print the
+plumb line again; it must sit in the groove.
 
-## 6. CUPS-raster (cgpdftoraster, "RaS3")
+## 6. CUPS raster (cgpdftoraster, "RaS3")
 
-- Layout: `[4-byte sync "3SaR"] [1796-byte paginaheader] [W*H bytes grijs]`
-  en dat herhaalt zich per pagina **zonder** syncwoord. Wie 1800 bytes per
-  pagina aanneemt, leest pagina 2 als rommel (de eerste bug die wij hadden).
-- Header-relative velden: `u32 @0x114` = dpi x, `@0x118` = dpi y,
-  `@0x174` = breedte in pixels, `@0x178` = hoogte.
-- Pixels: 8-bit grijs, 0 = zwart, 255 = wit, rijen ongepadd (W bytes).
-- `cupsBytesPerLine` staat op offset 0 van de header en is in de praktijk 0;
-  tel gewoon W.
+- Layout: `[4-byte sync "3SaR"] [1796-byte page header] [W*H bytes of gray]`
+  and that repeats per page **without** the sync word. Anyone assuming 1800
+  bytes per page reads page 2 as garbage (our first bug).
+- Header-relative fields: `u32 @0x114` = dpi x, `@0x118` = dpi y, `@0x174` =
+  width in pixels, `@0x178` = height.
+- Pixels: 8-bit gray, 0 = black, 255 = white, rows unpadded (W bytes).
+- `cupsBytesPerLine` sits at offset 0 of the header and is in practice 0;
+  just count W.
 
-## 7. Wat macOS/Word dwarsboomt
+## 7. What macOS/Word throws in the way
 
-- Word stuurt **niet** `media=LW_57x32` maar `media=Custom.90.71x161.57`. De
-  gekozen PPD-maat staat in `com.apple.print.PageToPaperMappingMediaName`;
-  daar haalt de filter de rolmaat uit.
-- Word stuurt `orientation-requested=4`, waardoor `cgpdftoraster` de pagina
-  90° **met de klok mee** in het raster draait. De filter draait terug; de
-  richting is nagetekend tegen het PDF-beeld zelf (correlatie 0,455 vs 0,000).
-- Waardes met spaties zijn geëscaped (`job-name=Microsoft\ Word\ -\ x.docx`):
-  split only op niet-geëscape wit, anders ontstaan verzonnen opties.
-- Opties van de queue (`lpadmin -o lw-gap=…`) winnen het van de filter-defaults;
-  de queue stond lange tijd op `lw-density=8` terwijl de filter 15 gebruikt.
-- macOS kopieert bij een IPP-queue het PPD van de server en rendert soms lokaal;
-  ontbreekt daar de filter, dan faalt de taak. Op een tweede Mac dus gewoon
-  `install.sh` draaien.
+- Word does **not** send `media=LW_57x32` but `media=Custom.90.71x161.57`. The
+  chosen PPD size lives in `com.apple.print.PageToPaperMappingMediaName`;
+  the filter takes the roll size from there.
+- Word sends `orientation-requested=4`, which makes `cgpdftoraster` rotate
+  the page 90° **clockwise** into the raster. The filter rotates back; the
+  direction was verified against the PDF image itself (correlation 0.455 vs
+  0.000).
+- Values with spaces are escaped (`job-name=Microsoft\ Word\ -\ x.docx`):
+  split only on unescaped whitespace, otherwise invented options appear.
+- Queue options (`lpadmin -o lw-gap=…`) beat the filter defaults; the queue
+  sat on `lw-density=8` for a long time while the filter used 15.
+- On an IPP queue macOS copies the server's PPD and sometimes renders
+  locally; if the filter is missing there, the job fails. On a second Mac,
+  simply run `install.sh`.
 
-## 8. Valleien buiten de printer
+## 8. Valleys outside the printer
 
-- `/usr/bin/python3` is een stub die zonder Xcode Command Line Tools alleen een
-  installatiedialoog opent. De filter-wrapper kiest op volgorde: CLT,
-  Homebrew (arm64 + Intel), python.org, dan pas de stub.
-- `root` mag `~/Documents`, `~/Desktop` en `~/Downloads` niet lezen (TCC):
-  "Operation not permitted". Installeren doe je vanuit `/Users/Shared/...`.
-- `osascript … with administrator privileges`: `with prompt "…"` moet
-  **achter** `with administrator privileges` staan.
-- `add-size.sh | head -2` geeft SIGPIPE en bakt de PPD halverwege af.
-- `pkill -f "tcpdump -i en"` dood ook zijn eigen shell (het patroon staat in
-  de commandregel). Dood op PID.
-- Een test mag nooit `git checkout` op de werkboom doen; die van ons
-  quietly vernietigde zo een zojuist gemeten rol.
+- `/usr/bin/python3` is a stub that, without the Xcode Command Line Tools,
+  only opens an install dialog. The filter wrapper picks in order: CLT,
+  Homebrew (arm64 + Intel), python.org, then the stub.
+- `root` may not read `~/Documents`, `~/Desktop`, `~/Downloads` (TCC):
+  "Operation not permitted". Install from `/Users/Shared/...`.
+- `osascript … with administrator privileges`: `with prompt "…"` must come
+  **after** `with administrator privileges`.
+- `add-size.sh | head -2` gives SIGPIPE and bakes the PPD half-way.
+- `pkill -f "tcpdump -i en"` also kills its own shell (the pattern is on the
+  command line). Kill by PID.
+- A test must never run `git checkout` on the working tree; ours quietly
+  destroyed a just-measured roll that way.
 
-## 9. Bewijs: wat Labellife echt stuurt
+## 9. Proof: what Labellife really sends
 
-Twee keer gepiept met `tcpdump -i en0 tcp port 9100` op de vierkante rol.
-Woord voor woord identiek, alleen `DENSITY` volgde de keuze in de app:
+Sniffed twice with `tcpdump -i en0 tcp port 9100` on the square roll.
+Word for word identical, only `DENSITY` followed the choice in the app:
 
 ```
 SIZE 25 mm,33.97 mm
@@ -251,38 +251,45 @@ GAP  3 mm, 0 mm
 OFFSET 0 mm
 DIRECTION 0,0
 DENSITY 15
-BITMAP 0,0,160,356,4,,<LZO-variant>
+BITMAP 0,0,160,356,4,,<LZO variant>
 PRINT 1,1
 SPEED 4
 ```
 
-Wat deze capture opleverde: de breedte in de `SIZE` is het **etiket** (25 mm),
-de hoogte is de **voeding minus de gap** (33,97 + 3 ≈ 37 mm), het canvas is
-160 × **356** rijen, en mode 4 is hun eigen LZO-variant (twee komma's na de
-mode, daarna blokken). Een kruis dat wij met `rows=356 pitch=33.97` printen,
-valt exact op het kruis van Labellife — gecontroleerd door de twee etiketten
-op elkaar te leggen.
+What this capture yielded: the width in `SIZE` is the **label** (25 mm), the
+height is the **feed minus the gap** (33.97 + 3 ≈ 37 mm), the canvas is
+160 × **356** rows, and mode 4 is their own LZO variant (two commas after the
+mode, then blocks). A cross that we print with `rows=356 pitch=33.97` falls
+exactly on the cross of Labellife — verified by laying the two labels on top
+of each other.
 
-## 10. Hoe een nieuwe rol meten
+## 10. How to measure a new roll
 
-1. `./measure <breedte> <hoogte> --name LW_XxY [--pitch .. --gap ..] [--rotate ..]`
-   drukt één etiket met `0,0` in het midden van het verwachte printvlak,
-   1-mm (of `--step` 2/5) streepjes en letters N/Z/W/O.
-2. Lees op het echte etiket de vier mm-waarden op de randen af.
+1. `./measure <width> <height> --name LW_XxY [--pitch .. --gap ..] [--rotate ..]`
+   prints one label with `0,0` in the middle of the expected printable area,
+   1 mm (`--step` 2/5) ticks and the letters N/Z/W/O.
+2. Read the four mm values on the real label's edges.
 3. `./measure solve --N .. --Z .. --W .. --O .. [--pitch .. --gap ..]`
-   rekent ze om naar `left`/`right`/`top`/`bottom`/`voffset` en schrijft de
-   `add-size.sh`-opdracht.
-4. Loopt de startpositie per beurt uiteen: meet de **steek** over 10–20
-   etiketten en zorg dat `SIZE-hoogte + gap` er exact aan gelijk is.
-5. Twijfel over herhaalbaarheid: print vijf losse beurten van hetzelfde beeld
-   en leg ze op elkaar.
-6. **Bij een gedraaide of verschoven rol: `--markers`.** `./measure <b> <h>
-   --markers [--rotate 270]` drukt één vel met het kader OP de randen van het
-   aangenomen printbare vlak en één letter per kant, met de kroon naar haar
-   eigen rand; `./measure solve --T <mm> --B <mm> --L <mm> --R <mm>` rekent
-   de vier witstroken om (per rotatie gemapt volgens §4A: bij 270 zijn T/B de
-   kopkant, L/R de voeding). Bij `rotate` is de genummerde schaal van punt 1
-   onleesbaar — letters N/Z/W/O wijzen dan de verkeerde kant op en getalletjes
-   op de liner zijn onbruikbaar; drie sessies lang vastgelopen voordat één
-   T/B/L/R-vel het in twee afdrukken oploste. De velletjes van §5 (kaders +
-   snijlood) zijn de 2-up-variatie hierop.
+   converts them into `left`/`right`/`top`/`bottom`/`voffset` and writes the
+   `add-size.sh` command.
+4. Does the start position vary per feed? Measure the **pitch** over 10–20
+   labels and make sure `SIZE height + gap` matches it exactly.
+5. Doubting repeatability: print five separate feeds of the same image and
+   lay them on top of each other.
+6. **On a rotated or shifted roll: `--markers`.** `./measure <w> <h>
+   --markers [--rotate 270]` prints one sheet with the frame ON the edges of
+   the assumed printable area and one letter per side, crown toward its own
+   edge; `./measure solve --T <mm> --B <mm> --L <mm> --R <mm>` converts the
+   four white gaps (mapped per rotation per §4A: at 270 the T/B are the head
+   side, L/R the feed). With `rotate`, the numbered scale of point 1 becomes
+   unreadable — the letters N/Z/W/O then point the wrong way and figures on
+   the liner are useless; three sessions of being stuck before one T/B/L/R
+   sheet solved it in two prints. The sheets of §5 (boxes + plumb line) are
+   the 2-up variation of this.
+7. **Catch the vendor settings while you're at it**: tcpdump during a
+   Labellife print (as root, on the interface the traffic takes:
+   `tcpdump -i en0 -nn -s0 -w sheet.pcap -C 8 tcp port 9100`; `-i any` does
+   not work in Apple's tcpdump), then
+   `strings sheet.pcap | grep -aE 'SIZE|GAP|BITMAP|SPEED|DENSITY'`. The
+   vendor pitch/gap usually equal the nominal + gap; DENSITY/SPEED are worth
+   copying.

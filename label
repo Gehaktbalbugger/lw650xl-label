@@ -148,9 +148,9 @@ def content_box(size_w, size_h, left_mm=DEFAULT_LEFT_MM, top_mm=DEFAULT_TOP_MM,
     the height is clamped to the canvas: the printer anchors the bitmap at
     its bottom edge, so a taller canvas would move the whole print.
     """
-    ox = int(round(xoffset_mm * DOTS_PER_MM))   # mag negatief zijn: de liner
-    # begint dan links van kop-x=0; die strip is onbereikbaar en wordt bij het
-    # opplakken op de canvas weggeknipt (PIL paste en de filter-klik doen dat).
+    ox = int(round(xoffset_mm * DOTS_PER_MM))   # may be negative: the liner
+    # then starts left of head-x=0; that strip is unreachable and gets
+    # clipped when pasting onto the canvas (PIL paste and the filter do that).
     cw = (int(round(size_w * DOTS_PER_MM)) - int(round(left_mm * DOTS_PER_MM))
           - int(round(right_mm * DOTS_PER_MM)))
     ch = int(round(size_h * DOTS_PER_MM)) - int(round(bottom_mm * DOTS_PER_MM))
@@ -318,10 +318,10 @@ def main():
     p.add_argument("--media-right", dest="media_right", type=float, default=None,
                    help="keep this many mm free at the label's right edge (PPD, 0.8)")
     p.add_argument("--two", metavar="TEKST_B", default=None,
-                   help="twee aparte etiketten naast elkaar op deze rol (2-up); hoort bij rollen "
-                        "met twee kolommen zoals de AM11353")
+                   help="two separate labels side by side on this roll (2-up); for rolls "
+                        "with two lanes like the AM11353")
     p.add_argument("--xoffset", type=float, default=None,
-                   help="mm tussen de kopstart en de linker rand van de liner (PPD xoffset=)")
+                   help="mm between the head start and the liner's left edge (PPD xoffset=)")
     p.add_argument("--rows", type=int, default=None,
                    help="pin the bitmap height in dots (PPD rows=; default pitch-12)")
     p.add_argument("--gapoff", type=float, default=None,
@@ -356,8 +356,8 @@ def main():
         args.left = hints.get("left", DEFAULT_LEFT_MM)
     if args.media_top is None:
         args.media_top = hints.get("top", DEFAULT_TOP_MM)
-    # args.bottom/args.right kennen geen eigen CLI-optie: overschrijf vanuit
-    # --media-bottom/--media-right, anders de PPD-hint, anders de default.
+    # args.bottom/args.right have no CLI option of their own: overwrite from
+    # --media-bottom/--media-right, else the PPD hint, else the default.
     args.bottom = None
     args.right = None
     if args.bottom is None:
@@ -384,27 +384,27 @@ def main():
     if args.rotate is None:
         args.rotate = int(hints.get("rotate", 0))
     if args.two:
-        # 2-up: composeer in het ONTWERP-frame (op deze rol 295 × 288 dots),
-        # twee halve pagina's van 295 × 144 boven elkaar, en pas DAARNA de
-        # enkele-label-rotatie erop. De oude opbouw was in canvas-maten
-        # (590 × 287, later 294 rechtop): de helft van het beeld viel toen
-        # van de kop en de tekst stond op z'n kant niet goed — vandaar
-        # "a few pixels" op het velletje.
+        # 2-up: compose in the DESIGN frame (on this roll 295 × 288 dots),
+        # two half pages of 295 × 144 stacked, and only then apply the
+        # single-label rotation. The old build ran in canvas coordinates
+        # (590 × 287, later 294 upright): half the image fell off the head
+        # and the text stood sideways-wrong — hence "a few pixels" on the
+        # sheet.
         import copy
         from PIL import Image
         ox, oy, ch, cw = args.box
-        rot = args.rotate if args.rotate in (90, 270) else 270  # 2-up staat altijd op z'n kant
+        rot = args.rotate if args.rotate in (90, 270) else 270  # 2-up always prints sideways
         half = ch // 2
         a2 = copy.copy(args)
         a2.two = None
-        a2.box = (ox, oy, half, cw)   # halve pagina: 295 × 144 dots
+        a2.box = (ox, oy, half, cw)   # half page: 295 × 144 dots
         a2.text = args.text
         e_boven = render_label(a2, dots_mm)
         a2.text = args.two
         e_onder = render_label(a2, dots_mm)
-        img = Image.new("1", (cw, ch), 1)   # het ontwerp-frame, niet de canvas
-        img.paste(e_boven, (0, 0))          # bovenste helft -> na rotatie links
-        img.paste(e_onder, (0, half))       # onderste helft -> na rotatie rechts
+        img = Image.new("1", (cw, ch), 1)   # the design frame, not the canvas
+        img.paste(e_boven, (0, 0))          # top half -> left column after rotation
+        img.paste(e_onder, (0, half))       # bottom half -> right column after rotation
         img = img.rotate(-rot, expand=True)
     elif args.rotate in (90, 270):
         # Render the page turned on its side, then rotate it back into the

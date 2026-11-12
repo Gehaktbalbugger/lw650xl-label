@@ -1,26 +1,26 @@
 #!/usr/bin/env python3
-"""Print één etiket per rij uit een CSV-bestand (Excel → CSV UTF-8).
+"""Print one label per row from a CSV file (Excel → CSV UTF-8).
 
-Verwachte kolommen (hoofdletterongevoelig, Nederlandse of Engelse namen):
+Expected columns (case-insensitive, Dutch or English names):
 
-    text      (of: tekst, etiket, label)   verplicht; gebruik \\n voor regeleinden
-    qr        (optioneel)                  QR-inhoud
-    barcode   (optioneel)                  bv. CODE128:ABC123
-    copies    (optioneel)                  aantal exemplaren
-    size      (optioneel)                  bv. 57x32 (mm)
-    density   (optioneel)                  0-15
-    gap       (optioneel)                  etiketafstand in mm (0 = continu)
+    text      (or: tekst, etiket, label)   required; use \\n for line breaks
+    qr        (optional)                   QR content
+    barcode   (optional)                   e.g. CODE128:ABC123
+    copies    (optional)                   number of copies
+    size      (optional)                   e.g. 57x32 (mm)
+    density   (optional)                   0-15
+    gap       (optional)                   label spacing in mm (0 = continuous)
 
-Ontbreekt de kolom 'text', dan wordt de eerste kolom als tekst gebruikt.
+If the 'text' column is missing, the first column is used as the text.
 
-Met --two-up worden opeenvolgende rijen GEPAARD: twee rijen samen vormen
-een blok met twee etiketten naast elkaar (bv. de AM11353, twee keer
-12,5 x 25 mm per blok). Rij 1 = linker etiket, rij 2 = rechter etiket.
-Het scheidingsteken (, of ;) wordt automatisch herkend.
+With --two-up consecutive rows are PAIRED: two rows together form a block
+of two labels side by side (e.g. the AM11353, two 12.5 x 25 mm per block).
+Row 1 = left label, row 2 = right label. The separator (, or ;) is detected
+automatically.
 
-Gebruik:
-    csv2labels.py adressen.csv --size 57x32
-    csv2labels.py adressen.csv --dry-run
+Usage:
+    csv2labels.py addresses.csv --size 57x32
+    csv2labels.py addresses.csv --dry-run
 """
 import argparse
 import csv
@@ -77,12 +77,12 @@ def pick(row, names):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="CSV → etiketten op de LW650XL PRO")
+    ap = argparse.ArgumentParser(description="CSV → labels on the LW650XL PRO")
     ap.add_argument("csv")
-    ap.add_argument("--size", default="57x32", help="standaard etiketformaat in mm")
+    ap.add_argument("--size", default="57x32", help="default label size in mm")
     ap.add_argument("--host", default=DEFAULT_HOST)
     ap.add_argument("--two-up", action="store_true",
-                    help="paar opeenvolgende rijen toteen blok met twee etiketten naast elkaar")
+                    help="pair consecutive rows into a block of two labels side by side")
     ap.add_argument("--dry-run", action="store_true", help="alleen tonen, niet printen")
     args = ap.parse_args()
 
@@ -96,12 +96,12 @@ def main():
     if has_header:
         records = [dict(zip(header, r)) for r in rows[1:]]
     else:
-        # geen herkenbare kopregel: eerste kolom = tekst
+        # no recognizable header row: first column = text
         records = [{"text": r[0] if r else ""} for r in rows]
 
     blocks = [(rec, None) for rec in records]
     if args.two_up:
-        # lege rijen eruit halen voordat we paren (anders verspringt het blok)
+        # strip empty rows before pairing (otherwise the block shifts)
         gevuld = []
         for rec in records:
             if (pick(rec, TEXT_KEYS) or "").strip():
@@ -141,7 +141,7 @@ def main():
 
         tekst2 = (pick(recb, TEXT_KEYS) or "").strip() if recb else ""
         if args.two_up and not tekst2:
-            print(f"csv2labels: waarschuwing - rechter helft leeg (oneven aantal rijen)",
+            print(f"csv2labels: warning - right half empty (odd number of rows)",
                   file=sys.stderr)
 
         if args.dry_run:
@@ -155,13 +155,13 @@ def main():
             subprocess.run(cmd, check=True)
             printed += 1
         except subprocess.CalledProcessError as e:
-            print(f"csv2labels: blok {i} mislukt (exit {e.returncode})", file=sys.stderr)
+            print(f"csv2labels: block {i} failed (exit {e.returncode})", file=sys.stderr)
             return 1
         except FileNotFoundError:
             print(f"csv2labels: {LABEL} niet gevonden", file=sys.stderr)
             return 1
 
-    print(f"csv2labels: {printed} etiket(ten) verwerkt uit {os.path.basename(args.csv)}")
+    print(f"csv2labels: {printed} label(s) processed from {os.path.basename(args.csv)}")
     return 0 if printed else 1
 
 

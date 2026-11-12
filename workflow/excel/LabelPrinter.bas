@@ -2,24 +2,24 @@ Attribute VB_Name = "LabelPrinter"
 Option Explicit
 
 ' ============================================================================
-'  Excel -> etiketten op de LW650XL PRO (via de iMac)
+'  Excel -> labels on the LW650XL PRO (via the iMac)
 '  ---------------------------------------------------------------------------
-'  Zet in rij 1 deze kolomkoppen (alleen 'text' is verplicht):
+'  Put these column headers in row 1 (only 'text' is required):
 '      text | qr | barcode | copies | size
 '
-'  Voorbeeld:
+'  Example:
 '      text                          qr                        barcode
 '      Anna de Bakker\nKeukenstraat 12\n1011 AB Amsterdam   https://x/1   CODE128:ABC123
 '
-'  - Gebruik in 'text' de tekens \n voor een nieuwe regel.
-'  - 'size' is optioneel (bv. 57x32); leeg = de standaardmaat.
-'  - 'copies' is optioneel; leeg = 1.
+'  - In 'text' use the characters \n for a new line.
+'  - 'size' is optional (e.g. 57x32); empty = the default size.
+'  - 'copies' is optional; empty = 1.
 '
-'  Installatie: Extra > Macro > Visual Basic > Bestand importeren...
-'  Daarna: Extra > Macro > Macro's > Label_ExportCSV.
+'  Installation: Tools > Macro > Visual Basic > Import file...
+'  Then: Tools > Macro > Macros > Label_ExportCSV.
 '
-'  De macro schrijft een UTF-8 CSV naar de gedeelde inbox; de iMac print
-'  één etiket per rij. Geen printerdriver nodig.
+'  The macro writes a UTF-8 CSV into the shared inbox; the iMac prints one
+'  label per row. No printer driver needed.
 ' ============================================================================
 
 Private Const INBOX_WIN As String = "\\iMac2020\Labelprinter\inbox"
@@ -58,16 +58,16 @@ Public Sub Label_ExportCSV()
 
     On Error GoTo fout
     WriteUtf8 pad, s
-    MsgBox "CSV naar de labelprinter gestuurd." & vbCrLf & pad, _
-           vbInformation, "Labelprinter"
+    MsgBox "CSV sent to the label printer." & vbCrLf & pad, _
+           vbInformation, "Label printer"
     Exit Sub
 fout:
-    MsgBox "Schrijven mislukt: " & Err.Description, vbExclamation, "Labelprinter"
+    MsgBox "Writing failed: " & Err.Description, vbExclamation, "Label printer"
 End Sub
 
 ' ----------------------------------------------------------------------------
-'  UTF-8 wegschrijven. Op Windows via ADODB; op Mac Excel als fallback
-'  de systeemcodering (csv2labels.py leest ook cp1252/mac_roman).
+'  Writing UTF-8. On Windows via ADODB; on Mac Excel fall back to the
+'  system encoding (csv2labels.py also reads cp1252/mac_roman).
 ' ----------------------------------------------------------------------------
 Private Sub WriteUtf8(path As String, tekst As String)
     Dim st As Object
@@ -93,7 +93,7 @@ Private Sub WriteUtf8(path As String, tekst As String)
     Close #fn
     Exit Sub
 fout:
-    MsgBox "UTF-8 wegschrijven mislukt: " & Err.Description, vbExclamation, "Labelprinter"
+    MsgBox "Writing UTF-8 failed: " & Err.Description, vbExclamation, "Label printer"
 End Sub
 
 Private Function InboxPad() As String
@@ -105,10 +105,10 @@ Private Function InboxPad() As String
     End If
 
     If Dir(p, vbDirectory) = "" Then
-        MsgBox "De etikettenmap is niet bereikbaar:" & vbCrLf & p & vbCrLf & vbCrLf & _
-               "Staat de iMac aan en is de share 'Labelprinter' gedeeld?" & vbCrLf & _
-               "Op Windows kun je ook \\172.16.1.101\Labelprinter\inbox proberen.", _
-               vbExclamation, "Labelprinter"
+        MsgBox "The label folder is not reachable:" & vbCrLf & p & vbCrLf & vbCrLf & _
+               "Is the iMac on and is the 'Labelprinter' share published?" & vbCrLf & _
+               "On Windows you can also try \\172.16.1.101\Labelprinter\inbox.", _
+               vbExclamation, "Label printer"
         InboxPad = ""
         Exit Function
     End If

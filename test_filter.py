@@ -231,15 +231,15 @@ def main():
     ok &= check("add-size.sh: exit 0", code == 0)
     os.path.exists(tmp_ppd) and os.unlink(tmp_ppd)
 
-    # --- 6a. AM11353: de liner begint LINKS van de kopstart ----------------
-    # Oude aanname (liniaal 1 mm + Labellife-capture): liner x 6..36 mm, blok
-    # 7,5..32,5. Fysiek bewezen met twee kaders van 6x10 mm (12 nov): die
-    # landen 10 mm te ver rechts en 5 mm te vroeg. Gecentreerd na -10/-5 mm
-    # correctie; de snijlijn-lood (0,25 mm) viel 0,5 mm op A, dus de rail
-    # staat op x = 10,5 mm: liner ~ -3,5..26,5, blok -2,0..23,0, etiket A
-    # -2,0..10,5, B 10,5..23,0. De x0-tand stond op het vel: links van
-    # kop-x=0 valt 2,0 mm etiket buiten bereik. Top 4,5 mm (kader verticaal
-    # gecentreerd op rij 202).
+    # --- 6a. AM11353: the liner starts LEFT of the head start --------------
+    # Old assumption (1 mm ruler + Labellife capture): liner x 6..36 mm, block
+    # 7.5..32.5. Physically proven with two 6x10 mm boxes (12 Nov): they landed
+    # 10 mm too far right and 5 mm too early. Centered after the -10/-5 mm
+    # correction; the cut-line plumb (0.25 mm) fell 0.5 mm onto A, so the rail
+    # sits at x = 10.5 mm: liner ~ -3.5..26.5, block -2.0..23.0, label A
+    # -2.0..10.5, B 10.5..23.0. The x0 tick landed on the sheet: left of
+    # head-x=0, 2.0 mm of label is out of reach. Top 4.5 mm (frame vertically
+    # centered on row 202).
     dpi = lw.DOTS_PER_MM
     tbl = dict(TABLE)
     tbl["LW_25x25"] = {"pitch": 34.0, "gap": 3.0, "rows": 354.0, "xoffset": -2.0,
@@ -247,14 +247,14 @@ def main():
     gb = lw.media_geometry(lw.parse_options("media=LW_25x25"), 25.6, 25.0, tbl)
     tb = lw.canvas_rows(gb)
     bxo, byo, bw, bh = lw.print_window(gb, tb)
-    ok &= check("AM11353: canvas 354 regels zoals de vendor", tb == 354)
-    ok &= check("AM11353: xoffset -> blok x %.2f..%.2f mm" % (bxo/dpi, (bxo+bw)/dpi),
+    ok &= check("AM11353: canvas 354 rows like the vendor", tb == 354)
+    ok &= check("AM11353: xoffset -> block x %.2f..%.2f mm" % (bxo/dpi, (bxo+bw)/dpi),
                 abs(bxo/dpi + 2.0) < 0.1 and abs((bxo + bw)/dpi - 23.0) < 0.2)
-    ok &= check("AM11353: snijlijn op x = 10,5 mm", abs((bxo + bw/2)/dpi - 10.5) < 0.1)
-    # de vendor stuurt 25,6 mm: dat is het blok van 2 x 12,5 plus de snijrail.
-    # Ons介质blok is het echte etiket: 25,0 mm.
-    ok &= check("AM11353: blok 25,0 mm breed (twee keer 12,5)", abs(bw/dpi - 25.0) < 0.1)
-    ok &= check("AM11353: y begint op rij 53 (top 4,5 mm, gemeten)", byo == 53)
+    ok &= check("AM11353: cut line at x = 10.5 mm", abs((bxo + bw/2)/dpi - 10.5) < 0.1)
+    # the vendor sends 25.6 mm: that is the block of 2 x 12.5 plus the cut rail.
+    # Our label block is the real label: 25.0 mm.
+    ok &= check("AM11353: block 25.0 mm wide (two times 12.5)", abs(bw/dpi - 25.0) < 0.1)
+    ok &= check("AM11353: y starts on row 53 (top 4.5 mm, measured)", byo == 53)
 
     # --- 7. size metadata lives in the PPD (written by add-size.sh) --------
     with tempfile.NamedTemporaryFile("w", suffix=".ppd", delete=False) as f:

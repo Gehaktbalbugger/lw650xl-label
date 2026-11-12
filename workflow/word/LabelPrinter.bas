@@ -2,24 +2,24 @@ Attribute VB_Name = "LabelPrinter"
 Option Explicit
 
 ' ============================================================================
-'  Etiketten printen op de LW650XL PRO via de iMac
+'  Print labels on the LW650XL PRO via the iMac
 '  ---------------------------------------------------------------------------
-'  Installatie in Word:
-'    1. Extra > Macro > Visual Basic (Alt+F11)
-'    2. Bestand > Bestand importeren... > kies dit .bas-bestand
-'    3. Sluit de editor. De macro's staan nu onder Extra > Macro > Macro's.
-'    4. Zet "Label_NaarPrinter" op de werkbalk Snelle toegang.
+'  Installation in Word:
+'    1. Tools > Macro > Visual Basic (Alt+F11)
+'    2. File > Import file... > pick this .bas file
+'    3. Close the editor. The macros now live under Tools > Macro > Macros.
+'    4. Put "Label_NaarPrinter" on the Quick Access toolbar.
 '
-'  Werkt op Word voor Windows en Word voor Mac. De macro exporteert het
-'  document als PDF naar de gedeelde map op de iMac; de watcher daar print
-'  hem automatisch. Er is geen printerdriver op de client nodig.
+'  Works on Word for Windows and Word for Mac. The macro exports the
+'  document as PDF into the shared folder on the iMac; the watcher there
+'  prints it automatically. No printer driver is needed on the client.
 ' ============================================================================
 
 Private Const INBOX_WIN As String = "\\iMac2020\Labelprinter\inbox"
 Private Const INBOX_MAC As String = "/Users/Shared/Labelprinter/inbox"
 
 ' ----------------------------------------------------------------------------
-'  Hoofdmacro: huidige document (of alle pagina's van de samenvoeging) -> PDF
+'  Main macro: current document (or all pages of the mail merge) -> PDF
 ' ----------------------------------------------------------------------------
 Public Sub Label_NaarPrinter()
     Dim doel As String, naam As String, pad As String
@@ -44,18 +44,18 @@ Public Sub Label_NaarPrinter()
         BitmapMissingFonts:=True, _
         UseISO19005_1:=False
 
-    MsgBox "Etiket(ten) naar de labelprinter gestuurd." & vbCrLf & naam, _
-           vbInformation, "Labelprinter"
+    MsgBox "Label(s) sent to the label printer." & vbCrLf & naam, _
+           vbInformation, "Label printer"
     Exit Sub
 fout:
-    MsgBox "Exporteren mislukt:" & vbCrLf & Err.Description, _
-           vbExclamation, "Labelprinter"
+    MsgBox "Export failed:" & vbCrLf & Err.Description, _
+           vbExclamation, "Label printer"
 End Sub
 
 ' ----------------------------------------------------------------------------
-'  Paginaformaat goed zetten (eenmalig per document)
+'  Set the page size (once per document)
 ' ----------------------------------------------------------------------------
-' Standaardrol in de printer: AM11354, 57 x 32 mm (liggend)
+' Default roll in the printer: AM11354, 57 x 32 mm (landscape)
 Public Sub Label_Pagina_57x32()
     Label_Pagina 5.7, 3.2
 End Sub
@@ -86,16 +86,16 @@ Private Sub Label_Pagina(wCm As Single, hCm As Single)
         .HeaderDistance = CentimetersToPoints(0)
         .FooterDistance = CentimetersToPoints(0)
     End With
-    MsgBox "Pagina ingesteld op " & wCm & " x " & hCm & " cm.", _
-           vbInformation, "Labelprinter"
+    MsgBox "Page set to " & wCm & " x " & hCm & " cm.", _
+           vbInformation, "Label printer"
     Exit Sub
 fout:
-    MsgBox "Pagina instellen mislukt: " & Err.Description, _
-           vbExclamation, "Labelprinter"
+    MsgBox "Setting the page failed: " & Err.Description, _
+           vbExclamation, "Label printer"
 End Sub
 
 ' ----------------------------------------------------------------------------
-'  Hulp: bestaat de gedeelde map?
+'  Helper: does the shared folder exist?
 ' ----------------------------------------------------------------------------
 Private Function InboxPad() As String
     Dim p As String
@@ -106,10 +106,10 @@ Private Function InboxPad() As String
     End If
 
     If Dir(p, vbDirectory) = "" Then
-        MsgBox "De etikettenmap is niet bereikbaar:" & vbCrLf & p & vbCrLf & vbCrLf & _
-               "Staat de iMac aan en is de share 'Labelprinter' gedeeld?" & vbCrLf & _
-               "Op Windows kun je ook \\172.16.1.101\Labelprinter\inbox proberen.", _
-               vbExclamation, "Labelprinter"
+        MsgBox "The label folder is not reachable:" & vbCrLf & p & vbCrLf & vbCrLf & _
+               "Is the iMac on and is the 'Labelprinter' share published?" & vbCrLf & _
+               "On Windows you can also try \\172.16.1.101\Labelprinter\inbox.", _
+               vbExclamation, "Label printer"
         InboxPad = ""
         Exit Function
     End If

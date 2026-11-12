@@ -1,30 +1,30 @@
 #!/usr/bin/env python3
-"""measure - kalibreer een nieuwe etiketrol in twee opdrachten.
+"""measure - calibrate a new label roll in two commands.
 
-    ./measure 36 89 --name LW_36x89 --pitch 93 --gap 4      # meet-etiket printen
-    ./measure solve --N -49 --Z 40 --W -18 --O 18           # aflezing -> add-size.sh
+    ./measure 36 89 --name LW_36x89 --pitch 93 --gap 4      # print the measuring label
+    ./measure solve --N -49 --Z 40 --W -18 --O 18           # reading -> add-size.sh
 
-    ./measure 26 25 --markers                               # T/B/L/R-kaderves
-    ./measure solve --T 2 --B 2.03 --L 1.96 --R 2.01        # wit per letter
+    ./measure 26 25 --markers                               # T/B/L/R frame sheet
+    ./measure solve --T 2 --B 2.03 --L 1.96 --R 2.01        # white per letter
 
-    ./measure plumb 25 25 --xoffset -2.5                     # snijlood-velletje
-    ./measure plumb 25 25 --xoffset -2.5 --report 0.5        # ...en nieuwe xoffset
+    ./measure plumb 25 25 --xoffset -2.5                     # cut plumb-line sheet
+    ./measure plumb 25 25 --xoffset -2.5 --report 0.5        # ...and new xoffset
 
-Het meet-etiket toont een kruis met 0,0 in het midden van het AANGENOMEN
-printbare vlak, 1-mm streepjes met getallen en de letters N Z W O op de
-verwachte etiketranden. Je leest op het geprinte etiket af welke mm-waarde op
-de vier echte randen valt en geeft die door aan `solve`; die rekent ze om naar
-`left`, `right`, `top` en `bottom` en print de add-size.sh-opdracht.
+The measuring label shows a cross with 0,0 in the middle of the ASSUMED
+printable area, 1-mm ticks with numbers and the letters N Z W O on the
+expected label edges. Read off the printed label which mm value falls on the
+four real edges and hand those to `solve`; it converts them into `left`,
+`right`, `top` and `bottom` and prints the add-size.sh command.
 
-Bij gedraaide rollen faalt die schaal (cijfers buiten het etiket, richtingen
-verward — zie KNOWLEDGE §4A). `--markers` drukt daarom één kader op de randen
-van het printbare vlak met vier letters T B L R, elk met de kroon naar haar
-eigen etiketrand; je leest per letter alleen het wit tussen kader en
-etiketrand af en `solve --T .. --B .. --L .. --R ..` vertaalt dat, per
-rotatie gemapt, terug naar left/right/top/bottom en de echte maat.
+On rotated rolls that scale fails (figures outside the label, directions
+turned around — see KNOWLEDGE §4A). `--markers` therefore prints a single
+frame on the edges of the printable area with one letter per side, each with
+its crown toward its own label edge; you read only the white between frame
+and label edge per letter and `solve --T .. --B .. --L .. --R ..` converts
+that, mapped per rotation.
 
 De geometrie komt uit dezelfde code als de CUPS-filter (cups/lw650xl.py), dus
-wat hier gemeten wordt is wat de driver later doet.
+what was measured here is what the driver does later.
 
 Opties print:   --name/--pitch/--gap/--left/--right/--top/--bottom/--voffset
                 --host/--port/--preview/--dry-run/--state
@@ -64,10 +64,10 @@ def resolve_geometry(lw, args):
     """Geometry from the PPD (if the size is known) with command-line overrides."""
     table = lw.load_ppd_media(PPD_PATHS)
     opts = {}
-    # media ALTIJD meesturen, ook voor onbekende rollen: anders normaliseert
-    # media_geometry de paginadimensies (lange kant = breedte) en swapt hij
-    # staande maten — het hele meetvel komt dan persoons op papier (bug van
-    # de ongemeten PPD-maten, opgelost bij S0904980).
+    # ALWAYS send media, even for unknown rolls: otherwise media_geometry
+    # normalizes the page dims (long side = width) and swaps portrait sizes —
+    # the whole measuring sheet then comes out sideways on paper (bug of the
+    # unmeasured PPD sizes, found on S0904980).
     opts["media"] = args.name or size_name(args.w, args.h)
     for key in ("pitch", "gap", "voffset", "left", "right", "top", "bottom",
                 "rotate", "rows", "xoffset"):
@@ -83,7 +83,7 @@ def resolve_geometry(lw, args):
 
 
 def design_image(lw, geom, centre_mm, step=1):
-    """Het meetbeeld: exact etiketgrootte met kruis, mm-schaal en N Z W O."""
+    """The measuring image: exact label size with cross, mm scale and N Z W O."""
     from PIL import Image, ImageDraw, ImageFont
     dpm = lw.DOTS_PER_MM
     W = int(round(geom.size_w * dpm))
@@ -104,7 +104,7 @@ def design_image(lw, geom, centre_mm, step=1):
     cx, cy = centre_mm[0] * dpm, centre_mm[1] * dpm   # 0,0 in pagina-coordinaten
     small, big = font(int(2.6 * dpm), False), font(int(4.5 * dpm))
 
-    # streepjes langs beide armen: elke `step` mm, getallen bij veelvouden van 5
+    # ticks along both arms: every `step` mm, numbers at multiples of 5
     for i in range(-int(geom.size_w), int(geom.size_w), step):
         x = cx + i * dpm
         if not (2 < x < W - 2):
@@ -135,12 +135,12 @@ def design_image(lw, geom, centre_mm, step=1):
     d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=0, width=3)
     d.text((cx + 8, cy - 30), "0,0", font=small, fill=0)
 
-    # kaders op 10, 14, 18 mm ... voor een dubbele aflezing
+    # frames at 10, 14, 18 mm ... for a double reading
     for half in (10, 15):
         d.rectangle([cx - half * dpm, cy - half * dpm,
                      cx + half * dpm, cy + half * dpm], outline=0, width=2)
 
-    # windrichtingen met de aangenommen randen van het etiket
+    # compass letters on the assumed label edges
     for (px, py, ch) in ((cx, 2, "N"), (cx, H - int(4.5 * dpm) - 2, "Z"),
                          (2, cy - int(4.5 * dpm) / 2, "W"),
                          (W - int(4.5 * dpm) - 4, cy - int(4.5 * dpm) / 2, "O")):
@@ -164,13 +164,13 @@ def as_raster(lw, img):
     return lw.MAGIC + bytes(hdr) + gray
 
 
-# ---- --markers: het T/B/L/R-vel (les van de vierkante rol, KNOWLEDGE §4A) --
-# Een kader ONMIDDELLIJK op de randen van het printbare vlak plus één letter
-# per kant, met de kroon naar haar eigen etiketrand. Geen numbers, geen
-# genummerde schaal, geen kruis: die waren bij rotate=270 onleesbaar en
-# richtingsloos. De gebruiker houdt het etiket zoals hij het leest en zegt per
-# letter hoeveel mm wit tussen kader en rand staat; solve rekent dat, per
-# rotatie gemapt, terug naar left/right/top/bottom en de echte maat.
+# ---- --markers: the T/B/L/R sheet (lesson of the square roll, KNOWLEDGE §4A) --
+# A frame IMMEDIATELY on the edges of the printable area plus one letter
+# per side, crown toward its own label edge. No numbers, no numbered scale,
+# no cross: those are unreadable and direction-less at rotate=270. The user
+# holds the label the way they read it and says how many mm of white sit
+# between frame and edge per letter; solve converts that, mapped per
+# rotation, into left/right/top/bottom and the true size.
 # letters -> canvas-rand per rotatie (§4A: bij 270 is boven de kleine x,
 # links de grote y; 90 is het spiegelbeeld, voor zover bekend ongeijkt):
 MARKER_EDGES = {
@@ -182,8 +182,8 @@ EDGE_TURN = {"top": 0, "left": 90, "bottom": 180, "right": -90}
 
 
 def markers_image(lw, cw, ch, rotate):
-    """Kader op de vensterranden + T B L R, elk met de kroon naar de eigen
-    rand; getekend in canvas-coordinaten, dus rotatievrij verstuurd."""
+    """Frame on the window edges + T B L R, each with the crown toward its own
+    edge; drawn in canvas orientation, so sent without rotation."""
     from PIL import Image, ImageDraw, ImageFont
     dpm = lw.DOTS_PER_MM
     img = Image.new("L", (cw, ch), 255)
@@ -194,7 +194,7 @@ def markers_image(lw, cw, ch, rotate):
             "/System/Library/Fonts/Supplemental/Arial Bold.ttf", int(4.0 * dpm))
     except Exception:
         fo = ImageFont.load_default()
-    inset = 3.0 * dpm                      # van kaderlijn tot letterbak
+    inset = 3.0 * dpm                      # from frame line to letter box
     edges = MARKER_EDGES.get(int(rotate) % 360, MARKER_EDGES[0])
     for letter, edge in edges.items():
         g = Image.new("L", (int(8 * dpm), int(6 * dpm)), 255)
@@ -217,15 +217,15 @@ def markers_image(lw, cw, ch, rotate):
 
 
 def _markers_howto(state_path):
-    print("Houd het etiket zoals je het LEEST en meet per letter het wit tussen")
-    print("kaderlijn en etiketrand; dan:")
+    print("Hold the label the way you READ it and measure, per letter, the white")
+    print("between the frame line and the label edge; then:")
     print("  ./measure solve --T <mm> --B <mm> --L <mm> --R <mm>")
-    print(f"(meetgegevens: {state_path})")
+    print(f"(measure data: {state_path})")
 
 
 def cmd_markers(lw, args):
-    """Print het marker-vel: kader = aangenomen printbare vlak, in canvas-
-    coordinaten, zender zonder rotatie zodat het 1:1 op het venster staat."""
+    """Print the marker sheet: frame = assumed printable area, drawn in canvas
+    coordinates and sent without rotation so it lands 1:1 on the window."""
     geom, _ = resolve_geometry(lw, args)
     target_h = lw.canvas_rows(geom)
     ox, oy, cw, ch = lw.print_window(geom, target_h)
@@ -254,19 +254,19 @@ def cmd_markers(lw, args):
     }
     with open(args.state, "w") as f:
         json.dump(state, f, indent=1)
-    frame_note = (f"kader = printbare vlak x {ox / dpm:.2f}..{(ox + cw) / dpm:.2f} mm, "
+    frame_note = (f"frame = printable area x {ox / dpm:.2f}..{(ox + cw) / dpm:.2f} mm, "
                   f"y {oy / dpm:.2f}..{(oy + ch) / dpm:.2f} mm "
-                  f"(rol draait {int(geom.rotate)} graden).")
+                  f"(roll rotates {int(geom.rotate)} degrees).")
     if args.preview:
         img.save(args.preview)
         print(f"preview: {args.preview} ({cw}x{ch} dots)")
     if args.preview and not args.dry_run:
-        print(f"niet geprint (--preview); TSPL is {len(payload)} bytes")
+        print(f"not printed (--preview); TSPL is {len(payload)} bytes")
         print(frame_note)
         _markers_howto(args.state)
         return 0
     if args.dry_run:
-        print(f"DRY-RUN: {len(payload)} bytes naar {args.host}:{args.port}")
+        print(f"DRY-RUN: {len(payload)} bytes to {args.host}:{args.port}")
         print(re.sub(rb"\r\n", b" | ", payload[:160]).decode("latin-1") + " ...")
         print(frame_note)
         _markers_howto(args.state)
@@ -294,10 +294,10 @@ def cmd_markers(lw, args):
 def cmd_ladder(lw, args):
     """Print numbered 4 mm bands across one full feed step.
 
-    De printer begint op een vaste plek na het vinden van de gap; bij een rol
-    met een grote tussenruimte landt een deel van die voeding dan achter het
-    etiket. Met de banden is in één etiket af te lezen waar het etiket begint:
-    de band die op de bovenrand valt, maal 4 mm = de offset.
+    The printer starts at a fixed spot after finding the gap; on a roll with a
+    large spacing part of that feed ends up behind the label. With the bands
+    one label shows where the label begins: the band falling on the top edge,
+    times 4 mm = the offset.
     """
     from PIL import Image, ImageDraw, ImageFont
     dpm = lw.DOTS_PER_MM
@@ -322,7 +322,7 @@ def cmd_ladder(lw, args):
         if args.preview:
             img.save(args.preview)
         print(f"ladder: {rows} rijen, banden van {step:g} mm, {len(payload)} bytes"
-              + (" (niet geprint)" if args.preview and not args.dry_run else ""))
+              + (" (not printed)" if args.preview and not args.dry_run else ""))
         return 0
     sock = socket.create_connection((args.host, args.port), timeout=5)
     sock.settimeout(20)
@@ -338,17 +338,17 @@ def cmd_ladder(lw, args):
         pass
     sock.close()
     print("printer:", b"".join(chunks)[:80].decode("latin-1").strip())
-    print(f"banden van {step:g} mm, {rows} rijen ({rows / dpm:.1f} mm) gevoed.")
-    print("Zeg welke band op de bovenrand van het etiket valt en welke op de onderrand.")
+    print(f"bands of {step:g} mm, {rows} rows ({rows / dpm:.1f} mm) fed.")
+    print("Say which band falls on the top edge of the label and which on the bottom.")
     return 0
 
 
 def cmd_plumb(lw, args):
-    """Snijlood voor 2-up- en verschoven rollen: lijn IN de verwachte snij-
-    groef plus twee referentiepuntjes op de baanmiddens (4,25/16,75 mm-
-    stijl). Aflezing: wijkt de lijn met d mm af, positief naar A (links).
-    Nieuwe xoffset = oud + d. Eén voeding, één getal — de les van de AM11353
-    (kaders gaven 10 mm, het lood pinnte 0,5)."""
+    """Cut plumb line for 2-up and shifted rolls: a line IN the expected cut
+    groove plus two reference dots on the lane centers. Reading: if the line
+    deviates by d mm, positive toward A (left). New xoffset = old + d. One
+    feed, one number — the lesson of the AM11353 (boxes gave 10 mm, the
+    plumb pinned 0.5)."""
     geom, _ = resolve_geometry(lw, args)
     target_h = lw.canvas_rows(geom)
     ox, oy, cw, ch = lw.print_window(geom, target_h)
@@ -370,11 +370,11 @@ def cmd_plumb(lw, args):
             "lw-xoffset": repr(geom.xoffset)}
     payload = lw.convert(as_raster(lw, img), opts)
 
-    print(f"lood op x {(ox + mid) / dpm:.2f} mm (kader {ox / dpm:.2f}.."
+    print(f"plumb at x {(ox + mid) / dpm:.2f} mm (frame {ox / dpm:.2f}.."
           f"{(ox + cw) / dpm:.2f}); puntjes op de baanmiddens.")
     if args.report is not None:
         new_x = geom.xoffset + args.report
-        print(f"aflezing {args.report:+g} mm (positief = lijn op A): "
+        print(f"reading {args.report:+g} mm (positive = line on A): "
               f"xoffset {geom.xoffset:g} -> {new_x:.2f}")
         print(f"  ./add-size.sh {args.name or size_name(args.w, args.h)} "
               f"\"blok {args.w:g}x{args.h:g} mm\" {args.w:g} {args.h:g} "
@@ -382,7 +382,7 @@ def cmd_plumb(lw, args):
         print("sudo /Users/Shared/Labelprinter/setup/install.sh")
         return 0
     if args.dry_run:
-        print(f"DRY-RUN: {len(payload)} bytes naar {args.host}:{args.port}")
+        print(f"DRY-RUN: {len(payload)} bytes to {args.host}:{args.port}")
         return 0
     if args.preview:
         img.save(args.preview)
@@ -403,8 +403,8 @@ def cmd_plumb(lw, args):
         pass
     s.close()
     print("printer:", b"".join(chunks)[:80].decode("latin-1").strip())
-    print("Zeg hoeveel mm de lijn van de snijgroef afwijkt; positief als hij")
-    print("op A (links van de rail) staat:  ./measure plumb <b> <h> --report <d>")
+    print("Say how many mm the line deviates from the cut groove; positive if")
+    print("it sits on A (left of the rail):  ./measure plumb <w> <h> --report <d>")
 
 
 def cmd_print(lw, args):
@@ -419,8 +419,8 @@ def cmd_print(lw, args):
         img.save(args.preview)
         print(f"preview: {args.preview} ({img.width}x{img.height} dots)")
 
-    # stuur exactement de geometrie die hierboven berekend is; anders voedt de
-    # printer anders dan het beeld aanneemt en zijn de aflezingen nutteloos.
+    # send exactly the geometry computed above; otherwise the printer feeds
+    # differently from what the image assumes and the readings are useless.
     opts = {"media": args.name or size_name(args.w, args.h),
             "lw-pitch": repr(geom.pitch), "lw-gap": repr(geom.gap),
             "lw-voffset": repr(geom.voffset), "lw-left": repr(geom.left),
@@ -440,12 +440,12 @@ def cmd_print(lw, args):
         json.dump(state, f, indent=1)
 
     if args.preview and not args.dry_run:
-        print(f"niet geprint (--preview); TSPL is {len(payload)} bytes")
+        print(f"not printed (--preview); TSPL is {len(payload)} bytes")
         return 0
     if args.dry_run:
-        print(f"DRY-RUN: {len(payload)} bytes naar {args.host}:{args.port}")
+        print(f"DRY-RUN: {len(payload)} bytes to {args.host}:{args.port}")
         print(re.sub(rb"\r\n", b" | ", payload[:160]).decode("latin-1") + " ...")
-        print(f"meetgegevens: {args.state}")
+        print(f"measure data: {args.state}")
         return 0
 
     s = socket.create_connection((args.host, args.port), timeout=5)
@@ -466,25 +466,25 @@ def cmd_print(lw, args):
     print(f"0,0 staat op {centre[0]:.1f} / {centre[1]:.1f} mm van de bitmap"
           + (f", beeld gedraaid {geom.rotate} graden." if geom.rotate else "."))
     if geom.rotate:
-        print("Lees de randen af zoals het etiket uit de printer komt: de as van")
-        print("de tekst loopt langs de voedingsrichting.")
+        print("Read the edges the way the label comes out of the printer: the")
+        print("text axis runs along the feed direction.")
     print("Lees de vier randen af en doe:  ./measure solve --N .. --Z .. --W .. --O ..")
-    print(f"(meetgegevens: {args.state})")
+    print(f"(measure data: {args.state})")
     return 0
 
 
 def cmd_solve_markers(lw, state, args):
-    """solve op een marker-vel: vier wit-aflezingen (mm) terug in add-size.sh.
+    """solve on a marker sheet: four white readings (mm) back into add-size.sh.
 
-    De letters staan in de leesoriëntatie van de rol; MARKER_EDGES vertaalt
-    ze naar canvas-randen (§4A: bij rotate=270 is T/B de kopkant, L/R de
-    voeding). Het kader stond op het oude printbare vlak, dus elke aflezing
-    is het wit tussen dat vlak en de echte etiketrand.
+    The letters sit in the roll's reading orientation; MARKER_EDGES converts
+    them to canvas edges (§4A: at rotate=270 the T/B are the head side, L/R
+    the feed). The frame was on the old printable area, so each reading is
+    the white between that area and the true label edge.
     """
     frame, rot = state["frame"], int(state.get("rotate", 0))
     missing = [k for k in "TBLR" if getattr(args, k) is None]
     if missing:
-        sys.exit("marker solve heeft alle vier aflezingen nodig: "
+        sys.exit("marker solve needs all four readings: "
                  + " ".join(f"--{k} <mm>" for k in missing))
     edges = MARKER_EDGES.get(rot % 360, MARKER_EDGES[0])
     gap = {edge: getattr(args, letter) for letter, edge in edges.items()}
@@ -494,7 +494,7 @@ def cmd_solve_markers(lw, state, args):
     label_top = frame["y0"] - gap["top"]
     label_bottom = frame["y1"] + gap["bottom"]
     measured_w = label_right - label_left          # over de kop
-    measured_h = label_bottom - label_top          # in voedingsrichting
+    measured_h = label_bottom - label_top          # along the feed
 
     left = max(0.0, -label_left)                   # onbereikbare strook links
     right = max(lw.DEFAULT_RIGHT_MM, left) if left else lw.DEFAULT_RIGHT_MM
@@ -502,8 +502,8 @@ def cmd_solve_markers(lw, state, args):
     bottom = 2.0 * -label_top if label_top < 0 else lw.DEFAULT_BOTTOM_MM
     bottom = max(bottom, lw.DEFAULT_BOTTOM_MM)
 
-    # de maat voor add-size.sh: in leesoriëntatie van de rol (ontwerpmat),
-    # bij 90/270 dus langs de voeding gemeten; afgerond op 0,1 mm.
+    # the size for add-size.sh: in the roll's reading orientation (design
+    # size), so along the feed at 90/270; rounded to 0.1 mm.
     if rot % 360 in (90, 270):
         size_w, size_h = round(measured_h, 1), round(measured_w, 1)
     else:
@@ -511,8 +511,8 @@ def cmd_solve_markers(lw, state, args):
 
     pitch = args.pitch
     gap_mm = args.gap
-    # geen gap-afleiding uit pitch-min-hoogte: veel rollen hebben extra liner
-    # om de kloof (S0929120: 4+3+5) en het marker-vel meet die niet.
+    # no gap inference from pitch-minus-height: many rolls carry extra liner
+    # around the notch (S0929120: 4+3+5) and the marker sheet cannot see it.
 
     name = args.name or state["name"]
     desc = args.desc or f"Etiket {size_w:g}x{size_h:g} mm (marker-vel)"
@@ -535,27 +535,27 @@ def cmd_solve_markers(lw, state, args):
 
     shift_x = (label_left + label_right) / 2 - (frame["x0"] + frame["x1"]) / 2
     shift_y = (label_top + label_bottom) / 2 - (frame["y0"] + frame["y1"]) / 2
-    print(f"gemeten etiket: {measured_w:.2f} x {measured_h:.2f} mm "
-          f"(over de kop x voeding; opgave: {state['w']:g} x {state['h']:g})")
-    print(f"labellijnen in bitmap-mm: x {label_left:.2f}..{label_right:.2f}, "
+    print(f"measured label: {measured_w:.2f} x {measured_h:.2f} mm "
+          f"(across the head x feed; given: {state['w']:g} x {state['h']:g})")
+    print(f"label lines in bitmap mm: x {label_left:.2f}..{label_right:.2f}, "
           f"y {label_top:.2f}..{label_bottom:.2f}")
-    print(f"etiketmidden tov het oude vlak: {shift_x:+.2f} mm over de kop, "
-          f"{shift_y:+.2f} mm in de voeding")
+    print(f"label middle vs the old area: {shift_x:+.2f} mm across the head, "
+          f"{shift_y:+.2f} mm along the feed")
     if rot % 360 in (90, 270):
-        print("deze rol draait: jouw T/B werd over de kop gerekend (left/right),")
-        print("jouw L/R langs de voeding (top/bottom) — KNOWLEDGE §4A.")
+        print("this roll rotates: your T/B was counted across the head (left/right),")
+        print("your L/R along the feed (top/bottom) — KNOWLEDGE §4A.")
     if abs(shift_x) > 0.3 or abs(shift_y) > 0.3:
-        print("  -> het oude vlak stond niet op het etiketmidden; de waarden")
-        print("     hierboven corrigeren dat.")
+        print("  -> the old area was not on the label center; the values above")
+        print("     correct that.")
     if pitch is None:
-        print("meet nog de steek (ladder-stand of 20 etiketten / 20) en voeg")
-        print("  --pitch <mm> [--gap <mm>] toe; die haal je niet uit één vel.")
+        print("measure the pitch next (ladder mode or 20 labels / 20) and add")
+        print("  --pitch <mm> [--gap <mm>]; it cannot be taken from one sheet.")
     elif gap_mm is None:
-        print("gap: niet uit dit vel af te leiden; rollen hebben vaak extra")
-        print("  liner om de kloof — geef --gap <mm> alleen op als je 'm weet.")
+        print("gap: not derivable from this sheet; rolls often carry extra liner")
+        print("  around the notch — pass --gap <mm> only if you know it.")
     if geom.get("xoffset") or left > 0:
-        print("2-up/shift-roll: controleer daarna de snijlijn met een")
-        print("  loodlijn-velletje (zie KNOWLEDGE §AM11353).")
+        print("2-up/shift roll: afterwards verify the cut line with a")
+        print("  plumb-line sheet (see KNOWLEDGE §AM11353).")
     print()
     print(cmd)
     print("sudo /Users/Shared/Labelprinter/setup/install.sh")
@@ -566,7 +566,7 @@ def cmd_solve(lw, args):
     try:
         state = json.load(open(args.state))
     except OSError:
-        sys.exit(f"geen meetgegevens in {args.state}; print eerst ./measure <w> <h>")
+        sys.exit(f"no measure data in {args.state}; print ./measure <w> <h> first")
     if state.get("mode") == "markers":
         return cmd_solve_markers(lw, state, args)
     if args.w is None:
@@ -574,7 +574,7 @@ def cmd_solve(lw, args):
     cx, cy = state["centre_x_mm"], state["centre_y_mm"]
 
     dpm = lw.DOTS_PER_MM
-    # gelabelde aflezing -> absolute ligging van het etiket t.o.v. de bitmap
+    # labeled reading -> absolute position of the label relative to the bitmap
     label_left = cx + args.W
     label_right = cx + args.O
     label_top = cy + args.N
@@ -587,13 +587,13 @@ def cmd_solve(lw, args):
     # maar laat altijd een kleine veiligheidsrand.
     right = max(lw.DEFAULT_RIGHT_MM, left) if left else lw.DEFAULT_RIGHT_MM
     top = label_top
-    # De regels onder rij 0 zijn onbereikbaar: het etiket steekt boven de kop
-    # uit. Met bottom = 2 x |top| wordt de inkthoogte korts genoeg om diezelfde
-    # afwijking ook onderaan te laten, zodat het beeld gecentreerd staat.
+    # Rows below row 0 are unreachable: the label sticks out above the head.
+    # With bottom = 2 x |top| the ink height becomes short enough to leave the
+    # same deviation at the bottom too, so the image stands centered.
     bottom = 2.0 * -label_top if label_top < 0 else lw.DEFAULT_BOTTOM_MM
     bottom = max(bottom, lw.DEFAULT_BOTTOM_MM)
-    # steek en afstand zijn niet uit het kruis af te lezen: alleen doorgeven
-    # als de gebruiker ze weet, anders laat add-size.sh zijn default nemen.
+    # pitch and gap cannot be derived from the cross: only pass them through
+    # when the user knows them, otherwise let add-size.sh take its defaults.
     pitch = args.pitch
     gap = args.gap
     if pitch is not None and gap is None:
@@ -615,18 +615,18 @@ def cmd_solve(lw, args):
     if args.voffset:
         cmd += f" --voffset {args.voffset:g}"
 
-    print(f"gemeten etiket: {measured_w:.2f} x {measured_h:.2f} mm "
+    print(f"measured label: {measured_w:.2f} x {measured_h:.2f} mm "
           f"(opgave: {args.w:g} x {args.h:g} mm)")
-    print(f"labellijnen in bitmap-mm: x {label_left:.2f}..{label_right:.2f}, "
+    print(f"label lines in bitmap mm: x {label_left:.2f}..{label_right:.2f}, "
           f"y {label_top:.2f}..{label_bottom:.2f}")
     asym_w = abs(args.W + args.O)
     asym_h = abs(args.N + args.Z)
     print(f"centreringsfout: horizontaal {asym_w:.2f} mm, verticaal {asym_h:.2f} mm")
     if asym_w > 0.3 or asym_h > 0.3:
-        print("  -> de 0,0 van het meetbeeld stond niet op het etiketmidden;")
-        print("     bovenstaande waarden corrigeren dat.")
+        print("  -> the 0,0 of the measuring image was not on the label center;")
+        print("     the values above correct that.")
     if pitch is None:
-        print("meet nog de steek (20 etiketten afstanden meten / 20) en voeg")
+        print("measure the pitch next (20 labels: total distance / 20) and add")
         print("  --pitch <mm> --gap <mm> toe; die zijn uit dit kruis niet te halen.")
     print()
     print(cmd)
@@ -637,20 +637,20 @@ def cmd_solve(lw, args):
 def main():
     lw = load_filter()
     ap = argparse.ArgumentParser(
-        description="etiketrol kalibreren",
+        description="calibrate a label roll",
         epilog="./measure 36 89 --name LW_36x89   |   ./measure solve --N -49 --Z 40 --W -18 --O 18")
     ap.add_argument("positionals", nargs="*",
                     help="'solve' / 'ladder', of de maten: <breedte_mm> <hoogte_mm>")
     ap.add_argument("--name", help="PD-naam, bv. LW_36x89")
     ap.add_argument("--desc", help="omschrijving voor add-size.sh")
-    for key, help_ in (("pitch", "steek in mm"), ("gap", "onderlinge afstand in mm"),
-                       ("voffset", "print N mm lager"), ("left", "dode zone links in mm"),
-                       ("right", "rand rechts in mm"), ("top", "etiketbovenrand in mm"),
-                       ("bottom", "rand onder in mm")):
+    for key, help_ in (("pitch", "pitch in mm"), ("gap", "gap between labels in mm"),
+                       ("voffset", "print N mm lower"), ("left", "dead zone on the left in mm"),
+                       ("right", "margin on the right in mm"), ("top", "label top edge in mm"),
+                       ("bottom", "margin at the bottom in mm")):
         ap.add_argument("--" + key, type=float,
                         default=None if key != "voffset" else 0.0, help=help_)
     ap.add_argument("--rotate", type=int, default=None, choices=(0, 90, 270),
-                    help="het meetbeeld ook draaien, zoals deze rol print (PPD rotate=)")
+                    help="rotate the measuring image too, like this roll prints (PPD rotate=)")
     ap.add_argument("--xoffset", type=float, default=None,
                     help="mm tussen kopstart en linker rand van de liner (PPD xoffset=)")
     ap.add_argument("--rows", type=int, default=None,
@@ -658,27 +658,27 @@ def main():
     ap.add_argument("--band", type=float, default=4.0,
                     help="bandhoogte in mm voor de ladder-modus (default 4)")
     ap.add_argument("--step", type=int, default=1, choices=(1, 2, 5),
-                    help="streepjesafstand in mm (1, 2 of 5; op kleine etiketten 2)")
-    ap.add_argument("--N", type=float, help="mm-aflezing op de noordrand")
-    ap.add_argument("--Z", type=float, help="mm-aflezing op de zuidrand")
-    ap.add_argument("--W", type=float, help="mm-aflezing op de westrand")
-    ap.add_argument("--O", type=float, help="mm-aflezing op de oostrand")
+                    help="tick distance in mm (1, 2 or 5; on small labels use 2)")
+    ap.add_argument("--N", type=float, help="mm reading on the north edge")
+    ap.add_argument("--Z", type=float, help="mm reading on the south edge")
+    ap.add_argument("--W", type=float, help="mm reading on the west edge")
+    ap.add_argument("--O", type=float, help="mm reading on the east edge")
     ap.add_argument("--markers", action="store_true",
-                    help="T/B/L/R-kader-vel printen in plaats van het kruis "
-                         "(les §4A: één letter per hoek, geen nummers)")
+                    help="print the T/B/L/R frame sheet instead of the cross "
+                         "(lesson §4A: one letter per corner, no numbers)")
     ap.add_argument("--report", type=float, default=None,
                     help="bij plumb: afwijking in mm (positief = lijn op A); "
                          "rekent direct de nieuwe xoffset uit")
-    ap.add_argument("--T", type=float, help="mm wit tussen kader en bovenrand (hoek T)")
-    ap.add_argument("--B", type=float, help="mm wit tussen kader en onderrand (hoek B)")
-    ap.add_argument("--L", type=float, help="mm wit tussen kader en linkerrand (hoek L)")
-    ap.add_argument("--R", type=float, help="mm wit tussen kader en rechterrand (hoek R)")
+    ap.add_argument("--T", type=float, help="mm of white between frame and top edge (corner T)")
+    ap.add_argument("--B", type=float, help="mm of white between frame and bottom edge (corner B)")
+    ap.add_argument("--L", type=float, help="mm of white between frame and left edge (corner L)")
+    ap.add_argument("--R", type=float, help="mm of white between frame and right edge (corner R)")
     ap.add_argument("--host", default=os.environ.get("LW_HOST", DEFAULT_HOST))
     ap.add_argument("--port", type=int, default=int(os.environ.get("LW_PORT", 9100)))
     ap.add_argument("--preview", metavar="FILE.png", help="schrijf het beeld, niet printen")
     ap.add_argument("--dry-run", action="store_true", help="TSPL bouwen, niet versturen")
     ap.add_argument("--state", default=DEFAULT_STATE,
-                    help="bestand met meetgegevens (default /tmp/lw650xl-measure.json)")
+                    help="file holding the measure data (default /tmp/lw650xl-measure.json)")
     args = ap.parse_args()
 
     # ./measure 36 89  |  ./measure solve --N .. 
@@ -691,19 +691,19 @@ def main():
             try:
                 numbers.append(float(tok))
             except ValueError:
-                ap.exit(f"onbegrepen argument: {tok}")
+                ap.exit(f"unrecognized argument: {tok}")
     args.w = numbers[0] if len(numbers) > 0 else None
     args.h = numbers[1] if len(numbers) > 1 else None
 
     if args.mode == "plumb":
         if not args.w or not args.h:
-            ap.exit("gebruik: ./measure plumb <blok_breedte> <hoogte> "
+            ap.exit("usage: ./measure plumb <block_width> <height> "
                     "[--name LW_XxY | --xoffset .. --pitch ..] [--report <mm>]")
         return cmd_plumb(lw, args)
 
     if args.mode == "ladder":
         if not args.w or not args.h:
-            ap.exit("gebruik: ./measure ladder <breedte_mm> <hoogte_mm> --pitch <mm>")
+            ap.exit("usage: ./measure ladder <width_mm> <height_mm> --pitch <mm>")
         if args.pitch is None:
             args.pitch = args.h + (args.gap if args.gap is not None else 3.0)
         return cmd_ladder(lw, args)
@@ -712,16 +712,16 @@ def main():
         if not any(getattr(args, k) is not None for k in "TBLR"):
             missing = [k for k in "NZWO" if getattr(args, k) is None]
             if missing:
-                sys.exit("geef alle vier aflezingen: "
+                sys.exit("give all four readings: "
                          + " ".join(f"--{k} <mm>" for k in missing)
-                         + "  (of --T --B --L --R na een marker-vel)")
+                         + "  (or --T --B --L --R after a marker sheet)")
         if args.voffset is None:
             args.voffset = 0.0
         return cmd_solve(lw, args)
 
     if not args.w or not args.h:
-        ap.exit("gebruik: ./measure <breedte_mm> <hoogte_mm> [--markers] [...]  "
-                "of  ./measure solve ...")
+        ap.exit("usage: ./measure <width_mm> <height_mm> [--markers] [...]  "
+                "or  ./measure solve ...")
     if args.markers:
         return cmd_markers(lw, args)
     return cmd_print(lw, args)

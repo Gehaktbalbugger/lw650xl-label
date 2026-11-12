@@ -40,9 +40,9 @@
 # --rotate   90 (clockwise) or 270 (counter-clockwise): print the page turned
 #            on its side, useful when the unreachable edge must fall along the
 #            feed direction instead of the label's left edge.
-# --xoffset  mm tussen de kopstart (x=0) en de linker rand van de liner. Een
-#            smallere rol die in het pad rechts van de kop ligt, heeft dit
-#            nodig: de AM11353-rol begint bij x=7,5 mm, niet bij x=0.
+# --xoffset  mm between the head start (x=0) and the liner's left edge. May
+#            be negative: a narrow roll can sit left of the head start. The
+#            AM11353 was physically calibrated: xoffset=-2 (cut rail at 10.5 mm).
 # --rows     pin the bitmap height in dots. Default: pitch in dots minus 12,
 #            which is what the vendor app sends on most rolls; square rolls
 #            from Labellife came with e.g. 356 rows for a 33.97 mm pitch.

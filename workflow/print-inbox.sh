@@ -1,12 +1,12 @@
 #!/bin/bash
-# Print alles wat in de gedeelde etiketten-inbox verschijnt.
+# Print everything that appears in the shared label inbox.
 #
-#   *.pdf  -> naar de CUPS-queue LW650XL_Labels (formaat uit de PDF)
-#   *.csv  -> één etiket per rij via de label-CLI (UTF-8, ; of , als scheiding)
+#   *.pdf  -> to the CUPS queue LW650XL_Labels (size taken from the PDF)
+#   *.csv  -> one label per row via the label CLI (UTF-8, ; or , separator)
 #
-# Wordt gestart door launchd (WatchPaths) en is ook handmatig te draaien:
+# Started by launchd (WatchPaths) and can also be run manually:
 #   ./print-inbox.sh
-#   LW_DRY_RUN=1 ./print-inbox.sh        # laat alleen de lp-opdrachten zien
+#   LW_DRY_RUN=1 ./print-inbox.sh        # only show the lp commands
 #
 set -u
 
@@ -21,17 +21,17 @@ PPD="${LW_PPD:-/etc/cups/ppd/$QUEUE.ppd}"
 [[ -r "$PPD" ]] || PPD="$HERE/lw650xl-labels.ppd"
 [[ -r "$PPD" ]] || PPD="$HERE/../cups/lw650xl-labels.ppd"
 PY="${LW_PYTHON:-/usr/bin/python3}"
-# Afstand tussen de etiketten (0 voor continu materiaal). Standaard leeg: de
-# PPD-per-maat-waarde (zie add-size.sh) mag beslissen, anders overschrijft deze
-# globale instelling elke individuele rol.
+# Spacing between labels (0 for continuous material). Default empty: the
+# per-size PPD value (see add-size.sh) may decide; otherwise this global
+# setting overrides every individual roll.
 GAP="${LW_GAP:-}"
 DENSITY="${LW_DENSITY:-15}"
 SPEED="${LW_SPEED:-1}"
 HOST="${LW_HOST:-172.16.1.20}"
 export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
-# launchd start dit als de gebruiker; zorg dat ~/Library/Python (Pillow)
-# vindbaar is, ook als HOME niet is gezet.
+# launchd starts this as the user; make sure ~/Library/Python (Pillow)
+# is findable, even when HOME is not set.
 REAL_HOME="$(dscl . -read "/Users/$(id -un)" NFSHomeDirectory 2>/dev/null | awk '{print $2}')"
 [[ -n "$REAL_HOME" ]] && export HOME="$REAL_HOME"
 
@@ -51,7 +51,7 @@ if ! mkdir "$BASE/.watcher.lock" 2>/dev/null; then
 fi
 trap 'rmdir "$BASE/.watcher.lock" 2>/dev/null' EXIT
 
-# Wacht tot een bestand niet meer groeit (SMB-kopiëren kan even duren).
+# Wait until a file stops growing (SMB copies can take a moment).
 stable() {
     local f="$1" a b
     a=$(stat -f '%z:%m' "$f" 2>/dev/null) || return 1
