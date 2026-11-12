@@ -142,6 +142,15 @@ getallen zijn anders onherleidbaar uit de code.
    achterwege — één kader op het oude printvlak plus vier letters. De 90-map
    staat er als spiegelbeeld van 270 maar is nog **ongeijkt**; een gedraaide
    rol voor het eerst met `--markers` meten = fysieke bevestiging van de map.
+   **Fysiek getest op de AM11353** (vel van 12 nov, 15:5x): L-lijn afwezig
+   zoals voorspeld (kader op x −2,03 = onbereikbaar, de negatieve-knip werkt),
+   R en B op 0 = ijk bevestigd; solve reproduceerde `xoffset −2,0` en maat
+   25,0. `--gap`-afleiding is daarna uit de markers-solve gehaald (was fout:
+   8,5 i.p.v. 3 — er zit extra liner om de kloof).
+   Restpunt: T werd 0,5 mm afgelezen → label zou 25,5 hoog kunnen zijn op
+   top 4,0 (0,25 mm scheef t.o.v. de geijkte 4,5); binnen leesruis en de
+   snijlood oordeelde het vel gecentreerd — bij de eerstvolgende 2-up-print
+   eerst het loodje terugchecken voordat hier aan `top` wordt gezeten.
 3. MacBook bijwerken: `cd ~/label-printer && git pull && sudo ./install.sh`,
    daarna daar één etiket per rol printen.
 4. Dan pas de rest: "Sporen om morgen op te pakken", "Nog te doen" en de

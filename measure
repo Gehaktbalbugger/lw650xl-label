@@ -441,9 +441,10 @@ def cmd_solve_markers(lw, state, args):
     else:
         size_w, size_h = round(measured_w, 1), round(measured_h, 1)
 
-    pitch, gap_mm = args.pitch, args.gap
-    if pitch is not None and gap_mm is None:
-        gap_mm = round(pitch - measured_h, 1)
+    pitch = args.pitch
+    gap_mm = args.gap
+    # geen gap-afleiding uit pitch-min-hoogte: veel rollen hebben extra liner
+    # om de kloof (S0929120: 4+3+5) en het marker-vel meet die niet.
 
     name = args.name or state["name"]
     desc = args.desc or f"Etiket {size_w:g}x{size_h:g} mm (marker-vel)"
@@ -481,6 +482,9 @@ def cmd_solve_markers(lw, state, args):
     if pitch is None:
         print("meet nog de steek (ladder-stand of 20 etiketten / 20) en voeg")
         print("  --pitch <mm> [--gap <mm>] toe; die haal je niet uit één vel.")
+    elif gap_mm is None:
+        print("gap: niet uit dit vel af te leiden; rollen hebben vaak extra")
+        print("  liner om de kloof — geef --gap <mm> alleen op als je 'm weet.")
     if geom.get("xoffset") or left > 0:
         print("2-up/shift-roll: controleer daarna de snijlijn met een")
         print("  loodlijn-velletje (zie KNOWLEDGE §AM11353).")

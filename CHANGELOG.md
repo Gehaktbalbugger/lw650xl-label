@@ -20,6 +20,11 @@
   geen gedrag verandert voor printen via Word/CLI.
 - `test_measure.py`: 15 nieuwe checks — state, frame==venster, rastermaat
   1:1, rot0- én rot270-doorrekenen, ontbrekende letters = fout.
+- Fysiek getest op de AM11353 (laatst op main, ná de tag): het kader van de
+  onbereikbare L-rand ontbreekt — de negatieve-xoffset-knip werkt dus op
+  papier; R/B op 0 mm bevestigen de ijk. Daarna de `gap = pitch − hoogte`-
+  afleiding uit de markers-solve gehaald (te optimistisch bij rollen met
+  extra liner om de kloof): losse `--gap`-notitie in de plaats.
 
 ## 1.6 — AM11353 2-up gefixt én fysiek gekalibreerd (12 november, goedgekeurd)
 
