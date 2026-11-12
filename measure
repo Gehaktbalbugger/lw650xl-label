@@ -7,6 +7,9 @@
     ./measure 26 25 --markers                               # T/B/L/R-kaderves
     ./measure solve --T 2 --B 2.03 --L 1.96 --R 2.01        # wit per letter
 
+    ./measure plumb 25 25 --xoffset -2.5                     # snijlood-velletje
+    ./measure plumb 25 25 --xoffset -2.5 --report 0.5        # ...en nieuwe xoffset
+
 Het meet-etiket toont een kruis met 0,0 in het midden van het AANGENOMEN
 printbare vlak, 1-mm streepjes met getallen en de letters N Z W O op de
 verwachte etiketranden. Je leest op het geprinte etiket af welke mm-waarde op
@@ -339,6 +342,70 @@ def cmd_ladder(lw, args):
     return 0
 
 
+def cmd_plumb(lw, args):
+    """Snijlood voor 2-up- en verschoven rollen: lijn IN de verwachte snij-
+    groef plus twee referentiepuntjes op de baanmiddens (4,25/16,75 mm-
+    stijl). Aflezing: wijkt de lijn met d mm af, positief naar A (links).
+    Nieuwe xoffset = oud + d. Eén voeding, één getal — de les van de AM11353
+    (kaders gaven 10 mm, het lood pinnte 0,5)."""
+    geom, _ = resolve_geometry(lw, args)
+    target_h = lw.canvas_rows(geom)
+    ox, oy, cw, ch = lw.print_window(geom, target_h)
+    from PIL import Image, ImageDraw
+    dpm = lw.DOTS_PER_MM
+    img = Image.new("L", (cw, ch), 255)
+    d = ImageDraw.Draw(img)
+    mid = cw // 2
+    d.rectangle((mid - 1, int(5 * dpm), mid + 1, ch - int(5 * dpm)), fill=0)
+    for cx in (cw // 4, 3 * cw // 4):
+        d.rectangle((cx - 6, ch // 2 - 6, cx + 6, ch // 2 + 6), fill=0)
+
+    opts = {"media": args.name or size_name(args.w, args.h),
+            "lw-pitch": repr(geom.pitch), "lw-gap": repr(geom.gap),
+            "lw-voffset": repr(geom.voffset), "lw-left": repr(geom.left),
+            "lw-right": repr(geom.right), "lw-top": repr(geom.top),
+            "lw-bottom": repr(geom.bottom), "lw-rotate": "0",
+            "lw-orient": "off", "lw-rows": repr(geom.rows),
+            "lw-xoffset": repr(geom.xoffset)}
+    payload = lw.convert(as_raster(lw, img), opts)
+
+    print(f"lood op x {(ox + mid) / dpm:.2f} mm (kader {ox / dpm:.2f}.."
+          f"{(ox + cw) / dpm:.2f}); puntjes op de baanmiddens.")
+    if args.report is not None:
+        new_x = geom.xoffset + args.report
+        print(f"aflezing {args.report:+g} mm (positief = lijn op A): "
+              f"xoffset {geom.xoffset:g} -> {new_x:.2f}")
+        print(f"  ./add-size.sh {args.name or size_name(args.w, args.h)} "
+              f"\"blok {args.w:g}x{args.h:g} mm\" {args.w:g} {args.h:g} "
+              f"--pitch {geom.pitch:g} --gap {geom.gap:g} --xoffset {new_x:.2f}")
+        print("sudo /Users/Shared/Labelprinter/setup/install.sh")
+        return 0
+    if args.dry_run:
+        print(f"DRY-RUN: {len(payload)} bytes naar {args.host}:{args.port}")
+        return 0
+    if args.preview:
+        img.save(args.preview)
+        print(f"preview: {args.preview} ({cw}x{ch} dots)")
+        return 0
+    s = socket.create_connection((args.host, args.port), timeout=5)
+    s.settimeout(20)
+    s.sendall(payload)
+    chunks = []
+    t0 = time.time()
+    try:
+        while time.time() - t0 < 20:
+            b = s.recv(4096)
+            if not b:
+                break
+            chunks.append(b)
+    except socket.timeout:
+        pass
+    s.close()
+    print("printer:", b"".join(chunks)[:80].decode("latin-1").strip())
+    print("Zeg hoeveel mm de lijn van de snijgroef afwijkt; positief als hij")
+    print("op A (links van de rail) staat:  ./measure plumb <b> <h> --report <d>")
+
+
 def cmd_print(lw, args):
     """Print the calibration label and remember where its 0,0 sits."""
     geom, _ = resolve_geometry(lw, args)
@@ -598,6 +665,9 @@ def main():
     ap.add_argument("--markers", action="store_true",
                     help="T/B/L/R-kader-vel printen in plaats van het kruis "
                          "(les §4A: één letter per hoek, geen nummers)")
+    ap.add_argument("--report", type=float, default=None,
+                    help="bij plumb: afwijking in mm (positief = lijn op A); "
+                         "rekent direct de nieuwe xoffset uit")
     ap.add_argument("--T", type=float, help="mm wit tussen kader en bovenrand (hoek T)")
     ap.add_argument("--B", type=float, help="mm wit tussen kader en onderrand (hoek B)")
     ap.add_argument("--L", type=float, help="mm wit tussen kader en linkerrand (hoek L)")
@@ -614,7 +684,7 @@ def main():
     args.mode = "print"
     numbers = []
     for tok in args.positionals:
-        if tok in ("solve", "ladder"):
+        if tok in ("solve", "ladder", "plumb"):
             args.mode = tok
         else:
             try:
@@ -623,6 +693,12 @@ def main():
                 ap.exit(f"onbegrepen argument: {tok}")
     args.w = numbers[0] if len(numbers) > 0 else None
     args.h = numbers[1] if len(numbers) > 1 else None
+
+    if args.mode == "plumb":
+        if not args.w or not args.h:
+            ap.exit("gebruik: ./measure plumb <blok_breedte> <hoogte> "
+                    "[--name LW_XxY | --xoffset .. --pitch ..] [--report <mm>]")
+        return cmd_plumb(lw, args)
 
     if args.mode == "ladder":
         if not args.w or not args.h:

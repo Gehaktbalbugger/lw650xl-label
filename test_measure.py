@@ -151,6 +151,19 @@ def main():
     check("markers solve: te weinig letters = foutmelding",
           code != 0 and "--B" in out)
 
+    # --- plumb: snijlood als vast commando ---------------------------------
+    code, out = run("plumb", "25", "25", "--dry-run")
+    check("plumb: exit 0", code == 0)
+    check("plumb: lood op de sporen van de geijkte rol",
+          "lood op x 10.4" in out or "lood op x 10.5" in out)
+    code, out = run("plumb", "25", "25", "--report", "0.5")
+    check("plumb: +0,5 mm op A verhogen xoffset met 0,5",
+          "-1.5" in out and "--xoffset -1.5" in out)
+    check("plumb: report drukt niet (rekent alleen)", "DRY-RUN" not in out)
+    code, out = run("plumb", "25", "25", "--report", "-0.5")
+    check("plumb: afwijking naar B verlagen xoffset",
+          "-2.5" in out or "-2.50" in out)
+
     os.path.exists(mstate) and os.unlink(mstate)
     os.path.exists(png) and os.unlink(png)
 
