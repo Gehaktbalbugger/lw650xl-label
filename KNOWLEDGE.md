@@ -266,10 +266,13 @@ op elkaar te leggen.
    etiketten en zorg dat `SIZE-hoogte + gap` er exact aan gelijk is.
 5. Twijfel over herhaalbaarheid: print vijf losse beurten van hetzelfde beeld
    en leg ze op elkaar.
-6. **Werkt beter dan een schaal aflezen**: print één vel met een kader en één
-   letter in elke hoek (T, B, L, R) en laat de gebruiker de witstroken per hoek
-   noemen. Bij een gedraaid rol (`rotate`) is een genummerde schaal onleesbaar:
-   de letters N/Z/W/O wijzen dan de verkeerde kant op, en getalletjes die
-   buiten het etiket vallen (op de liner) zijn al helemaal onbruikbaar. Deze
-   sessie is daar drie keer op vastgelopen voordat één vel met T/B/L/R het
-   in twee afdrukken oploste.
+6. **Bij een gedraaide of verschoven rol: `--markers`.** `./measure <b> <h>
+   --markers [--rotate 270]` drukt één vel met het kader OP de randen van het
+   aangenomen printbare vlak en één letter per kant, met de kroon naar haar
+   eigen rand; `./measure solve --T <mm> --B <mm> --L <mm> --R <mm>` rekent
+   de vier witstroken om (per rotatie gemapt volgens §4A: bij 270 zijn T/B de
+   kopkant, L/R de voeding). Bij `rotate` is de genummerde schaal van punt 1
+   onleesbaar — letters N/Z/W/O wijzen dan de verkeerde kant op en getalletjes
+   op de liner zijn onbruikbaar; drie sessies lang vastgelopen voordat één
+   T/B/L/R-vel het in twee afdrukken oploste. De velletjes van §5 (kaders +
+   snijlood) zijn de 2-up-variatie hierop.

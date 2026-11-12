@@ -398,7 +398,9 @@ def convert(input_bytes, opts=None, table=None):
         geom = media_geometry(opts, w_mm, h_mm, table)
         # Match the page to the label: Word's portrait raster for a landscape
         # label (or the other way round) is rotated back to the label.
-        if (w > h) != (geom.size_w > geom.size_h):
+        # lw-orient=off shuts this branch off: ./measure --markers sends a
+        # raster that is already window-shaped in canvas orientation.
+        if opts.get("lw-orient") != "off" and (w > h) != (geom.size_w > geom.size_h):
             gray, w, h = rotate_cw(gray, w, h)
         if geom.rotate == 90:
             gray, w, h = rotate_cw(gray, w, h)

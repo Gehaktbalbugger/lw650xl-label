@@ -135,14 +135,13 @@ getallen zijn anders onherleidbaar uit de code.
    dan `HANDOFF.md` openen. De --two/2-up-tak is **opgelost, geijkt,
    geïnstalleerd en goedgekeurd in v1.6** — er is geen fysieke test meer
    tegoed behalve de MacBook (punt 3).
-2. Daarna het **T/B/L/R-marker-vel** in `./measure` bouwen als `--markers`
-   (stond er al als les): een genummerde schaal aflezen **werkt niet** op deze
-   rol — bij `rotate=270` wijzen N/Z/W/O de verkeerde kant op en de getalletjes
-   die buiten het etiket vallen (op de liner naast het kader) zijn onleesbaar;
-   drie afdrukken meten hielp niet. Eén vel met een kader en één letter per
-   hoek — **T, B, L, R** — en de vraag "hoeveel wit tussen kader en rand per
-   hoek" loste het in twee afdrukken op. Dat ene woord per hoek vangt het vel
-   vast in de documentatie; dan hoeft er niets meer opgetoond te worden.
+2. **Klaar (nov 12):** het T/B/L/R-marker-vel staat in `./measure` als
+   `--markers` (+ `solve --T --B --L --R`), met de §4A-rotatiemapping in
+   `MARKER_EDGES` en 15 checks in `test_measure.py`. Eerste nieuwe rol:
+   `./measure <b> <h> --markers [--rotate 270]`; de genummerde schaal blijft
+   achterwege — één kader op het oude printvlak plus vier letters. De 90-map
+   staat er als spiegelbeeld van 270 maar is nog **ongeijkt**; een gedraaide
+   rol voor het eerst met `--markers` meten = fysieke bevestiging van de map.
 3. MacBook bijwerken: `cd ~/label-printer && git pull && sudo ./install.sh`,
    daarna daar één etiket per rol printen.
 4. Dan pas de rest: "Sporen om morgen op te pakken", "Nog te doen" en de

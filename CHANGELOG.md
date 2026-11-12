@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.7 (uittestaat) — `./measure --markers`: het T/B/L/R-vel als commando
+
+- Nieuwe stand in `./measure`: `--markers` drukt **één vel** met het kader
+  precies op de randen van het aangenomen printbare vlak plus één letter per
+  kant (T B L R), elk met de kroon naar zijn eigen etiketrand. De letters
+  staan in **canvas-coördinaten** en worden met `lw-orient=off` +
+  `lw-rotate=0` 1:1 op het venster gezet — dus geen schaalvervorming en
+  geen N/Z/W/O-richtingsverdriet bij `rotate=270` (de les van §4A/§10).
+- `./measure solve --T <mm> --B <mm> --L <mm> --R <mm>` leest de vier
+  witstroken tussen kader en etiketrand; `MARKER_EDGES` mapt ze per rotatie
+  terug naar kop-richting/voeding (270: T/B→left/right, L/R→top/bottom;
+  de 90-mapping staat er als spiegelbeeld, nog **ongeijkt**). Output:
+  gemeten maat, labellijnen in bitmap-mm, centrumcorrectie en de
+  `add-size.sh`-opdracht (inclusief `--xoffset` bij een verschoven rol, en de
+  reminder voor het snijlood-velletje).
+- Filter: `lw-orient=off` zet de auto-oriëntatiedraai uit (nodig voor een
+  raster dat al venster-shape in canvas-oriëntatie is). Standaard aan, dus
+  geen gedrag verandert voor printen via Word/CLI.
+- `test_measure.py`: 15 nieuwe checks — state, frame==venster, rastermaat
+  1:1, rot0- én rot270-doorrekenen, ontbrekende letters = fout.
+
 ## 1.6 — AM11353 2-up gefixt én fysiek gekalibreerd (12 november, goedgekeurd)
 
 - `label --two` composeert nu in het **ONTWERP-frame** (295 × 287/288 dots),

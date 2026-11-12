@@ -4,11 +4,21 @@
     ./measure 36 89 --name LW_36x89 --pitch 93 --gap 4      # meet-etiket printen
     ./measure solve --N -49 --Z 40 --W -18 --O 18           # aflezing -> add-size.sh
 
+    ./measure 26 25 --markers                               # T/B/L/R-kaderves
+    ./measure solve --T 2 --B 2.03 --L 1.96 --R 2.01        # wit per letter
+
 Het meet-etiket toont een kruis met 0,0 in het midden van het AANGENOMEN
 printbare vlak, 1-mm streepjes met getallen en de letters N Z W O op de
 verwachte etiketranden. Je leest op het geprinte etiket af welke mm-waarde op
 de vier echte randen valt en geeft die door aan `solve`; die rekent ze om naar
 `left`, `right`, `top` en `bottom` en print de add-size.sh-opdracht.
+
+Bij gedraaide rollen faalt die schaal (cijfers buiten het etiket, richtingen
+verward — zie KNOWLEDGE §4A). `--markers` drukt daarom één kader op de randen
+van het printbare vlak met vier letters T B L R, elk met de kroon naar haar
+eigen etiketrand; je leest per letter alleen het wit tussen kader en
+etiketrand af en `solve --T .. --B .. --L .. --R ..` vertaalt dat, per
+rotatie gemapt, terug naar left/right/top/bottom en de echte maat.
 
 De geometrie komt uit dezelfde code als de CUPS-filter (cups/lw650xl.py), dus
 wat hier gemeten wordt is wat de driver later doet.
@@ -150,6 +160,133 @@ def as_raster(lw, img):
     return lw.MAGIC + bytes(hdr) + gray
 
 
+# ---- --markers: het T/B/L/R-vel (les van de vierkante rol, KNOWLEDGE §4A) --
+# Een kader ONMIDDELLIJK op de randen van het printbare vlak plus één letter
+# per kant, met de kroon naar haar eigen etiketrand. Geen numbers, geen
+# genummerde schaal, geen kruis: die waren bij rotate=270 onleesbaar en
+# richtingsloos. De gebruiker houdt het etiket zoals hij het leest en zegt per
+# letter hoeveel mm wit tussen kader en rand staat; solve rekent dat, per
+# rotatie gemapt, terug naar left/right/top/bottom en de echte maat.
+# letters -> canvas-rand per rotatie (§4A: bij 270 is boven de kleine x,
+# links de grote y; 90 is het spiegelbeeld, voor zover bekend ongeijkt):
+MARKER_EDGES = {
+    0:   {"T": "top", "B": "bottom", "L": "left", "R": "right"},
+    90:  {"T": "right", "B": "left", "L": "top", "R": "bottom"},
+    270: {"T": "left", "B": "right", "L": "bottom", "R": "top"},
+}
+EDGE_TURN = {"top": 0, "left": 90, "bottom": 180, "right": -90}
+
+
+def markers_image(lw, cw, ch, rotate):
+    """Kader op de vensterranden + T B L R, elk met de kroon naar de eigen
+    rand; getekend in canvas-coordinaten, dus rotatievrij verstuurd."""
+    from PIL import Image, ImageDraw, ImageFont
+    dpm = lw.DOTS_PER_MM
+    img = Image.new("L", (cw, ch), 255)
+    d = ImageDraw.Draw(img)
+    d.rectangle([1, 1, cw - 2, ch - 2], outline=0, width=3)
+    try:
+        fo = ImageFont.truetype(
+            "/System/Library/Fonts/Supplemental/Arial Bold.ttf", int(4.0 * dpm))
+    except Exception:
+        fo = ImageFont.load_default()
+    inset = 3.0 * dpm                      # van kaderlijn tot letterbak
+    edges = MARKER_EDGES.get(int(rotate) % 360, MARKER_EDGES[0])
+    for letter, edge in edges.items():
+        g = Image.new("L", (int(8 * dpm), int(6 * dpm)), 255)
+        gd = ImageDraw.Draw(g)
+        bb = gd.textbbox((0, 0), letter, font=fo)
+        gd.text(((g.width - (bb[2] - bb[0])) / 2 - bb[0],
+                 (g.height - (bb[3] - bb[1])) / 2 - bb[1]), letter, font=fo, fill=0)
+        if EDGE_TURN[edge]:
+            g = g.rotate(EDGE_TURN[edge], expand=True, fillcolor=255)
+        if edge == "top":
+            pos = ((cw - g.width) / 2, inset)
+        elif edge == "bottom":
+            pos = ((cw - g.width) / 2, ch - inset - g.height)
+        elif edge == "left":
+            pos = (inset, (ch - g.height) / 2)
+        else:
+            pos = (cw - inset - g.width, (ch - g.height) / 2)
+        img.paste(g, (int(pos[0]), int(pos[1])))
+    return img
+
+
+def _markers_howto(state_path):
+    print("Houd het etiket zoals je het LEEST en meet per letter het wit tussen")
+    print("kaderlijn en etiketrand; dan:")
+    print("  ./measure solve --T <mm> --B <mm> --L <mm> --R <mm>")
+    print(f"(meetgegevens: {state_path})")
+
+
+def cmd_markers(lw, args):
+    """Print het marker-vel: kader = aangenomen printbare vlak, in canvas-
+    coordinaten, zender zonder rotatie zodat het 1:1 op het venster staat."""
+    geom, _ = resolve_geometry(lw, args)
+    target_h = lw.canvas_rows(geom)
+    ox, oy, cw, ch = lw.print_window(geom, target_h)
+    img = markers_image(lw, cw, ch, geom.rotate)
+
+    opts = {"media": args.name or size_name(args.w, args.h),
+            "lw-pitch": repr(geom.pitch), "lw-gap": repr(geom.gap),
+            "lw-voffset": repr(geom.voffset), "lw-left": repr(geom.left),
+            "lw-right": repr(geom.right), "lw-top": repr(geom.top),
+            "lw-bottom": repr(geom.bottom),
+            "lw-rotate": "0",          # het vel zelf is al canvas-georiënteerd
+            "lw-orient": "off",        # ook de auto-draai uit: 1:1 op het venster
+            "lw-rows": repr(geom.rows), "lw-xoffset": repr(geom.xoffset)}
+    payload = lw.convert(as_raster(lw, img), opts)
+    dpm = lw.DOTS_PER_MM
+    state = {
+        "mode": "markers", "w": args.w, "h": args.h,
+        "name": args.name or size_name(args.w, args.h),
+        "rotate": int(geom.rotate),
+        "frame": {"x0": round(ox / dpm, 3), "x1": round((ox + cw) / dpm, 3),
+                  "y0": round(oy / dpm, 3), "y1": round((oy + ch) / dpm, 3)},
+        "geometry": {"pitch": geom.pitch, "gap": geom.gap, "voffset": geom.voffset,
+                     "left": geom.left, "right": geom.right, "top": geom.top,
+                     "bottom": geom.bottom, "rows": geom.rows,
+                     "rotate": geom.rotate, "xoffset": geom.xoffset},
+    }
+    with open(args.state, "w") as f:
+        json.dump(state, f, indent=1)
+    frame_note = (f"kader = printbare vlak x {ox / dpm:.2f}..{(ox + cw) / dpm:.2f} mm, "
+                  f"y {oy / dpm:.2f}..{(oy + ch) / dpm:.2f} mm "
+                  f"(rol draait {int(geom.rotate)} graden).")
+    if args.preview:
+        img.save(args.preview)
+        print(f"preview: {args.preview} ({cw}x{ch} dots)")
+    if args.preview and not args.dry_run:
+        print(f"niet geprint (--preview); TSPL is {len(payload)} bytes")
+        print(frame_note)
+        _markers_howto(args.state)
+        return 0
+    if args.dry_run:
+        print(f"DRY-RUN: {len(payload)} bytes naar {args.host}:{args.port}")
+        print(re.sub(rb"\r\n", b" | ", payload[:160]).decode("latin-1") + " ...")
+        print(frame_note)
+        _markers_howto(args.state)
+        return 0
+    s = socket.create_connection((args.host, args.port), timeout=5)
+    s.settimeout(20)
+    s.sendall(payload)
+    chunks = []
+    t0 = time.time()
+    try:
+        while time.time() - t0 < 20:
+            b = s.recv(4096)
+            if not b:
+                break
+            chunks.append(b)
+    except socket.timeout:
+        pass
+    s.close()
+    print("printer:", b"".join(chunks)[:120].decode("latin-1").strip())
+    print(frame_note)
+    _markers_howto(args.state)
+    return 0
+
+
 def cmd_ladder(lw, args):
     """Print numbered 4 mm bands across one full feed step.
 
@@ -268,11 +405,98 @@ def cmd_print(lw, args):
     return 0
 
 
+def cmd_solve_markers(lw, state, args):
+    """solve op een marker-vel: vier wit-aflezingen (mm) terug in add-size.sh.
+
+    De letters staan in de leesoriëntatie van de rol; MARKER_EDGES vertaalt
+    ze naar canvas-randen (§4A: bij rotate=270 is T/B de kopkant, L/R de
+    voeding). Het kader stond op het oude printbare vlak, dus elke aflezing
+    is het wit tussen dat vlak en de echte etiketrand.
+    """
+    frame, rot = state["frame"], int(state.get("rotate", 0))
+    missing = [k for k in "TBLR" if getattr(args, k) is None]
+    if missing:
+        sys.exit("marker solve heeft alle vier aflezingen nodig: "
+                 + " ".join(f"--{k} <mm>" for k in missing))
+    edges = MARKER_EDGES.get(rot % 360, MARKER_EDGES[0])
+    gap = {edge: getattr(args, letter) for letter, edge in edges.items()}
+
+    label_left = frame["x0"] - gap["left"]
+    label_right = frame["x1"] + gap["right"]
+    label_top = frame["y0"] - gap["top"]
+    label_bottom = frame["y1"] + gap["bottom"]
+    measured_w = label_right - label_left          # over de kop
+    measured_h = label_bottom - label_top          # in voedingsrichting
+
+    left = max(0.0, -label_left)                   # onbereikbare strook links
+    right = max(lw.DEFAULT_RIGHT_MM, left) if left else lw.DEFAULT_RIGHT_MM
+    top = label_top
+    bottom = 2.0 * -label_top if label_top < 0 else lw.DEFAULT_BOTTOM_MM
+    bottom = max(bottom, lw.DEFAULT_BOTTOM_MM)
+
+    # de maat voor add-size.sh: in leesoriëntatie van de rol (ontwerpmat),
+    # bij 90/270 dus langs de voeding gemeten; afgerond op 0,1 mm.
+    if rot % 360 in (90, 270):
+        size_w, size_h = round(measured_h, 1), round(measured_w, 1)
+    else:
+        size_w, size_h = round(measured_w, 1), round(measured_h, 1)
+
+    pitch, gap_mm = args.pitch, args.gap
+    if pitch is not None and gap_mm is None:
+        gap_mm = round(pitch - measured_h, 1)
+
+    name = args.name or state["name"]
+    desc = args.desc or f"Etiket {size_w:g}x{size_h:g} mm (marker-vel)"
+    cmd = f"./add-size.sh {name} \"{desc}\" {size_w:g} {size_h:g}"
+    if pitch is not None:
+        cmd += f" --pitch {pitch:g}"
+    if gap_mm is not None:
+        cmd += f" --gap {gap_mm:g}"
+    if left:
+        cmd += f" --left {left:g} --right {right:g}"
+    if abs(top - lw.DEFAULT_TOP_MM) > 0.05:
+        cmd += f" --top {top:g}"
+    if abs(bottom - lw.DEFAULT_BOTTOM_MM) > 0.05:
+        cmd += f" --bottom {bottom:g}"
+    if args.voffset:
+        cmd += f" --voffset {args.voffset:g}"
+    geom = state.get("geometry", {})
+    if geom.get("xoffset") and abs(label_left) > 1.0:
+        cmd += f" --xoffset {label_left:g}"
+
+    shift_x = (label_left + label_right) / 2 - (frame["x0"] + frame["x1"]) / 2
+    shift_y = (label_top + label_bottom) / 2 - (frame["y0"] + frame["y1"]) / 2
+    print(f"gemeten etiket: {measured_w:.2f} x {measured_h:.2f} mm "
+          f"(over de kop x voeding; opgave: {state['w']:g} x {state['h']:g})")
+    print(f"labellijnen in bitmap-mm: x {label_left:.2f}..{label_right:.2f}, "
+          f"y {label_top:.2f}..{label_bottom:.2f}")
+    print(f"etiketmidden tov het oude vlak: {shift_x:+.2f} mm over de kop, "
+          f"{shift_y:+.2f} mm in de voeding")
+    if rot % 360 in (90, 270):
+        print("deze rol draait: jouw T/B werd over de kop gerekend (left/right),")
+        print("jouw L/R langs de voeding (top/bottom) — KNOWLEDGE §4A.")
+    if abs(shift_x) > 0.3 or abs(shift_y) > 0.3:
+        print("  -> het oude vlak stond niet op het etiketmidden; de waarden")
+        print("     hierboven corrigeren dat.")
+    if pitch is None:
+        print("meet nog de steek (ladder-stand of 20 etiketten / 20) en voeg")
+        print("  --pitch <mm> [--gap <mm>] toe; die haal je niet uit één vel.")
+    if geom.get("xoffset") or left > 0:
+        print("2-up/shift-roll: controleer daarna de snijlijn met een")
+        print("  loodlijn-velletje (zie KNOWLEDGE §AM11353).")
+    print()
+    print(cmd)
+    print("sudo /Users/Shared/Labelprinter/setup/install.sh")
+    return 0
+
+
 def cmd_solve(lw, args):
     try:
         state = json.load(open(args.state))
     except OSError:
         sys.exit(f"geen meetgegevens in {args.state}; print eerst ./measure <w> <h>")
+    if state.get("mode") == "markers":
+        return cmd_solve_markers(lw, state, args)
     if args.w is None:
         args.w, args.h = state["w"], state["h"]
     cx, cy = state["centre_x_mm"], state["centre_y_mm"]
@@ -367,6 +591,13 @@ def main():
     ap.add_argument("--Z", type=float, help="mm-aflezing op de zuidrand")
     ap.add_argument("--W", type=float, help="mm-aflezing op de westrand")
     ap.add_argument("--O", type=float, help="mm-aflezing op de oostrand")
+    ap.add_argument("--markers", action="store_true",
+                    help="T/B/L/R-kader-vel printen in plaats van het kruis "
+                         "(les §4A: één letter per hoek, geen nummers)")
+    ap.add_argument("--T", type=float, help="mm wit tussen kader en bovenrand (hoek T)")
+    ap.add_argument("--B", type=float, help="mm wit tussen kader en onderrand (hoek B)")
+    ap.add_argument("--L", type=float, help="mm wit tussen kader en linkerrand (hoek L)")
+    ap.add_argument("--R", type=float, help="mm wit tussen kader en rechterrand (hoek R)")
     ap.add_argument("--host", default=os.environ.get("LW_HOST", DEFAULT_HOST))
     ap.add_argument("--port", type=int, default=int(os.environ.get("LW_PORT", 9100)))
     ap.add_argument("--preview", metavar="FILE.png", help="schrijf het beeld, niet printen")
@@ -397,16 +628,21 @@ def main():
         return cmd_ladder(lw, args)
 
     if args.mode == "solve":
-        args.N, args.Z, args.W, args.O = (getattr(args, k) for k in "NZWO")
-        missing = [k for k in "NZWO" if getattr(args, k) is None]
-        if missing:
-            sys.exit("geef alle vier aflezingen: " + " ".join(f"--{k} <mm>" for k in missing))
+        if not any(getattr(args, k) is not None for k in "TBLR"):
+            missing = [k for k in "NZWO" if getattr(args, k) is None]
+            if missing:
+                sys.exit("geef alle vier aflezingen: "
+                         + " ".join(f"--{k} <mm>" for k in missing)
+                         + "  (of --T --B --L --R na een marker-vel)")
         if args.voffset is None:
             args.voffset = 0.0
         return cmd_solve(lw, args)
 
     if not args.w or not args.h:
-        ap.exit("gebruik: ./measure <breedte_mm> <hoogte_mm> [...]  of  ./measure solve ...")
+        ap.exit("gebruik: ./measure <breedte_mm> <hoogte_mm> [--markers] [...]  "
+                "of  ./measure solve ...")
+    if args.markers:
+        return cmd_markers(lw, args)
     return cmd_print(lw, args)
 
 

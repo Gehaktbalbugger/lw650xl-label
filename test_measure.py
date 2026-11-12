@@ -99,6 +99,61 @@ def main():
     check("solve: reachable left edge needs no left/right trim",
           "--left" not in out.split("./add-size.sh")[1])
 
+    # --- marker-vel: T/B/L/R-kader + solve --T --B --L --R -----------------
+    mstate = tempfile.mktemp(suffix=".json")
+    code, out = run("36", "89", "--name", "LW_36x89", "--markers",
+                    "--dry-run", "--state", mstate)
+    check("markers: exit 0", code == 0)
+    check("markers: TSPL naar de volle kop", "BITMAP 0,0,160," in out)
+    check("markers: framesuggestie in de tekst", "solve --T" in out)
+    st = json.load(open(mstate))
+    check("markers: state onthoudt modus en rotatie",
+          st.get("mode") == "markers" and st.get("rotate") == 0)
+    fr = st.get("frame", {})
+    check("markers: frame = oud printbaar vlak",
+          abs(fr.get("x1", 0) - 30.06) < 0.3 and fr.get("y0") is not None)
+
+    # image == window: geen vervorming, het kader VALT op de vensterranden
+    png = tempfile.mktemp(suffix=".png")
+    code, out = run("26", "25", "--markers", "--preview", png, "--state", mstate)
+    check("markers: gedraaide rol gebruikt rotate uit de PPD",
+          json.load(open(mstate))["rotate"] == 270)
+    from PIL import Image
+    im = Image.open(png)
+    dpm = 300.0 / 25.4
+    st26 = json.load(open(mstate))
+    fr26 = st26["frame"]
+    check("markers: rastermaat == venster (1:1, geen scale-vervorming)",
+          im.width == int(round((fr26["x1"] - fr26["x0"]) * dpm)) and
+          im.height == int(round((fr26["y1"] - fr26["y0"]) * dpm)))
+
+    # §4A-mapping: bij rotate=270 is de user T/B de KOPKANT (left/right)
+    code, out = run("solve", "--T", "2.0", "--B", "0.5", "--L", "1.0", "--R", "1.0",
+                    "--state", mstate)
+    check("markers solve: exit 0", code == 0)
+    cmd = out.split("./add-size.sh")[1] if "./add-size.sh" in out else ""
+    check("markers solve: T/B werd links/rechts (left 2,0)", "--left 2" in cmd)
+    check("markers solve: gemeten breedte over de kop ~25,5 mm",
+          "25.5" in out)
+    check("markers solve: herinnering aan de snijlood-lijn",
+          "loodlijn" in out)
+
+    # rotatie 0: T/B blijven boven/beneden, L/R links/rechts
+    code, out = run("36", "89", "--markers", "--dry-run", "--state", mstate)
+    code, out = run("solve", "--T", "1", "--B", "1", "--L", "0", "--R", "0",
+                    "--state", mstate)
+    cmd = out.split("./add-size.sh")[1] if "./add-size.sh" in out else ""
+    check("markers solve: rot0 laat left/right met rust (geen dode zone)",
+          "--left" not in cmd)
+    check("markers solve: rot0 T/B gaat naar de voeding (--top)", "--top" in cmd)
+
+    code, out = run("solve", "--T", "1", "--state", mstate)
+    check("markers solve: te weinig letters = foutmelding",
+          code != 0 and "--B" in out)
+
+    os.path.exists(mstate) and os.unlink(mstate)
+    os.path.exists(png) and os.unlink(png)
+
     os.path.exists(state) and os.unlink(state)
     print("OK" if ok else "FAILED")
     return 0 if ok else 1
