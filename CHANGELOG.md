@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.8 (uittestaat) — S0904980 geregistreerd; `plumb`-modus; onbekende-rollen-bugfix
+
+- Nieuwe rol **S0904980** (104,2 × 159,9 mm verzendetiket): vendor gevangen met
+  tcpdump (`SIZE 104,162 · GAP 3 · DENSITY 10 · SPEED 4`), gemeten met
+  `--markers --pitch 162 --gap 3` (binnen 0,2 mm), geregistreerd op
+  **max inkt**: `left=0 right=2 top=0.6 bottom=0`, canvas 1901 (vendor 1902).
+  Frame-proef via de CUPS-route bevestigde het na `top 0.08 → 0.6`: een marge
+  van 0 mm naast een lijn van 0,5 mm valt af — 0,5-0,6 mm is de ondergrens
+  (les al bekend van de tangent-test, nu bevestigd op een tweede rol).
+- **`./measure plumb`**: het snijlood-velletje als vast commando — lijn in de
+  verwachte snijgroef plus puntjes op de baanmiddens; `--report <mm>` rekent
+  de afwijking (positief = lijn op A) direct om naar de nieuwe `xoffset` en
+  print de `add-size.sh`-opdracht. 5 checks.
+- **Bugfix** `resolve_geometry`: voor rollen zonder `lw-media`-regel kreeg de
+  opts-map **geen media-key**, waarop `media_geometry` de paginagrootte
+  normaliseerde naar de lange kant ("long side is label width" — bedoeld voor
+  Word-portretten). Elke `./measure <w> <h>` op een ongemeten PPD-maat met
+  hoogte > breedte kwam dus persoons/verkeerd op papier — het S0904980-
+  kadervel onthulde het (kader x 0..108,4 = volle kop, y tot 103). Nu wordt
+  `media=<LW_bxh>` altijd meegestuurd; swap-check in `test_measure.py`.
+- Bij onbekende rollen blijft de default-pitch `hoogte` (niet hoogte+gap):
+  geef bij de eerste meting de vendor-pitch expliciet mee (`--pitch 162
+  --gap 3` voor S0904980), of registreer eerst via `add-size.sh`.
+- tcpdump-recept voor de vendor-capture staat in HANDOFF §S0904980.
+
 ## 1.7 — `./measure --markers`: het T/B/L/R-vel als commando (12 nov, geïnstalleerd)
 
 - Nieuwe stand in `./measure`: `--markers` drukt **één vel** met het kader

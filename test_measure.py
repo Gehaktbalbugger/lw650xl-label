@@ -165,9 +165,11 @@ def main():
           "-2.5" in out or "-2.50" in out)
 
     # --- onbekende rol met hoogte > breedte: NIET swappen (S0904980-bug) ---
-    code, out = run("104", "159", "--markers", "--pitch", "162", "--gap", "3",
-                    "--dry-run")
-    check("onbekende rol: size blijft 104x159 (lange-kant-swap weg)",
+    # (104x159 zit inmiddels in de PPD en find_media matcht tot 1 mm —
+    #  dus een maat die ver van elke tabelrij zit)
+    code, out = run("104", "179", "--name", "LW_104x179", "--markers",
+                    "--pitch", "162", "--gap", "3", "--dry-run")
+    check("onbekende rol: size blijft 104x179 (lange-kant-swap weg)",
           "0.00..103.21" in out and "5.08..160.95" in out)
 
     os.path.exists(mstate) and os.unlink(mstate)

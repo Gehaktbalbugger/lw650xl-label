@@ -11,8 +11,8 @@ alleen **waar we zijn en wat de volgende stap is**.
 | repo | https://github.com/Gehaktbalbugger/lw650xl-label — **public** |
 | releases | **t/m v1.7** (Latest): v1.0 AM11354, v1.1 AM99012, v1.2 `./measure`, v1.3 S0929120, v1.4/v1.5 vierkant, v1.6 AM11353 2-up geijkt, v1.7 `./measure --markers` |
 | laatste commit | deze handoff op `0cadb4a` (KAPOT + status), daarna alleen doc-correcties |
-| rollen | **4 geïnstalleerd**: AM11354 (57×32), AM99012 (36×89 staand), S0929120 (vierkant, 2 mm rondom), AM11353 (`LW_25x25`, blok 2-up) |
-| afgetekend | **AM99012, AM11354** én de **AM11353 2-up** (vel van 12 nov: kaders, snijlood en Anna/Piet goedgekeurd); vierkante rol geïnstalleerd op 2 mm rondom |
+| rollen | **5 geïnstalleerd**: AM11354 (57×32), AM99012 (36×89 staand), S0929120 (vierkant, 2 mm rondom), AM11353 (blok 2-up, geijkt), **S0904980 (104×159 verzendetiket, max inkt)** |
+| afgetekend | **AM99012, AM11354, AM11353 2-up, S0904980** door de gebruiker (12 nov); vierkante rol geïnstalleerd op 2 mm rondom |
 | iMac | filter + PPD geïnstalleerd en identiek aan de repo (`/usr/libexec/cups/filter/lw650xl.py`, `/etc/cups/ppd/LW650XL_Labels.ppd`) |
 | tests | `python3 test_filter.py`, `test_measure.py`, `test_label.py` — alle OK |
 | MacBook | nog **niet** bijgewerkt: `cd ~/label-printer && git pull && sudo ./install.sh` |
@@ -59,11 +59,12 @@ geven en de volle strook van 23,5 mm te gebruiken met scheef wit.
 ## Nog te doen / nog te vragen
 
 - MacBook bijwerken (commando hierboven) en daar één etiket per rol printen.
-- Verdere formaten: de PPD bevat 9 maten die **nooit op een echte rol gemeten
-  zijn** (104x159, 102x59, 101x54, 89x36, 89x28, 54x25, 50x12, 57x57, 62x100).
+- Verdere formaten: de PPD bevat 8 maten die **nooit op een echte rol gemeten
+  zijn** (102x59, 101x54, 89x36, 89x28, 54x25, 50x12, 57x57, 62x100).
   Ze hebben geen `lw-media`-regel, dus hun pitch is "hoogte + 3 mm" en hun
   zijdelingse marge is de default. Zodra zo'n rol echt geladen wordt: meten met
-  `./measure`, dan `add-size.sh` met de gemeten waarden, dan `install.sh`.
+  `./measure <b> <h> --markers --pitch <vendor> --gap <gap>`, dan `add-size.sh`
+  met de gemeten waarden, dan `install.sh`.
 - Regression: de marges van de drie known-good rollen staan nu alleen in
   KNOWLEDGE.md. Een tabeltest die per rol de inktbbox uit de gegenereerde TSPL
   haalt en de verwachte marges vergelijkt, vangt drift in `print_window`
@@ -214,13 +215,36 @@ identiek), Anna/Piet-vel goedgekeurd — beide etiketten gecentreerd, tekst
 zijwaarts zoals de vendor-app. Eens per rolwissel: de snijlood-lijn van
 `diag`-formaat terugprinten als herijking (KNOWLEDGE §AM11353).
 
+## S0904980: verzendetiket gemeten en geregistreerd (12 nov, goedgekeurd)
+
+De rol die Labellife zelf al kon printen — onze taak: de PPD-maat
+`LW_104x159` (een van de negen ongemeten) naar fysieke waarheid zetten:
+
+1. **Vendor gevangen met tcpdump**: `SIZE 104 mm,162 mm · GAP 3 mm,0 mm ·
+   DENSITY 10 · SPEED 4 · BITMAP 0,0,160,1902,4` — pitch 162 = 159+3 ✓,
+   canvas 1901 (vendor 1902). Recept: `tcpdump -i en0 -nn -s0 -w vel.pcap
+   -C 8 tcp port 9100` (root; `-i any` doet het niet in Apple's tcpdump),
+   daarna `strings vel.pcap | grep -aE 'SIZE|GAP|BITMAP|SPEED|DENSITY'`.
+2. **`./measure 104 159 --markers --pitch 162 --gap 3`** → vier aflezingen →
+   `solve`: gemeten **104,2 × 159,9 mm** (binnen 0,2 van de nominal!),
+   labellijnen x −2,0..102,2 (dezelfde 2 mm-dode zone links als de vierkante
+   rol), y 0,08..159,95 (etiket begint vrijwel op de bitmap-oorsprong).
+3. **Geregistreerd op max inkt**: `left=0 right=2 top=0.6 bottom=0` — inkt
+   tot de randen, links alleen de onvermijdelijke dode zone.
+4. **Frame-proef via de CUPS-route** (eerste keer op deze rol!): kader op de
+   printbare rand, tekst, cirkel Ø 51 mm. De bovenkaderlijn viel af bij
+   `top=0.08` (marge 0 naast een lijn van 0,5 mm) → veiligheidmarge
+   `top=0.6` → alles binnen. Les: marge 0 maak je nooit bij een eerste rol;
+   0,5–0,6 is de ondergrens.
+
 ## Wat er nu op de iMac draait (v1.7, geïnstalleerd en afgetekend)
 
-- **driver**: 4 rollen geïnstalleerd — AM11354, AM99012, S0929120 (2 mm rondom)
-  en AM11353 als blok met de **gekalibreerde** regel
-  `LW_25x25 pitch=34 gap=3 rows=354 xoffset=-2 top=4.5` (filter en PPD
-  geïnstalleerd via `install.sh`, md5's identiek aan de repo).
-- AM99012, AM11354 en de AM11353 2-up: door de gebruiker afgetekend.
+- **driver**: 5 rollen geïnstalleerd — AM11354, AM99012, S0929120 (2 mm rondom),
+  AM11353 als blok met de **gekalibreerde** regel
+  `LW_25x25 pitch=34 gap=3 rows=354 xoffset=-2 top=4.5` en **S0904980** met
+  `LW_104x159 pitch=162 gap=3 left=0 right=2 top=0.6 bottom=0` (max inkt;
+  filter en PPD geïnstalleerd via `install.sh`, md5's identiek aan de repo).
+- AM99012, AM11354, de AM11353 2-up en S0904980: door de gebruiker afgetekend.
 - releases t/m **v1.7**; repo **public**.
 
 ## Nog open bij de start van de volgende sessie
@@ -252,4 +276,5 @@ zijwaarts zoals de vendor-app. Eens per rolwissel: de snijlood-lijn van
 - **Zijdeffect van dezelfde meting**: het etiket is 25,5 mm hoog in de
   feed-richting, maar de PPD-snaam `LW_26x25` geeft 25 mm, dus er blijft
   0,5 mm ongebruikt. `w=`/`h=`-overschrijving in `lw-media` is de nette fix.
-- Negen PPD-maten zijn nog nooit op een echte rol gemeten.
+- Acht PPD-maten zijn nog nooit op een echte rol gemeten (104x159 is gemeten:
+  S0904980, 12 nov).
