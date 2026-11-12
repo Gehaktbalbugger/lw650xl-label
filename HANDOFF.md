@@ -147,10 +147,12 @@ getallen zijn anders onherleidbaar uit de code.
    R en B op 0 = ijk bevestigd; solve reproduceerde `xoffset −2,0` en maat
    25,0. `--gap`-afleiding is daarna uit de markers-solve gehaald (was fout:
    8,5 i.p.v. 3 — er zit extra liner om de kloof).
-   Restpunt: T werd 0,5 mm afgelezen → label zou 25,5 hoog kunnen zijn op
-   top 4,0 (0,25 mm scheef t.o.v. de geijkte 4,5); binnen leesruis en de
-   snijlood oordeelde het vel gecentreerd — bij de eerstvolgende 2-up-print
-   eerst het loodje terugchecken voordat hier aan `top` wordt gezeten.
+   **Tangent-test gesloten (12 nov, 16:0x)**: testlijnen op 3,99 en 29,85 mm
+   vielen allebei BUITEN het etiket, de ankerlijnen op 4,49/29,46 erop →
+   label ≈ 4,0..29,5+ (hoogte ~25,0-25,3), de geijkte band 4,49..29,46 sluit
+   rondom in. De T=0,5 van het marker-vel was leesruis; `top` blijft 4,5 en
+   er is geen `h=25,5`-winst. Les voor de volgende: bij een aflezing van
+   0,5 mm naast een 0,25-mm-lijn eerst de tangent printen, dan de PPD aanraken.
 3. MacBook bijwerken: `cd ~/label-printer && git pull && sudo ./install.sh`,
    daarna daar één etiket per rol printen.
 4. Dan pas de rest: "Sporen om morgen op te pakken", "Nog te doen" en de

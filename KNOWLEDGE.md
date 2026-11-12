@@ -176,6 +176,12 @@ etiket A**. De gemeten waarheid, sindsdien in de PPD:
 | snijrail A/B | 10,5 mm = dot 124 |
 | etiket B | 10,5 … 23,0 mm |
 | label bovenkant | rij 53 = 4,5 mm onder de bitmap-oorsprong (top=4,5) |
+| label onderkant | ~29,5 mm (kader-rij 348; testlijn 29,85 viel erbuiten) |
+
+De tangent-test (lijnen op 3,99/29,85 mm) bewaakt beide flanken: de
+labelbovenkant ligt in (4,0, 4,4], de onderkant in [29,5, 29,9). Bij een
+aflezing van 0,5 mm naast een lijn van 0,25 mm is dát het instrument,
+niet de PPD.
 
 `xoffset` is hier dus **negatief**: de liner begint links van de kopstart en
 onbereikbare strip wordt weggeknippen (CLI: `canvas.paste` met negatieve ox;
