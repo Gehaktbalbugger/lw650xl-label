@@ -1,26 +1,26 @@
 # Handoff — verder werken aan deze printer
 
-Sessie van 9 november 2026. Alles staat op GitHub, er is niets open staan in
-de werkomgeving. Kennis en meetwaarden staan in [`KNOWLEDGE.md`](KNOWLEDGE.md);
-hier staat alleen **waar we zijn en wat de volgende stap is**.
+Sessies van 9 t/m 12 november 2026. Alles staat op GitHub; er is niets open in de
+werkomgeving. Kennis en meetwaarden staan in [`KNOWLEDGE.md`](KNOWLEDGE.md); hier staat
+alleen **waar we zijn en wat de volgende stap is**.
 
 ## Status
 
 | | |
 |---|---|
-| repo | https://github.com/Gehaktbalbugger/lw650xl-label (privé) |
-| releases | v1.0 (AM11354), v1.1 (AM99012), v1.2 (`./measure`), **v1.3 Latest** (S0929120) |
-| laatste commit | `1630e35` (kennis + handoff), daarna de vierkante rol gecentreerd |
-| rollen | AM11354, AM99012 en **S0929120: 21,51 mm vierkant, 2 mm wit rondom**, gebruiker akkoord |
-| tag | **geen nieuwe tag** — v1.3 blijft Latest, in overleg pas later vastzetten |
-| iMac | filter + PPD geïnstalleerd en identiek aan de repo (`/usr/libexec/cups/filter/lw650xl.py`, `/etc/cups/ppd/LW650XL_Labels.ppd`), 12 maten in de PPD |
-| tests | `python3 test_filter.py` (40 checks), `test_measure.py` (20), `test_label.py` — alle OK |
+| repo | https://github.com/Gehaktbalbugger/lw650xl-label — **public** |
+| releases | **t/m v1.5** (Latest): v1.0 AM11354, v1.1 AM99012, v1.2 `./measure`, v1.3 S0929120, v1.4 vierkant gecentreerd, v1.5 vierkant maximaal |
+| laatste commit | `0cadb4a` — deze handoff met de KAPOT-sectie |
+| rollen | **4 geïnstalleerd**: AM11354 (57×32), AM99012 (36×89 staand), S0929120 (vierkant, 2 mm rondom), AM11353 (`LW_25x25`, blok 2-up) |
+| afgetekend | **AM99012 en AM11354** door de gebruiker; de 2-up-inkt van AM11353 is **nog nooit** op een rol gezet — zie KAPOT hieronder |
+| iMac | filter + PPD geïnstalleerd en identiek aan de repo (`/usr/libexec/cups/filter/lw650xl.py`, `/etc/cups/ppd/LW650XL_Labels.ppd`) |
+| tests | `python3 test_filter.py`, `test_measure.py`, `test_label.py` — alle OK |
 | MacBook | nog **niet** bijgewerkt: `cd ~/label-printer && git pull && sudo ./install.sh` |
 | `gh` CLI | staat in `~/.local/bin` (niet in PATH): `export PATH="$HOME/.local/bin:$PATH"` |
 | gereedschap | `brew` is op deze Mac kapot (mankende schrijfrechten op `/usr/local/share/man/man8`) — download rechtstreeks |
 
-Drie rollen werken en zijn door de gebruiker afgetekend: AM11354 (57×32),
-AM99012 (36×89 staand) en S0929120.
+Vier rollen in de driver: AM99012 en AM11354 zijn afgetekend, S0929120 staat
+geïnstalleerd met 2 mm rondom, AM11353 als blok — 2-up nog niet beïnk (KAPOT).
 
 ## De vierkante rol: stand van zaken
 
@@ -129,65 +129,69 @@ gh release create v1.4 --title "…" --notes-file <(sed -n '/## 1.4/,/## 1.3/p' 
 Houd `CHANGELOG.md` bij: per versie de meetwaarden en de reden ervan, want die
 getallen zijn anders onherleidbaar uit de code.
 
-## Les van deze sessie: zo meet je, en zo niet
+## Morgen in een nieuwe context (eerste taak: KAPOT)
 
-Een genummerde schaal aflezen **werkt niet** op deze rol: bij `rotate=270`
-wijzen N/Z/W/O de verkeerde kant op, en de getalletjes die buiten het etiket vallen
-(op de liner naast het kader) zijn onleesbaar. Drie afdrukken meten hielp niet.
-Eén vel met een kader en één letter per hoek — **T, B, L, R** — en de vraag
-"hoeveel wit tussen kader en rand per hoek" loste het in twee afdrukken op.
+1. Repo klonen of pullen (github.com/Gehaktbalbugger/lw650xl-label, public),
+   dan `HANDOFF.md` openen: de sectie **KAPOT** hieronder is de eerste taak —
+   `label --two` repareren, rooktest, dan pas fysiek printen.
+2. Daarna het **T/B/L/R-marker-vel** in `./measure` bouwen als `--markers`
+   (stond er al als les): een genummerde schaal aflezen **werkt niet** op deze
+   rol — bij `rotate=270` wijzen N/Z/W/O de verkeerde kant op en de getalletjes
+   die buiten het etiket vallen (op de liner naast het kader) zijn onleesbaar;
+   drie afdrukken meten hielp niet. Eén vel met een kader en één letter per
+   hoek — **T, B, L, R** — en de vraag "hoeveel wit tussen kader en rand per
+   hoek" loste het in twee afdrukken op. Dat ene woord per hoek vangt het vel
+   vast in de documentatie; dan hoeft er niets meer opgetoond te worden.
+3. MacBook bijwerken: `cd ~/label-printer && git pull && sudo ./install.sh`,
+   daarna daar één etiket per rol printen.
+4. Dan pas de rest: "Sporen om morgen op te pakken", "Nog te doen" en de
+   punten onder "Wat er nu op de iMac draait".
 
-Volgende rol dus meteen met het T/B/L/R-kader meten; dat hoort in `./measure`
-te komen als `--markers` in plaats van het kruis. Vraag dat als eerste na het
-pullen van deze sessie.
+We stoppen hier. Continuïteit voor de volgende context: releases t/m
+**v1.5** staan op GitHub, de repo is **public**, en alles wat gemeten is
+staat vast in KNOWLEDGE.md en CHANGELOG.md — er hoeft niets meer opgetoond
+te worden. Er is deze sessie niets kapotgemaakt: de iMac draait de state
+hierboven, de MacBook wacht op `git pull && sudo ./install.sh`.
 
-## Les van deze sessie: zo meet je, en zo niet
+## KAPOT: label --two prints bijna niets
 
-Een genummerde schaal aflezen **werkt niet** op deze rol: bij `rotate=270`
-wijzen N/Z/W/O de verkeerde kant op, en de getalletjes die buiten het etiket vallen
-(op de liner naast het kader) zijn onleesbaar. Drie afdrukken meten hielp niet.
-Eén vel met een kader en één letter per hoek — **T, B, L, R** — en de vraag
-"hoeveel wit tussen kader en rand per hoek" loste het in twee afdrukken op.
+Fysiek velletje bij de vierkante rol leverde "a few pixels" in plaats van
+twee etiketten. De fout zit in de **--two-compositie van de CLI**, niet in
+de rol en niet in de filter.
 
-Volgende rol dus meteen met het T/B/L/R-kader meten; dat hoort in `./measure`
-te komen als `--markers` in plaats van het kruis. Vraag dat als eerste na het
-pullen van deze sessie.
+**De fout** (vandaag bewezen): de compose was in **canvas-maten** —
+`Image.new("L", (box[3] * 2, box[2]))` = **590 × 287 dots** in plaats van de
+**295 × 288 ontwerp-dots** — en liet de rotatie vallen. De twee helften
+plakte hij op (0,0) en (295,0), dus 0..590 dots over de kop, terwijl het
+blok maar van 7,5 tot 32,5 mm loopt; het beeld viel daardoor vooral buiten
+het etiket — op het vel: "a few pixels".
 
-## KAPOT: label --two prints bijna niets (oplossen vóór alles anders)
-
-Fysiek velletje bij de vierkante rol: "a few pixels" in plaats van twee
-etiketten. De fout zit in de **--two-composmetie van de CLI**, niet in de rol
-en niet in de filter.
-
-Wat er fout is (bewezen vandaag):
-
-- De compose bouwde de pagina in CANVAS-maten: `Image.new("L", (box[3]*2, box[2]))`
-  = 590 x 287 dots, terwijl de combinatie-pagina van het ontwerp
-  **295 x 287 dots** moet zijn (=naam-maten van het venster, niet de canvas).
- Daarna paste hij op twee plekken: (0,0) en (295,0) — dús 0..590 dots ink op
-  canvas, terwijl het etiket pas van 7,5 mm begint en tot 32,5 mm; de overgang
-  van 32,5..57 mm viel dus buiten de kop/belichtbaar gebied. Gevolg: "a few
-  pixels" op het etiket.
-- Daarnaast: de enige rotatie in de flow (het `rotate=270`-stje) is door deze
-  conversie geslikt; de ontwerppagina is onaangepast gebleven toesü.
-
-De gerechte oplossing voor morgen (kleine patch, nauwkeurig analoog aan de
-enkele-label-pagina):
+**De gerechte oplossing** (kleine patch, analoog aan de enkele-label-pagina):
+compose in het ontwerp-frame, twee halve pagina's van 295 × 144 dots, daarna
+de enkele-label-rotatie erop:
 
 ```python
-# in run van label: de compose in het ONTWERP-frame
-swap = (args.box[0], args.box[2], args.box[1])   # zoals de enkele-label-flow
-a2 = copy.copy(args); a2.box = swap
-a2.box = (0, 0, swap[2], swap[3] // 2)            # halve pagina: (295 x 144)
-img = Image.new("L", (swap[3], swap[2]), 1)
-img.paste(render_label(a2, dots), (0, 0))
+# in main() van label — de --two-tak, in het ONTWERP-frame (295 × 288 dots):
+a2 = copy.copy(args); a2.two = None
+a2.box = (args.box[0], args.box[1], args.box[2] // 2, args.box[3])  # halve pagina: 295 × 144
+img = Image.new("L", (args.box[3], args.box[2]), 1)                # 295 × 288, niet 590 × 287
+img.paste(render_label(a2, dots_mm), (0, 0))                        # etiket A
 a2.text = args.two
-img.paste(render_label(a2, dots), (swap[3] // 2, 0))
-img = img.rotate(-args.rotate, expand=True)        # in de enkele-label-vel
+img.paste(render_label(a2, dots_mm), (0, args.box[2] // 2))         # etiket B
+img = img.rotate(-args.rotate, expand=True)                         # de enkele-label-rotatie erop
 ```
 
-Daarna: rooktest zoals vandaag (vanger + bits-controle: beide halve kolommen
+Daarna pas de **rooktest** (vanger + bits-controle: beide halve kolommen
 inkt binnen x 7,5..32,5 mm) en dan pas fysiek printen.
+
+## Wat er nu op de iMac draait (nothing broken by this session)
+
+- **driver**: 4 rollen geïnstalleerd — AM11354, AM99012, S0929120 (2 mm rondom)
+  en AM11353 als blok. Nuance: `LW_25x25` staat wél ingeschreven, maar de
+  2-up-inkt is **NIET** geïnstalleerd — de --two-compositie (twee kolommen)
+  heeft nog nooit een rol beïnkt.
+- AM99012 en AM11354: door de gebruiker afgetekend.
+- releases t/m **v1.5**; repo **public**.
 
 ## Nog open bij de start van de volgende sessie
 
@@ -216,4 +220,3 @@ inkt binnen x 7,5..32,5 mm) en dan pas fysiek printen.
   feed-richting, maar de PPD-snaam `LW_26x25` geeft 25 mm, dus er blijft
   0,5 mm ongebruikt. `w=`/`h=`-overschrijving in `lw-media` is de nette fix.
 - Negen PPD-maten zijn nog nooit op een echte rol gemeten.
-
