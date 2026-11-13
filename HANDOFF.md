@@ -55,7 +55,7 @@ that the fixed 4 mm of unreachable strip becomes 19% of the page.
    two page sizes with the same dimensions (`LW_21.3x50` fit /
    `LW_21.3x50U` stretch); Word groups same-dimension sizes into a submenu.
 4. **The clean answer is a page that IS the printable area**: final
-   **`LW_19.3x49.8` "AM99017 vol printable (1-op-1)"**:
+   **`LW_19.3x49.8` "AM99017 50x21.3 Hangmap (49.8x19.3)"**: (description convention: label number, paper format, use)
    `pitch=54.5 gap=4.5 gapoff=0.5 left=0 right=0 top=1.08 bottom=0 fit=fit`.
    The page equals the box exactly (228 × 588 dots at 300 dpi), so the
    raster goes through `scale_to_box` at scale 1.0: **circle round, ink to
@@ -66,7 +66,7 @@ that the fixed 4 mm of unreachable strip becomes 19% of the page.
    user as "perfect".
 5. **PPD lessons**: a UI description may **not contain a colon** —
    "(1:1)" made Word's strict parser silently drop the whole PageSize entry
-   while CUPS kept it ("(1-op-1)" fixed it). `parse_size_name` now tolerates
+   while CUPS kept it ("colon-free text) fixed it). `parse_size_name` now tolerates
    a trailing suffix (`LW_21.3x50U`) so one roll can expose both modes;
    before the fix the U variant fell into the unknown-media path and got
    size 49.9 × 21.3 with pitch 21.3.

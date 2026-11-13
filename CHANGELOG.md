@@ -17,7 +17,7 @@
   job, or — from Word — the `LW_21.3x50U` size (Word groups the
   same-dimension pair `LW_21.3x50`/`LW_21.3x50U` into a submenu).
 - **The printable-area page** (the user's pick): `LW_19.3x49.8
-  "AM99017 vol printable (1-op-1)"` — page = printable box exactly
+  "AM99017 50x21.3 Hangmap (49.8x19.3)"` — page = printable box exactly
   (`left=0 right=0 top=1.08 bottom=0`), raster maps 1:1, so circles stay
   round, the ink reaches every reachable edge and Word is WYSIWYG. Iterated
   49.2 → 50.2 → 49.8 (box bottom at bitmap 50.88 vs the measured edge
