@@ -9,7 +9,7 @@ this file only carries **where we are and what the next step is**.
 | | |
 |---|---|
 | repo | https://github.com/Gehaktbalbugger/lw650xl-label — **public** |
-| releases | up to **v1.7** (Latest): v1.0 AM11354, v1.1 AM99012, v1.2 `./measure`, v1.3 S0929120, v1.4/v1.5 square roll, v1.6 AM11353 2-up calibrated, v1.7 `./measure --markers`; v1.8 staged on main (S0904980, `plumb`, unknown-roll bugfix) |
+| releases | **t/m v1.8** (Latest): v1.0 AM11354, v1.1 AM99012, v1.2 `./measure`, v1.3 S0929120, v1.4/v1.5 square roll, v1.6 AM11353 2-up calibrated, v1.7 `./measure --markers`, v1.8 S0904980 + `plumb` + unknown-roll bugfix |
 | rolls | **5 installed**: AM11354 (57×32), AM99012 (36×89 portrait), S0929120 (square, 2 mm all around), AM11353 (2-up block, calibrated), **S0904980 (104×159 shipping label, max ink)** |
 | signed off | **AM99012, AM11354, AM11353 2-up, S0904980** by the user (12 Nov); square roll installed with 2 mm margins |
 | iMac | filter + PPD installed and identical to the repo (`/usr/libexec/cups/filter/lw650xl.py`, `/etc/cups/ppd/LW650XL_Labels.ppd`) |
@@ -21,7 +21,7 @@ this file only carries **where we are and what the next step is**.
 
 Five rolls in the driver: AM99012 and AM11354 are signed off, S0929120 is
 installed with 2 mm margins, AM11353 is calibrated and approved as 2-up
-(v1.6), S0904980 is measured and approved (staged for v1.8).
+(v1.6), S0904980 is measured and approved (v1.8).
 
 ## The square roll: state of play
 
@@ -157,11 +157,11 @@ behind them, because those numbers are untraceable from the code otherwise.
 5. Only then the rest: "Tracks to pick up next", "To do / to ask" and the
    points under "What is on the iMac now".
 
-Stopping here. Continuity for the next context: releases up to **v1.7** are on
-GitHub (v1.8 staged on main), the repo is **public**, and everything measured
-is recorded in KNOWLEDGE.md and CHANGELOG.md — nothing needs to be re-shown.
-Nothing was broken this session: the iMac runs the state above, the MacBook
-waits for `git pull && sudo ./install.sh`.
+Stopping here. Continuity for the next context: releases up to **v1.8** are
+on GitHub, the repo is **public**, and everything measured is recorded in
+KNOWLEDGE.md and CHANGELOG.md — nothing needs to be re-shown. Nothing was
+broken this session: the iMac runs the state above, the MacBook waits for
+`git pull && sudo ./install.sh`.
 
 ## FIXED: label --two printed almost nothing (v1.6; physically calibrated, approved)
 
@@ -235,7 +235,7 @@ The roll Labellife could already print — our task: turn the PPD size
    → everything inside. Lesson: never set a 0 margin on a first roll;
    0.5–0.6 is the lower bound.
 
-## What is on the iMac now (v1.7 released; v1.8 staged, installed, signed off)
+## What is on the iMac now (v1.8 installed and signed off)
 
 - **driver**: 5 rolls installed — AM11354, AM99012, S0929120 (2 mm all
   around), AM11353 as block with the **calibrated** line
@@ -245,7 +245,7 @@ The roll Labellife could already print — our task: turn the PPD size
 - AM99012, AM11354, the AM11353 2-up and S0904980: approved by the user.
 - The **Word route verified end to end** (S0904980): prints correctly through
   the CUPS queue.
-- Releases up to **v1.7** (v1.8 staged on main); repo **public**.
+- Releases up to **v1.8**; repo **public**.
 
 ## Still open at the start of the next session
 

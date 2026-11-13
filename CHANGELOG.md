@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.8 (staged) — S0904980 registered; `plumb` mode; unknown-roll bugfix
+## 1.8 — S0904980 registered; `plumb` mode; unknown-roll bugfix (13 Nov, installed)
 
 - New roll **S0904980** (104.2 × 159.9 mm shipping label): vendor captured with
   tcpdump (`SIZE 104,162 · GAP 3 · DENSITY 10 · SPEED 4`), measured with
