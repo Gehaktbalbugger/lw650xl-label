@@ -140,7 +140,7 @@ the `label` CLI. CUPS keeps comment lines intact on install (verified).
 
 | roll | size | roll line | pitch | geometry | result |
 |---|---|---|---|---|---|
-| AM11354 | 57 × 32 mm, landscape | — | 38.6 mm, gap 3 | `voffset=0.34` (4 dots), `left`/`right` default | printable 640 × 370 dots, judged "in the middle" by the user |
+| AM11354 | 57 × 32 mm, landscape | — | 38.6 mm, gap 3 | full-label page `LW_57x32`: `voffset=0.34`, `left`/`right` default — **replaced on 13 Nov** by the printable-area page `LW_54.2x31.3` (`left=0 right=0 top=5.42 bottom=0 fit=fit`, the 0.34 centring baked into top) | printable 640 × 370 dots, judged "in the middle" by the user |
 | AM99012 / Dymo S0722400 | 36 × 89 mm, **portrait** | — | 93 mm, gap 4 | `left=3 right=3 top=-0.5 bottom=1` | 30 × 88 mm, 3 mm white all around |
 | S0929120 / Dymo 30332 | **25.5 × 25.5 mm** (1 inch; the label is neither 26 × 25 nor exactly 25 × 25) | 25.5 mm label + 4 mm liner + 3 mm notch + 5 mm liner | **36.97 mm** = `pitch 33.97 + gap 3` (canvas `rows=356`) | `left=1.5 right=3.0 top=1.9 voffset=4.5 bottom=3.5 rotate=270 rows=356` | **21.51 × 21.51 mm** square, measured white 2.00/1.99 mm and 2.03/1.96 mm |
 | AM11353 / Dymo 11353 | block **2 × 12.5 × 25 mm** (2-up) | liner 30 mm: −3.5…26.5; rail 10.5; 34 + 3 = 37 mm pitch | **34 mm**, gap 3 (canvas `rows=354`) | `xoffset=-2 top=4.5 left=0 right=0 bottom=0` (2-up forces rotation 270) | physically calibrated with boxes + plumb line (12 Nov); both lanes centered, approved |
