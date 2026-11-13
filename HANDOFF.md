@@ -319,5 +319,7 @@ The roll Labellife could already print — our task: turn the PPD size
 - Side effect of the same measurement: the square label is 25.5 mm long in
   the feed direction but the PPD name `LW_26x25` carries 25 mm, so 0.5 mm
   stays unused. A `w=`/`h=` override in `lw-media` is the clean fix.
-- Eight PPD sizes have never been measured on a real roll (104x159 is
-  measured: S0904980, 12 Nov).
+- The eight unmeasured built-in PPD sizes were **removed from the PPD** on
+  13 Nov (v1.9): Word's Paper Size menu now only offers measured rolls. They
+  return the same way as any roll: measure the physical roll, then
+  `add-size.sh`.
