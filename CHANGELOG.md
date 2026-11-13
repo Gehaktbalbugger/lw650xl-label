@@ -28,6 +28,9 @@
   `parse_size_name` now tolerates a trailing suffix so one roll can expose
   two modes (`LW_21.3x50U`) — before the fix the U name fell into the
   unknown-media path (size 49.9 × 21.3, pitch 21.3).
+- Post-testing cleanup: the stretch size `LW_21.3x50U` was removed from
+  the queue (the user kept only the 1:1 page and the scaled variant); the
+  fit=stretch mechanism stays in the filter for future rolls.
 - Tests: `test_filter.py` (letterbox + fit/stretch + suffix), `test_label.py`
   and `test_measure.py` all green; the vendor capture is archived at
   `workflow/am99017-vendor.pcap`, the story in HANDOFF §AM99017.

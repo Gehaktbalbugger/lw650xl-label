@@ -291,7 +291,9 @@ The roll Labellife could already print — our task: turn the PPD size
   `LW_104x159 pitch=162 gap=3 left=0 right=2 top=0.6 bottom=0` (max ink) and
   **AM99017** with the printable-area page
   `LW_19.3x49.8 pitch=54.5 gap=4.5 gapoff=0.5 left=0 right=0 top=1.08
-  bottom=0 fit=fit` (plus the `LW_21.3x50`/`LW_21.3x50U` fit/stretch pair).
+  bottom=0 fit=fit` (the scaled `LW_21.3x50` stays; the stretch variant
+  `LW_21.3x50U` was removed after testing — the fit=stretch mechanism
+  remains in the filter).
 - AM99012, AM11354, the AM11353 2-up, S0904980 and AM99017: approved by the
   user (13 Nov).
 - **Filter v1.9**: `scale_to_box` fits uniformly (letterbox) instead of

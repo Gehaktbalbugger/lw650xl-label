@@ -173,9 +173,11 @@ direction):
   keeps such an entry, Word's strict parser silently drops it from the
   Paper Size menu. Write `(1-op-1)`, not `(1:1)`.
 - One roll, two modes: register the same dimensions twice with a suffix in
-  the name (`LW_21.3x50` fit, `LW_21.3x50U` fit=stretch). Word groups
-  same-dimension sizes into a submenu; `parse_size_name` tolerates the
-  suffix, so the U variant resolves to its own `lw-media` line.
+  the name (`<name>` fit, `<name>U` fit=stretch); `parse_size_name`
+  tolerates the suffix, so the U variant resolves to its own `lw-media`
+  line. Word groups same-dimension sizes into a submenu. Used for the
+  AM99017 A/B test, then the stretch variant was removed from the queue —
+  the mechanism stays in the filter for future rolls.
 - The vendor's `SIZE height + GAP = pitch` rule is a **vendor claim, not
   physics**: AM99017 declares 55.5, the roll feeds 54.5 (gap 4.5 = 0.5 + 3
   hole + 1). Measure the pitch over two labels before registering.

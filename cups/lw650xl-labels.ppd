@@ -31,7 +31,6 @@
 *OrderDependency: 10 AnySetup *PageSize
 *DefaultPageSize: LW_57x32
 *PageSize LW_19.3x49.8/AM99017 50x21.3 Hangmap (49.8x19.3): "<</PageSize[54.71 141.17]/ImagingBBox null>>setpagedevice"
-*PageSize LW_21.3x50U/AM99017 50x21.3 Hangmap (49.2x17.3 uitgerekt): "<</PageSize[60.38 141.45]/ImagingBBox null>>setpagedevice"
 *PageSize LW_21.3x50/AM99017 50x21.3 Hangmap (49.2x17.3 geschaald): "<</PageSize[60.38 141.45]/ImagingBBox null>>setpagedevice"
 *PageSize LW_104x159/S0904980 159x104 Verzendetiket (159.3x102.2): "<</PageSize[295.37 453.26]/ImagingBBox null>>setpagedevice"
 *PageSize LW_25x25/AM11353 25x25 Blok 2x 12.5 (25x26): "<</PageSize[72.57 70.87]/ImagingBBox null>>setpagedevice"
@@ -44,7 +43,6 @@
 *OrderDependency: 10 AnySetup *PageRegion
 *DefaultPageRegion: LW_57x32
 *PageRegion LW_19.3x49.8/AM99017 50x21.3 Hangmap (49.8x19.3): "<</PageSize[54.71 141.17]/ImagingBBox null>>setpagedevice"
-*PageRegion LW_21.3x50U/AM99017 50x21.3 Hangmap (49.2x17.3 uitgerekt): "<</PageSize[60.38 141.45]/ImagingBBox null>>setpagedevice"
 *PageRegion LW_21.3x50/AM99017 50x21.3 Hangmap (49.2x17.3 geschaald): "<</PageSize[60.38 141.45]/ImagingBBox null>>setpagedevice"
 *PageRegion LW_104x159/S0904980 159x104 Verzendetiket (159.3x102.2): "<</PageSize[295.37 453.26]/ImagingBBox null>>setpagedevice"
 *PageRegion LW_25x25/AM11353 25x25 Blok 2x 12.5 (25x26): "<</PageSize[72.57 70.87]/ImagingBBox null>>setpagedevice"
@@ -55,7 +53,6 @@
 
 *DefaultImageableArea: LW_57x32
 *ImageableArea LW_19.3x49.8/AM99017 50x21.3 Hangmap (49.8x19.3): "0 0 54.71 141.17"
-*ImageableArea LW_21.3x50U/AM99017 50x21.3 Hangmap (49.2x17.3 uitgerekt): "0 0 60.38 141.45"
 *ImageableArea LW_21.3x50/AM99017 50x21.3 Hangmap (49.2x17.3 geschaald): "0 0 60.38 141.45"
 *ImageableArea LW_104x159/S0904980 159x104 Verzendetiket (159.3x102.2): "0 0 295.37 453.26"
 *ImageableArea LW_25x25/AM11353 25x25 Blok 2x 12.5 (25x26): "0 0 72.57 70.87"
@@ -65,7 +62,6 @@
 
 *DefaultPaperDimension: LW_57x32
 *PaperDimension LW_19.3x49.8/AM99017 50x21.3 Hangmap (49.8x19.3): "54.71 141.17"
-*PaperDimension LW_21.3x50U/AM99017 50x21.3 Hangmap (49.2x17.3 uitgerekt): "60.38 141.45"
 *PaperDimension LW_21.3x50/AM99017 50x21.3 Hangmap (49.2x17.3 geschaald): "60.38 141.45"
 *PaperDimension LW_104x159/S0904980 159x104 Verzendetiket (159.3x102.2): "295.37 453.26"
 *PaperDimension LW_25x25/AM11353 25x25 Blok 2x 12.5 (25x26): "72.57 70.87"
@@ -96,5 +92,4 @@
 *% lw-media LW_25x25 pitch=34 gap=3 rows=354 xoffset=-2 left=0 right=0 top=4.5 bottom=0
 *% lw-media LW_104x159 pitch=162 gap=3 left=0 right=2 top=0.6 bottom=0
 *% lw-media LW_21.3x50 pitch=54.5 gap=4.5 gapoff=0.5 left=2 right=2 top=1.08 bottom=0.7
-*% lw-media LW_21.3x50U pitch=54.5 gap=4.5 gapoff=0.5 left=2 right=2 top=1.08 bottom=0.7 fit=stretch
 *% lw-media LW_19.3x49.8 pitch=54.5 gap=4.5 gapoff=0.5 left=0 right=0 top=1.08 bottom=0 fit=fit
