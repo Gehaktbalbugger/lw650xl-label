@@ -73,6 +73,8 @@ while [[ $# -gt 0 ]]; do
         --xoffset) EXTRA+=("xoffset=${2:?--xoffset needs a value}"); shift 2 ;;
         --sense)  EXTRA+=("sense=${2:?--sense needs a value}"); shift 2 ;;
         --fit)    EXTRA+=("fit=${2:?--fit needs a value: fit or stretch}"); shift 2 ;;
+        --w)      EXTRA+=("w=${2:?--w needs a value}"); shift 2 ;;
+        --h)      EXTRA+=("h=${2:?--h needs a value}"); shift 2 ;;
         *) echo "unknown option: $1" >&2; exit 1 ;;
     esac
 done

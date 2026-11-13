@@ -314,6 +314,28 @@ def main():
     except ValueError:
         ok &= check("bad input raises ValueError", True)
 
+    # --- 9. portrait page on a landscape roll (AM11354 1:1) ----------------
+    # The page is portrait-authored so Word offers the orientation toggle;
+    # the lw-media w=/h= override keeps the label landscape and the
+    # orient-swap maps both Word orientations 1:1 onto the box.
+    repo_ppd = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "cups", "lw650xl-labels.ppd")
+    table9 = lw.load_ppd_media([repo_ppd])
+    ok &= check("portrait page: w=/h= override keeps size landscape",
+                lw.media_geometry({"media": "LW_31.3x54.2"}, 31.3, 54.2, table9)
+                .size_w == 54.2)
+    for name, mark, w, h in (("straight (portrait design)", (30, 40), 370, 640),
+                             ("landscape design", (40, 30), 640, 370)):
+        tspl = lw.convert(raster(make_page(w, h, mark=[mark])),
+                          {"media": "LW_31.3x54.2"}, table9)
+        hdr = b"BITMAP 0,0,160,444,0,"
+        payload = tspl[tspl.index(hdr) + len(hdr):][:160 * 444]
+        dots = [i * 8 + b for i, byte in enumerate(payload) for b in range(8)
+                if not (byte >> (7 - b)) & 1]
+        ok &= check(f"AM11354 {name}: ink lands 1:1 (x {dots[0] % 1280}, y {dots[0] // 1280})",
+                    len(dots) == 1 and (dots[0] % 1280, dots[0] // 1280) in
+                    ((599, 94), (40, 94)))
+
     print("OK" if ok else "FAILED")
     return 0 if ok else 1
 

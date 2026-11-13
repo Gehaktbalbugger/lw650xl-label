@@ -78,7 +78,7 @@ DEFAULT_MEDIA = "LW_57x32"
 # hands the PPD to filters through the PPD env var, so the PPD is the single
 # place where a size is defined. MEDIA above only stays as a fallback.
 GEOMETRY_KEYS = ("pitch", "gap", "gapoff", "voffset", "left", "right", "top",
-              "bottom", "rows", "rotate", "sense", "xoffset", "fit")
+              "bottom", "rows", "rotate", "sense", "xoffset", "fit", "w", "h")
 SENSORS = ("sense", "fit")     # words, not numbers
 
 Geometry = collections.namedtuple(
@@ -374,6 +374,14 @@ def media_geometry(opts, w_mm, h_mm, table=None):
         # the label width (a label is printed landscape on this printer).
         size_w, size_h = max(w_mm, h_mm), min(w_mm, h_mm)
     spec = table.get(name) or find_media(size_w, size_h, table)
+    # w=/h= in the lw-media line override the page-derived label size: a roll
+    # can expose a portrait-authored page -- so Word offers the orientation
+    # toggle -- while the label itself is landscape (AM11354's 1:1 page
+    # LW_31.3x54.2 carries w=54.2 h=31.3).
+    if spec and "w" in spec:
+        size_w = spec["w"]
+    if spec and "h" in spec:
+        size_h = spec["h"]
     def pick(key, default):
         return float(opts.get("lw-" + key, spec.get(key, default) if spec else default))
 
