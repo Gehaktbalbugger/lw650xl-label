@@ -136,7 +136,7 @@ the `label` CLI. CUPS keeps comment lines intact on install (verified).
 | `sense` | `gap` (default) or `bline` |
 | `xoffset` | mm between the head start (x=0) and the liner's left edge; needed when the roll begins right of the head |
 
-### The five rolls that work now
+### The six rolls that work now
 
 | roll | size | roll line | pitch | geometry | result |
 |---|---|---|---|---|---|
@@ -145,6 +145,7 @@ the `label` CLI. CUPS keeps comment lines intact on install (verified).
 | S0929120 / Dymo 30332 | **25.5 × 25.5 mm** (1 inch; the label is neither 26 × 25 nor exactly 25 × 25) | 25.5 mm label + 4 mm liner + 3 mm notch + 5 mm liner | **36.97 mm** = `pitch 33.97 + gap 3` (canvas `rows=356`) | `left=1.5 right=3.0 top=1.9 voffset=4.5 bottom=3.5 rotate=270 rows=356` | **21.51 × 21.51 mm** square, measured white 2.00/1.99 mm and 2.03/1.96 mm |
 | AM11353 / Dymo 11353 | block **2 × 12.5 × 25 mm** (2-up) | liner 30 mm: −3.5…26.5; rail 10.5; 34 + 3 = 37 mm pitch | **34 mm**, gap 3 (canvas `rows=354`) | `xoffset=-2 top=4.5 left=0 right=0 bottom=0` (2-up forces rotation 270) | physically calibrated with boxes + plumb line (12 Nov); both lanes centered, approved |
 | S0904980 | **104.2 × 159.9 mm** shipping label (nominal 104 × 159) | pitch **162 mm** = 159 + 3 (vendor `SIZE 104,162`), gap 3, canvas 1901 (vendor 1902) | `left=0 right=2 top=0.6 bottom=0` — **max ink**; the vendor prints density 10, speed 4 | measured with `--markers` within 0.2 mm; frame proof on the CUPS route confirmed after top 0.08 → 0.6; 2 mm dead zone left, the same head-boundary as the square roll | approved 12 Nov |
+| AM99017 | **21.31 × 49.93 mm** (nominal 21.3 × 52.5) | pitch **54.5 mm** — the vendor declares 55.5 and that is **wrong**; gap 4.5 mm = 0.5 liner + 3 hole + 1 liner | `LW_19.3x49.8` printable-area page: `pitch=54.5 gap=4.5 gapoff=0.5 left=0 right=0 top=1.08 bottom=0 fit=fit` — page = box, raster 1:1 | label edges in bitmap mm: x −2.00..19.31 (2 mm dead zone left), y 1.08..51.01; the 1:1 page puts the ink on every reachable mm | approved 13 Nov; circle round after the letterbox fix (the CUPS stretch made it an ellipse) |
 
 Matching label edges in bitmap coordinates (x = across the head, y = feed
 direction):
@@ -156,6 +157,22 @@ direction):
   square 21.5 mm.
 - S0904980: x −2.0…102.2 mm (2 mm on the left unreachable, head boundary), y
   0.6…159.9 mm; ink band at maximum reach.
+- AM99017: x −2.00…19.31 mm (2 mm dead zone left, same head boundary), y
+  1.08…51.01 mm. The 1:1 page `LW_19.3x49.8` covers x 0…19.3, y 1.08…50.88:
+  everything the head can reach, nothing it can't.
+
+### PPD pitfalls (13 Nov)
+
+- A `*PageSize` **description may not contain a colon**: the CUPS parser
+  keeps such an entry, Word's strict parser silently drops it from the
+  Paper Size menu. Write `(1-op-1)`, not `(1:1)`.
+- One roll, two modes: register the same dimensions twice with a suffix in
+  the name (`LW_21.3x50` fit, `LW_21.3x50U` fit=stretch). Word groups
+  same-dimension sizes into a submenu; `parse_size_name` tolerates the
+  suffix, so the U variant resolves to its own `lw-media` line.
+- The vendor's `SIZE height + GAP = pitch` rule is a **vendor claim, not
+  physics**: AM99017 declares 55.5, the roll feeds 54.5 (gap 4.5 = 0.5 + 3
+  hole + 1). Measure the pitch over two labels before registering.
 
 ### AM11353 / Dymo 11353: the roll begins LEFT of the head start (physically calibrated)
 

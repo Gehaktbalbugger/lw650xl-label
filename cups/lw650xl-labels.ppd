@@ -30,6 +30,9 @@
 *OpenUI *PageSize/Media Size: PickOne
 *OrderDependency: 10 AnySetup *PageSize
 *DefaultPageSize: LW_57x32
+*PageSize LW_19.3x49.8/AM99017 vol printable 19.3x49.8 (1-op-1): "<</PageSize[54.71 141.17]/ImagingBBox null>>setpagedevice"
+*PageSize LW_21.3x50U/AM99017 21.3x50 unscaled (stretch): "<</PageSize[60.38 141.45]/ImagingBBox null>>setpagedevice"
+*PageSize LW_21.3x50/Etiket 21.3x49.9 mm (AM99017): "<</PageSize[60.38 141.45]/ImagingBBox null>>setpagedevice"
 *PageSize LW_104x159/Verzendetiket 104.2x159.9 mm (S0904980): "<</PageSize[295.37 453.26]/ImagingBBox null>>setpagedevice"
 *PageSize LW_25x25/Twee keer 12,5 x 25 mm (AM11353 / Dymo 11353, als blok): "<</PageSize[72.57 70.87]/ImagingBBox null>>setpagedevice"
 *PageSize LW_26x25/Vierkant multipurpose 26x25 mm (S0929120 / Dymo 30332, gemeten): "<</PageSize[73.70 70.87]/ImagingBBox null>>setpagedevice"
@@ -48,6 +51,9 @@
 *OpenUI *PageRegion/Media Size: PickOne
 *OrderDependency: 10 AnySetup *PageRegion
 *DefaultPageRegion: LW_57x32
+*PageRegion LW_19.3x49.8/AM99017 vol printable 19.3x49.8 (1-op-1): "<</PageSize[54.71 141.17]/ImagingBBox null>>setpagedevice"
+*PageRegion LW_21.3x50U/AM99017 21.3x50 unscaled (stretch): "<</PageSize[60.38 141.45]/ImagingBBox null>>setpagedevice"
+*PageRegion LW_21.3x50/Etiket 21.3x49.9 mm (AM99017): "<</PageSize[60.38 141.45]/ImagingBBox null>>setpagedevice"
 *PageRegion LW_104x159/Verzendetiket 104.2x159.9 mm (S0904980): "<</PageSize[295.37 453.26]/ImagingBBox null>>setpagedevice"
 *PageRegion LW_25x25/Twee keer 12,5 x 25 mm (AM11353 / Dymo 11353, als blok): "<</PageSize[72.57 70.87]/ImagingBBox null>>setpagedevice"
 *PageRegion LW_26x25/Vierkant multipurpose 26x25 mm (S0929120 / Dymo 30332, gemeten): "<</PageSize[73.70 70.87]/ImagingBBox null>>setpagedevice"
@@ -64,6 +70,9 @@
 *CloseUI: *PageRegion
 
 *DefaultImageableArea: LW_57x32
+*ImageableArea LW_19.3x49.8/AM99017 vol printable 19.3x49.8 (1-op-1): "0 0 54.71 141.17"
+*ImageableArea LW_21.3x50U/AM99017 21.3x50 unscaled (stretch): "0 0 60.38 141.45"
+*ImageableArea LW_21.3x50/Etiket 21.3x49.9 mm (AM99017): "0 0 60.38 141.45"
 *ImageableArea LW_104x159/Verzendetiket 104.2x159.9 mm (S0904980): "0 0 295.37 453.26"
 *ImageableArea LW_25x25/Twee keer 12,5 x 25 mm (AM11353 / Dymo 11353, als blok): "0 0 72.57 70.87"
 *ImageableArea LW_26x25/Vierkant multipurpose 26x25 mm (S0929120 / Dymo 30332, gemeten): "0 0 73.70 70.87"
@@ -79,6 +88,9 @@
 *ImageableArea LW_62x100/Continu 62x100 mm: "0 0 175.75 283.46"
 
 *DefaultPaperDimension: LW_57x32
+*PaperDimension LW_19.3x49.8/AM99017 vol printable 19.3x49.8 (1-op-1): "54.71 141.17"
+*PaperDimension LW_21.3x50U/AM99017 21.3x50 unscaled (stretch): "60.38 141.45"
+*PaperDimension LW_21.3x50/Etiket 21.3x49.9 mm (AM99017): "60.38 141.45"
 *PaperDimension LW_104x159/Verzendetiket 104.2x159.9 mm (S0904980): "295.37 453.26"
 *PaperDimension LW_25x25/Twee keer 12,5 x 25 mm (AM11353 / Dymo 11353, als blok): "72.57 70.87"
 *PaperDimension LW_26x25/Vierkant multipurpose 26x25 mm (S0929120 / Dymo 30332, gemeten): "73.70 70.87"
@@ -115,3 +127,6 @@
 *% lw-media LW_26x25 pitch=33.97 gap=3 rows=356 left=1.5 right=1.4 top=1.9 voffset=2.5 bottom=0 rotate=270
 *% lw-media LW_25x25 pitch=34 gap=3 rows=354 xoffset=-2 left=0 right=0 top=4.5 bottom=0
 *% lw-media LW_104x159 pitch=162 gap=3 left=0 right=2 top=0.6 bottom=0
+*% lw-media LW_21.3x50 pitch=54.5 gap=4.5 gapoff=0.5 left=2 right=2 top=1.08 bottom=0.7
+*% lw-media LW_21.3x50U pitch=54.5 gap=4.5 gapoff=0.5 left=2 right=2 top=1.08 bottom=0.7 fit=stretch
+*% lw-media LW_19.3x49.8 pitch=54.5 gap=4.5 gapoff=0.5 left=0 right=0 top=1.08 bottom=0 fit=fit

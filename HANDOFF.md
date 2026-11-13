@@ -9,9 +9,9 @@ this file only carries **where we are and what the next step is**.
 | | |
 |---|---|
 | repo | https://github.com/Gehaktbalbugger/lw650xl-label — **public** |
-| releases | **t/m v1.8** (Latest): v1.0 AM11354, v1.1 AM99012, v1.2 `./measure`, v1.3 S0929120, v1.4/v1.5 square roll, v1.6 AM11353 2-up calibrated, v1.7 `./measure --markers`, v1.8 S0904980 + `plumb` + unknown-roll bugfix |
-| rolls | **5 installed**: AM11354 (57×32), AM99012 (36×89 portrait), S0929120 (square, 2 mm all around), AM11353 (2-up block, calibrated), **S0904980 (104×159 shipping label, max ink)** |
-| signed off | **AM99012, AM11354, AM11353 2-up, S0904980** by the user (12 Nov); square roll installed with 2 mm margins |
+| releases | **up to v1.9** (Latest): v1.0 AM11354, v1.1 AM99012, v1.2 `./measure`, v1.3 S0929120, v1.4/v1.5 square roll, v1.6 AM11353 2-up calibrated, v1.7 `./measure --markers`, v1.8 S0904980 + `plumb` + unknown-roll bugfix, v1.9 AM99017 + letterbox fit |
+| rolls | **6 installed**: AM11354 (57×32), AM99012 (36×89 portrait), S0929120 (square, 2 mm all around), AM11353 (2-up block, calibrated), S0904980 (104×159 shipping label, max ink), **AM99017 (21.3×50, 1:1 printable-area page)** |
+| signed off | **AM99012, AM11354, AM11353 2-up, S0904980, AM99017** by the user (13 Nov); square roll installed with 2 mm margins |
 | iMac | filter + PPD installed and identical to the repo (`/usr/libexec/cups/filter/lw650xl.py`, `/etc/cups/ppd/LW650XL_Labels.ppd`) |
 | tests | `python3 test_filter.py`, `test_measure.py`, `test_label.py` — all green |
 | **Word route** | **tested end to end on 12 Nov and working** (S0904980 via the CUPS queue: frame + text + circle landed on the printable area) |
@@ -19,9 +19,57 @@ this file only carries **where we are and what the next step is**.
 | `gh` CLI | lives in `~/.local/bin` (not on PATH): `export PATH="$HOME/.local/bin:$PATH"` |
 | tooling | `brew` is broken on this Mac (write permissions on `/usr/local/share/man/man8`) — download directly |
 
-Five rolls in the driver: AM99012 and AM11354 are signed off, S0929120 is
+Six rolls in the driver: AM99012 and AM11354 are signed off, S0929120 is
 installed with 2 mm margins, AM11353 is calibrated and approved as 2-up
-(v1.6), S0904980 is measured and approved (v1.8).
+(v1.6), S0904980 is measured and approved (v1.8), AM99017 is measured,
+registered with the printable-area page and approved (v1.9).
+
+## AM99017: 21.3 × 50 mm roll with a lying vendor pitch (13 Nov, approved)
+
+A small portrait roll (vendor nominal 21.3 × 52.5) that exposed two problems
+at once: the vendor's declared feed is wrong, and the label is small enough
+that the fixed 4 mm of unreachable strip becomes 19% of the page.
+
+1. **Vendor captured with tcpdump** (`workflow/am99017-vendor.pcap`): four
+   identical feeds — `SIZE 21.3 mm,52.5 mm · GAP 3 mm,0 mm · REFERENCE 0,0 ·
+   DENSITY 10/15 · SPEED 4/1 · BITMAP 0,0,160,612,4`. DENSITY/SPEED follow the
+   app's quality choice, as on every roll. **The declared pitch (52.5 + 3 =
+   55.5) is wrong**: the physical pitch is **54.5 mm** (measured top edge →
+   top edge). The physical gap is 4.5 mm — 0.5 mm liner, 3 mm sensor hole
+   (that is the GAP 3), 1 mm liner — so the label is **50.0 mm** long. The
+   "SIZE height + GAP = pitch" rule held on five rolls and fails on this one:
+   measure the pitch over two labels before trusting the vendor numbers.
+2. **Measured with `--markers`**: two passes (the roll was re-seated in
+   between, the right edge moved ~0.7 mm — the left dead zone stayed at 2 mm).
+   Final: label **21.31 × 49.93 mm**, bitmap span x −2.00..19.31, y 1.08..51.01
+   — the familiar 2 mm dead zone on the left again, and the top edge ~1 mm
+   inside the bitmap.
+3. **The CUPS proof printed a circle as an ellipse — root cause found**: the
+   filter stretched the full-page raster onto the printable box axis by axis
+   (`scale_to_box`). This roll's box is 17.3 mm of a 21.3 mm page → 19%
+   horizontal squeeze (the L/R frame lines read 4 mm instead of 2; S0904980
+   never showed it at 2%). **Fix (v1.9)**: `scale_to_box` now fits uniformly
+   (letterbox, centred horizontally, top-anchored). Selectable per roll with
+   `fit=stretch` in the `lw-media` line or per job with `-o lw-fit=stretch`
+   — the old behaviour stays reachable. Word selects between the two via
+   two page sizes with the same dimensions (`LW_21.3x50` fit /
+   `LW_21.3x50U` stretch); Word groups same-dimension sizes into a submenu.
+4. **The clean answer is a page that IS the printable area**: final
+   **`LW_19.3x49.8` "AM99017 vol printable (1-op-1)"**:
+   `pitch=54.5 gap=4.5 gapoff=0.5 left=0 right=0 top=1.08 bottom=0 fit=fit`.
+   The page equals the box exactly (228 × 588 dots at 300 dpi), so the
+   raster goes through `scale_to_box` at scale 1.0: **circle round, ink to
+   every reachable edge, zero whitespace, WYSIWYG in Word**. The 2 mm dead
+   zone and the 0.13 mm bottom reserve are outside the page by construction.
+   Iterated 49.2 → 50.2 (overshot, ink would touch the liner) → 49.8
+   (box bottom at bitmap 50.88 vs the measured edge 51.01). Approved by the
+   user as "perfect".
+5. **PPD lessons**: a UI description may **not contain a colon** —
+   "(1:1)" made Word's strict parser silently drop the whole PageSize entry
+   while CUPS kept it ("(1-op-1)" fixed it). `parse_size_name` now tolerates
+   a trailing suffix (`LW_21.3x50U`) so one roll can expose both modes;
+   before the fix the U variant fell into the unknown-media path and got
+   size 49.9 × 21.3 with pitch 21.3.
 
 ## The square roll: state of play
 
@@ -235,17 +283,24 @@ The roll Labellife could already print — our task: turn the PPD size
    → everything inside. Lesson: never set a 0 margin on a first roll;
    0.5–0.6 is the lower bound.
 
-## What is on the iMac now (v1.8 installed and signed off)
+## What is on the iMac now (v1.9 installed; AM99017 signed off)
 
-- **driver**: 5 rolls installed — AM11354, AM99012, S0929120 (2 mm all
+- **driver**: 6 rolls installed — AM11354, AM99012, S0929120 (2 mm all
   around), AM11353 as block with the **calibrated** line
-  `LW_25x25 pitch=34 gap=3 rows=354 xoffset=-2 top=4.5` and **S0904980** with
-  `LW_104x159 pitch=162 gap=3 left=0 right=2 top=0.6 bottom=0` (max ink;
-  filter and PPD installed via `install.sh`, md5s identical to the repo).
-- AM99012, AM11354, the AM11353 2-up and S0904980: approved by the user.
-- The **Word route verified end to end** (S0904980): prints correctly through
-  the CUPS queue.
-- Releases up to **v1.8**; repo **public**.
+  `LW_25x25 pitch=34 gap=3 rows=354 xoffset=-2 top=4.5`, **S0904980** with
+  `LW_104x159 pitch=162 gap=3 left=0 right=2 top=0.6 bottom=0` (max ink) and
+  **AM99017** with the printable-area page
+  `LW_19.3x49.8 pitch=54.5 gap=4.5 gapoff=0.5 left=0 right=0 top=1.08
+  bottom=0 fit=fit` (plus the `LW_21.3x50`/`LW_21.3x50U` fit/stretch pair).
+- AM99012, AM11354, the AM11353 2-up, S0904980 and AM99017: approved by the
+  user (13 Nov).
+- **Filter v1.9**: `scale_to_box` fits uniformly (letterbox) instead of
+  stretching; `fit=stretch` per roll or `-o lw-fit=stretch` per job brings
+  the old behaviour back. Word's Custom-size path and `parse_size_name`
+  tolerate size-name suffixes.
+- The **Word route verified end to end** (S0904980, and AM99017 through the
+  1:1 printable-area page): prints correctly through the CUPS queue.
+- Releases up to **v1.9**; repo **public**.
 
 ## Still open at the start of the next session
 

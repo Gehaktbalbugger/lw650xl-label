@@ -1,5 +1,37 @@
 # Changelog
 
+## 1.9 — AM99017 registered; letterbox fit; printable-area page (13 Nov, installed)
+
+- New roll **AM99017** (21.31 × 49.93 mm, vendor nominal 21.3 × 52.5): vendor
+  captured with tcpdump (`SIZE 21.3,52.5 · GAP 3 · BITMAP 0,0,160,612,4`),
+  but **the declared pitch 55.5 is wrong** — the physical pitch is
+  **54.5 mm** (measured over two labels). Physical gap 4.5 mm (0.5 liner +
+  3 hole + 1 liner) → label 50.0 mm. First roll where the
+  "SIZE height + GAP = pitch" rule fails: measure the pitch.
+- **The letterbox fix**: the CUPS proof printed a circle as an ellipse — the
+  filter stretched the page onto the printable box axis by axis; on this
+  roll that is a 19% horizontal squeeze (4 mm of a 21.3 mm page; the
+  shipping roll hid it at 2%). `scale_to_box` now fits **uniformly**
+  (letterbox, centred horizontally, top-anchored). The old behaviour stays
+  selectable: `fit=stretch` in the `lw-media` line, `-o lw-fit=stretch` per
+  job, or — from Word — the `LW_21.3x50U` size (Word groups the
+  same-dimension pair `LW_21.3x50`/`LW_21.3x50U` into a submenu).
+- **The printable-area page** (the user's pick): `LW_19.3x49.8
+  "AM99017 vol printable (1-op-1)"` — page = printable box exactly
+  (`left=0 right=0 top=1.08 bottom=0`), raster maps 1:1, so circles stay
+  round, the ink reaches every reachable edge and Word is WYSIWYG. Iterated
+  49.2 → 50.2 → 49.8 (box bottom at bitmap 50.88 vs the measured edge
+  51.01). One page size per roll that wants max ink: put the dead zone and
+  the reserve outside the page.
+- **PPD fixes**: a PageSize description may **not contain a colon** —
+  `(1:1)` made Word silently drop the entry while CUPS kept it;
+  `parse_size_name` now tolerates a trailing suffix so one roll can expose
+  two modes (`LW_21.3x50U`) — before the fix the U name fell into the
+  unknown-media path (size 49.9 × 21.3, pitch 21.3).
+- Tests: `test_filter.py` (letterbox + fit/stretch + suffix), `test_label.py`
+  and `test_measure.py` all green; the vendor capture is archived at
+  `workflow/am99017-vendor.pcap`, the story in HANDOFF §AM99017.
+
 ## 1.8 — S0904980 registered; `plumb` mode; unknown-roll bugfix (13 Nov, installed)
 
 - New roll **S0904980** (104.2 × 159.9 mm shipping label): vendor captured with

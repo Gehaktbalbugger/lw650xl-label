@@ -78,12 +78,12 @@ DEFAULT_MEDIA = "LW_57x32"
 # hands the PPD to filters through the PPD env var, so the PPD is the single
 # place where a size is defined. MEDIA above only stays as a fallback.
 GEOMETRY_KEYS = ("pitch", "gap", "gapoff", "voffset", "left", "right", "top",
-              "bottom", "rows", "rotate", "sense", "xoffset")
-SENSORS = ("sense",)
+              "bottom", "rows", "rotate", "sense", "xoffset", "fit")
+SENSORS = ("sense", "fit")     # words, not numbers
 
 Geometry = collections.namedtuple(
     "Geometry", "size_w size_h pitch gap gapoff voffset left right top bottom"
-                 " rows rotate sense xoffset")
+                 " rows rotate sense xoffset fit")
 
 PPD_PATHS = (
     os.environ.get("PPD"),
@@ -229,31 +229,51 @@ def rotate_ccw(gray, w, h):
     return out, h, w
 
 
-def scale_to_box(gray, w, h, box_w, box_h):
-    """Area-average downscale of 8-bit gray to box_w x box_h.
+def scale_to_box(gray, w, h, box_w, box_h, mode="fit"):
+    """Map the raster onto the printable box.
+
+    mode "fit" (default): uniform letterbox, centred horizontally, anchored
+    at the top vertically. The page is not the box -- dead zones and margins
+    make the box narrower -- and stretching that difference away distorts
+    the image (a circle printed as an ellipse on the AM99017 roll: 4 mm of
+    a 21.3 mm page = 19% horizontal squeeze). One scale factor for both
+    axes keeps shapes true.
+
+    mode "stretch": the pre-1.9 behaviour, page mapped onto the box axis by
+    axis (fills the box edge to edge, but distorts when the aspects
+    differ). Selectable per roll with fit=stretch in the lw-media line or
+    per job with -o lw-fit=stretch.
 
     Returns a bytearray with 1 = dark pixel. Averaging (instead of nearest
     neighbour) keeps thin text from disappearing when a large page is
     shrunk onto a small label.
     """
     dark = bytearray(box_w * box_h)
-    if w == box_w and h == box_h:
+    if mode == "stretch":
+        fit_w, fit_h, ox = box_w, box_h, 0
+    else:
+        s = min(box_w / w, box_h / h)
+        fit_w = max(1, round(w * s))
+        fit_h = max(1, round(h * s))
+        ox = (box_w - fit_w) // 2
+    if (w, h) == (fit_w, fit_h) and fit_w == box_w and fit_h == box_h:
         for i, g in enumerate(gray):
             if g <= 127:
                 dark[i] = 1
         return dark
 
     xr = []
-    for tx in range(box_w):
-        x0 = tx * w // box_w
-        x1 = max(x0 + 1, (tx + 1) * w // box_w)
+    for tx in range(fit_w):
+        x0 = tx * w // fit_w
+        x1 = max(x0 + 1, (tx + 1) * w // fit_w)
         xr.append((x0, x1))
 
-    for ty in range(box_h):
-        y0 = ty * h // box_h
-        y1 = max(y0 + 1, (ty + 1) * h // box_h)
+    ox = (box_w - fit_w) // 2
+    for ty in range(fit_h):
+        y0 = ty * h // fit_h
+        y1 = max(y0 + 1, (ty + 1) * h // fit_h)
         rows = gray[y0 * w:y1 * w]
-        out = ty * box_w
+        out = ty * box_w + ox
         for tx, (x0, x1) in enumerate(xr):
             total = 0
             count = 0
@@ -308,12 +328,19 @@ def parse_options(s):
 
 
 def parse_size_name(name):
-    """'LW_57x32' -> (57.0, 32.0) or None."""
+    """'LW_57x32' -> (57.0, 32.0) or None.
+
+    A trailing suffix is allowed so one roll can expose two formats
+    ('LW_21.3x50U' -> (21.3, 50.0), the U variant with fit=stretch).
+    """
     if not name.startswith("LW_"):
         return None
     a, _, b = name[3:].partition("x")
+    m = re.match(r"(\d+(?:\.\d+)?)", b)
+    if not m:
+        return None
     try:
-        return float(a), float(b)
+        return float(a), float(m.group(1))
     except ValueError:
         return None
 
@@ -354,6 +381,14 @@ def media_geometry(opts, w_mm, h_mm, table=None):
     sense = sense.lower()
     if sense not in ("gap", "bline"):
         sense = "gap"
+    # fit: "fit" = uniform letterbox onto the printable box (default),
+    # "stretch" = the pre-1.9 behaviour that maps the page onto the box axis
+    # by axis. Selectable per roll with fit=stretch in the lw-media line or
+    # per job with -o lw-fit=stretch; a roll can expose both as two sizes.
+    fit = opts.get("lw-fit") or (spec.get("fit") if spec else None) or "fit"
+    fit = str(fit).lower()
+    if fit not in ("fit", "stretch"):
+        fit = "fit"
 
     return Geometry(
         size_w=size_w,
@@ -381,6 +416,7 @@ def media_geometry(opts, w_mm, h_mm, table=None):
         sense=sense,
         xoffset=pick("xoffset", 0.0),
         gapoff=pick("gapoff", 0.0),
+        fit=fit,
     )
 
 
@@ -412,7 +448,7 @@ def convert(input_bytes, opts=None, table=None):
         # PPD instead (rows=), which wins.
         target_h = canvas_rows(geom)
         ox, oy, cw, ch = print_window(geom, target_h)
-        dark = scale_to_box(gray, w, h, cw, ch)
+        dark = scale_to_box(gray, w, h, cw, ch, geom.fit)
         bpr, canvas_h, bits = pack_canvas(dark, cw, ch, ox, oy, target_h)
 
         if pages == 0:

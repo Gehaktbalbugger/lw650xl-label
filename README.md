@@ -30,16 +30,18 @@ It contains three ways to print:
 - **Verified on hardware**: geometry, polarity and framing were checked
   against the vendor app's own traffic (captured with `tcpdump`) and with
   ruler/edge test prints on an AM11354 57 × 32 mm roll.
-- **Five rolls calibrated and signed off** (12 Nov 2026): AM11354 57×32,
+- **Six rolls calibrated and signed off** (13 Nov 2026): AM11354 57×32,
   AM99012 36×89 portrait, S0929120 square 25.5×25.5, AM11353 2-up block
   (physically calibrated with a cut-line plumb), S0904980 104×159 shipping
-  label (max ink) — each with its measured `lw-media` line in the PPD.
+  label (max ink), AM99017 21.3×50 (printable-area page) — each with its
+  measured `lw-media` line in the PPD.
 - **End-to-end**: PDF in the shared inbox → watcher → CUPS → printer
   produces a correctly aligned label (job `LW650XL_Labels-148`).
 - **Word directly**: printing straight to the queue from Word — including a
   multi-page landscape label document — produces one aligned label per page.
-  Verified again on 12 Nov with the S0904980 shipping label (frame + circle
-  test on the printable boundary).
+  Verified again on 13 Nov with the S0904980 shipping label (frame + circle
+  test on the printable boundary) and with AM99017 through the 1:1
+  printable-area page (`LW_19.3x49.8`, circle round, ink to the edges).
 - **CLI tests**: `python3 test_label.py` (framing + geometry check via a
   fake TCP printer) and `python3 lzo.py` (legacy LZO round-trip) pass.
 - **Filter tests**: `python3 test_filter.py` builds real cgpdftoraster
