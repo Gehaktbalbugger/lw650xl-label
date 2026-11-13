@@ -10,7 +10,7 @@ this file only carries **where we are and what the next step is**.
 |---|---|
 | repo | https://github.com/Gehaktbalbugger/lw650xl-label — **public** |
 | releases | **up to v1.9** (Latest): v1.0 AM11354, v1.1 AM99012, v1.2 `./measure`, v1.3 S0929120, v1.4/v1.5 square roll, v1.6 AM11353 2-up calibrated, v1.7 `./measure --markers`, v1.8 S0904980 + `plumb` + unknown-roll bugfix, v1.9 AM99017 + letterbox fit |
-| rolls | **6 installed**: AM11354 (57×32), AM99012 (36×89 portrait), S0929120 (square, 2 mm all around), AM11353 (2-up block, calibrated), S0904980 (104×159 shipping label, max ink), **AM99017 (21.3×50, 1:1 printable-area page)** |
+| rolls | **6 installed**: AM11354 (57×32, 1:1 portrait page), AM99012 (36×89 portrait), S0929120 (square, 2 mm all around), AM11353 (2-up block, calibrated), S0904980 (104×159 shipping label, max ink), **AM99017 (21.3×50, 1:1 printable-area page)** |
 | signed off | **AM99012, AM11354, AM11353 2-up, S0904980, AM99017** by the user (13 Nov); square roll installed with 2 mm margins |
 | iMac | filter + PPD installed and identical to the repo (`/usr/libexec/cups/filter/lw650xl.py`, `/etc/cups/ppd/LW650XL_Labels.ppd`) |
 | tests | `python3 test_filter.py`, `test_measure.py`, `test_label.py` — all green |
@@ -288,12 +288,27 @@ The roll Labellife could already print — our task: turn the PPD size
 - **driver**: 6 rolls installed — AM11354, AM99012, S0929120 (2 mm all
   around), AM11353 as block with the **calibrated** line
   `LW_25x25 pitch=34 gap=3 rows=354 xoffset=-2 top=4.5`, **S0904980** with
-  `LW_104x159 pitch=162 gap=3 left=0 right=2 top=0.6 bottom=0` (max ink) and
+  `LW_104x159 pitch=162 gap=3 left=0 right=2 top=0.6 bottom=0` (max ink),
   **AM99017** with the printable-area page
   `LW_19.3x49.8 pitch=54.5 gap=4.5 gapoff=0.5 left=0 right=0 top=1.08
-  bottom=0 fit=fit`. Both comparison variants (scaled `LW_21.3x50`,
-  stretch `LW_21.3x50U`) were removed after testing — the fit=stretch
-  mechanism remains in the filter.
+  bottom=0 fit=fit`, and **AM11354** (13 Nov evening) with the
+  **portrait-authored** printable-area page
+  `LW_31.3x54.2 pitch=38.6 gap=3 left=0 right=0 top=5.42 bottom=0 fit=fit
+  w=54.2 h=31.3` (the old full-label page `LW_57x32` and the intermediate
+  landscape-authored `LW_54.2x31.3` were removed from the menu).
+- **Word orientation toggle** (works for AM99017 and AM11354): Word only
+  offers the straight/landscape switch on portrait-dimensioned pages, so a
+  landscape roll that wants it carries a portrait page whose `lw-media`
+  line overrides the label size with `w=`/`h=`. The filter's orient-swap
+  then maps both Word orientations 1:1 onto the printable box:
+  **landscape = content upright on the label**, **straight = content
+  rotated 90° clockwise** (reads sideways). Both AM11354 orientations are
+  regression-tested (`test_filter.py` §9); the sideways direction is not
+  yet user-confirmed — if it should read the other way, that is a
+  `rotate=180` feature to add.
+- Both AM99017 comparison variants (scaled `LW_21.3x50`, stretch
+  `LW_21.3x50U`) were removed after testing — the fit=stretch mechanism
+  remains in the filter.
 - AM99012, AM11354, the AM11353 2-up, S0904980 and AM99017: approved by the
   user (13 Nov).
 - **Filter v1.9**: `scale_to_box` fits uniformly (letterbox) instead of

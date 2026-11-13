@@ -169,6 +169,17 @@ direction):
   differ wherever dead zones or margins exist. The eight unmeasured built-in sizes
   were removed from the PPD (13 Nov) — they come back the same way as any
   roll: measure, then `add-size.sh`.
+- **Portrait-authored pages for landscape labels** (the Word orientation
+  toggle): Word only offers the straight/landscape switch for
+  **portrait-dimensioned** pages — a landscape-dimensioned PPD size locks
+  the orientation. So a landscape roll that wants the toggle (AM11354)
+  carries a portrait page `LW_31.3x54.2` whose `lw-media` line overrides
+  the label size with `w=54.2 h=31.3`; `media_geometry` prefers those over
+  the page-derived dims. The filter's orient-swap then maps both Word
+  orientations 1:1 onto the printable box: **Word landscape = content
+  upright** on the label, **Word straight = content rotated 90° clockwise**
+  (reads sideways). `w=`/`h=` are also the clean fix for the square roll's
+  0.5 mm `LW_26x25` mismatch.
 - A `*PageSize` **description may not contain a colon**: the CUPS parser
   keeps such an entry, Word's strict parser silently drops it from the
   Paper Size menu. Write `(1-op-1)`, not `(1:1)`.
