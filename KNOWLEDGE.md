@@ -163,6 +163,11 @@ direction):
 
 ### PPD pitfalls (13 Nov)
 
+- **Description convention**: `<label number> <h>x<w> <use> (<printable h>x<w>)`
+  — e.g. `AM99017 50x21.3 Hangmap (49.8x19.3)`, `AM11354 32x57 Etiket
+  (31.3x54.2)`. The parenthetical is what actually prints; the two numbers
+  differ wherever dead zones or margins exist. Unmeasured built-in sizes
+  keep their old descriptions (no roll number to lead with).
 - A `*PageSize` **description may not contain a colon**: the CUPS parser
   keeps such an entry, Word's strict parser silently drops it from the
   Paper Size menu. Write `(1-op-1)`, not `(1:1)`.
