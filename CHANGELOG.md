@@ -33,6 +33,11 @@
   **portrait** as `LW_31.3x54.2` with `w=54.2 h=31.3` in the roll line, so
   Word offers the straight/landscape toggle (landscape = upright on the
   label, straight = rotated 90° clockwise). User confirmed the direction.
+- **S0929120 (square) to a 1:1 page** (14 Nov): `LW_23.5x25.5` replaces
+  `LW_26x25` — the page is the reachable strip (the 25.5 mm label minus
+  the 2 mm dead zone) with `rotate=0` instead of 270; full-bleed capable,
+  WYSIWYG, portrait-authored so Word offers the orientation toggle. The
+  approved centered-square look is now the user's own 2 mm page margins.
 - **AM11353 as a single Word page** (14 Nov): the user no longer uses the
   built-in 2-up composition — they design both 12.5 × 25 labels on one
   page. New printable-area portrait page `LW_23x25` (23 mm = the reachable

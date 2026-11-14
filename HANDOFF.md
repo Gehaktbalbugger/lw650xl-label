@@ -286,7 +286,11 @@ The roll Labellife could already print — our task: turn the PPD size
 ## What is on the iMac now (v1.9 installed; AM99017 signed off)
 
 - **driver**: 6 rolls installed — AM11354, AM99012, S0929120 (2 mm all
-  around), AM11353 with the **calibrated** geometry, since 14 Nov as the
+  around), S0929120 (square) with the **printable-area portrait page** `LW_23.5x25.5
+  pitch=33.97 gap=3 rows=356 left=0 right=0 top=4.4 bottom=0 rotate=0
+  fit=fit` (14 Nov — page = the reachable strip, full-bleed capable; the
+  old centered 21.5 mm page `LW_26x25 rotate=270` was removed),
+  AM11353 with the **calibrated** geometry, since 14 Nov as the
   **printable-area portrait page** `LW_23x25 pitch=34 gap=3 rows=354
   left=0 right=0 top=4.1 bottom=0 fit=fit` (23 mm = the reachable strip;
   the old full-block `LW_25x25 xoffset=-2` page was removed; the user
