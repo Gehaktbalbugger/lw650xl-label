@@ -33,6 +33,10 @@
   **portrait** as `LW_31.3x54.2` with `w=54.2 h=31.3` in the roll line, so
   Word offers the straight/landscape toggle (landscape = upright on the
   label, straight = rotated 90° clockwise). User confirmed the direction.
+- **AM99012 to a 1:1 page** (14 Nov): `LW_33x88.5` (`top=0 bottom=0
+  left=0 right=0`) replaces `LW_36x89` — the page is the reachable strip
+  (33 of 36 mm across, 88.5 of 89 mm deep; the top 0.5 mm of the label is
+  above the head's reach), portrait-authored, orientation toggle.
 - **S0929120 (square) to a 1:1 page** (14 Nov): `LW_23.5x25.5` replaces
   `LW_26x25` — the page is the reachable strip (the 25.5 mm label minus
   the 2 mm dead zone) with `rotate=0` instead of 270; full-bleed capable,
