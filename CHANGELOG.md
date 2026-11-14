@@ -28,6 +28,11 @@
   `parse_size_name` now tolerates a trailing suffix so one roll can expose
   two modes (`LW_21.3x50U`) — before the fix the U name fell into the
   unknown-media path (size 49.9 × 21.3, pitch 21.3).
+- **AM11354 gets the same treatment** (13 Nov evening): the full-label page
+  `LW_57x32` is replaced by the 1:1 printable-area page — authored
+  **portrait** as `LW_31.3x54.2` with `w=54.2 h=31.3` in the roll line, so
+  Word offers the straight/landscape toggle (landscape = upright on the
+  label, straight = rotated 90° clockwise). User confirmed the direction.
 - Post-testing cleanup: both comparison variants (`LW_21.3x50` scaled,
   `LW_21.3x50U` stretch) were removed from the queue; the user kept only
   the 1:1 page. The fit=stretch mechanism stays in the filter for future
