@@ -144,7 +144,7 @@ the `label` CLI. CUPS keeps comment lines intact on install (verified).
 | AM99012 / Dymo S0722400 | 36 × 89 mm, **portrait** | — | 93 mm, gap 4 | 12 Nov: `left=3 right=3 top=-0.5 bottom=1` → 30 × 88 mm, 3 mm white all around. **14 Nov: printable-area portrait page `LW_33x88.5 top=0 bottom=0`** — page = the reachable strip (33 mm across: 36 minus the 3 mm dead zone; 88.5 deep: the label's top 0.5 mm is above head-x=0 and unreachable) | approved 12 Nov; 1:1 page 14 Nov |
 | S0929120 / Dymo 30332 | **25.5 × 25.5 mm** (1 inch; the label is neither 26 × 25 nor exactly 25 × 25) | 25.5 mm label + 4 mm liner + 3 mm notch + 5 mm liner | **36.97 mm** = `pitch 33.97 + gap 3` (canvas `rows=356`) | 12 Nov: `left=1.5 right=1.4 top=1.9 voffset=2.5 bottom=0 rotate=270 rows=356` → **21.51 × 21.51 mm** centered, white 2.00/1.99 and 2.03/1.96 mm. **14 Nov: printable-area portrait page `LW_23.5x25.5 top=4.4 bottom=0 rotate=0`** — page = the reachable strip (25.5 minus the 2 mm dead zone), full-bleed capable; the old centered page was removed | approved 12 Nov (centered square); 1:1 page 14 Nov |
 | AM11353 / Dymo 11353 | block **2 × 12.5 × 25 mm** (2-up) | liner 30 mm: −3.5…26.5; rail 10.5; 34 + 3 = 37 mm pitch | **34 mm**, gap 3 (canvas `rows=354`) | 12 Nov: `xoffset=-2 top=4.5 left=0 right=0 bottom=0` (2-up forces rotation 270). **14 Nov: printable-area portrait page `LW_23x25 top=4.1 xoffset=0`** — page = the 23 mm reachable strip, groove at page-x 10.5; top converged 4.5 → 3.7 → 4.1 by print iteration | physically calibrated with boxes + plumb line (12 Nov); single-page use approved 14 Nov |
-| S0904980 | **104.2 × 159.9 mm** shipping label (nominal 104 × 159) | pitch **162 mm** = 159 + 3 (vendor `SIZE 104,162`), gap 3, canvas 1901 (vendor 1902) | `left=0 right=2 top=0.6 bottom=0` — **max ink**; the vendor prints density 10, speed 4 | measured with `--markers` within 0.2 mm; frame proof on the CUPS route confirmed after top 0.08 → 0.6; 2 mm dead zone left, the same head-boundary as the square roll | approved 12 Nov |
+| S0904980 | **104.2 × 159.9 mm** shipping label (nominal 104 × 159) | pitch **162 mm** = 159 + 3 (vendor `SIZE 104,162`), gap 3, canvas 1901 (vendor 1902) | 12 Nov: `left=0 right=2 top=0.6 bottom=0` — max ink. **14 Nov: printable-area portrait page `LW_102.2x159.9 top=0.08 bottom=0`** — page = the reachable strip, the 0.6 safety margin replaced by the user's own Word margins; feed numbers unchanged | measured with `--markers` within 0.2 mm; frame proof on the CUPS route confirmed after top 0.08 → 0.6; 2 mm dead zone left, the same head-boundary as the square roll | approved 12 Nov; 1:1 page 14 Nov |
 | AM99017 | **21.31 × 49.93 mm** (nominal 21.3 × 52.5) | pitch **54.5 mm** — the vendor declares 55.5 and that is **wrong**; gap 4.5 mm = 0.5 liner + 3 hole + 1 liner | `LW_19.3x49.8` printable-area page ("AM99017 50x21.3 Hangmap"): `pitch=54.5 gap=4.5 gapoff=0.5 left=0 right=0 top=1.08 bottom=0 fit=fit` — page = box, raster 1:1 | label edges in bitmap mm: x −2.00..19.31 (2 mm dead zone left), y 1.08..51.01; the 1:1 page puts the ink on every reachable mm | approved 13 Nov; circle round after the letterbox fix (the CUPS stretch made it an ellipse) |
 
 Matching label edges in bitmap coordinates (x = across the head, y = feed
@@ -198,6 +198,11 @@ direction):
   line. Word groups same-dimension sizes into a submenu. Used for the
   AM99017 A/B test, then the stretch variant was removed from the queue —
   the mechanism stays in the filter for future rolls.
+- **`--rail` on the plumb** (14 Nov): the plumb line defaults to the box
+  middle (xoffset + cw/2) — correct on a calibrated 2-up line, but on a 1:1
+  page (xoffset=0) the middle is no longer the groove. Pass the rail
+  explicitly: `./measure plumb 23 25 --name LW_23x25 --rail 10.5` for the
+  AM11353 block.
 - The vendor's `SIZE height + GAP = pitch` rule is a **vendor claim, not
   physics**: AM99017 declares 55.5, the roll feeds 54.5 (gap 4.5 = 0.5 + 3
   hole + 1). Measure the pitch over two labels before registering.

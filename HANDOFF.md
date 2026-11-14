@@ -296,8 +296,10 @@ The roll Labellife could already print — our task: turn the PPD size
   the old full-block `LW_25x25 xoffset=-2` page was removed; the user
   designs the two 12.5 mm labels themselves, cut groove at page-x 10.5,
   WYSIWYG; top converged 4.5 → 3.7 → 4.1 by print iteration — the
-  leading-edge offset is seating-dependent), **S0904980** with
-  `LW_104x159 pitch=162 gap=3 left=0 right=2 top=0.6 bottom=0` (max ink),
+  leading-edge offset is seating-dependent), **S0904980** with the **printable-area portrait page** `LW_102.2x159.9
+  pitch=162 gap=3 left=0 right=0 top=0.08 bottom=0 fit=fit` (14 Nov — the
+  old max-ink page `LW_104x159 top=0.6` was removed; the 0.6 safety is now
+  the user's own Word margin),
   **AM99017** with the printable-area page
   `LW_19.3x49.8 pitch=54.5 gap=4.5 gapoff=0.5 left=0 right=0 top=1.08
   bottom=0 fit=fit`, and **AM11354** (13 Nov evening) with the

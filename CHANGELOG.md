@@ -33,6 +33,13 @@
   **portrait** as `LW_31.3x54.2` with `w=54.2 h=31.3` in the roll line, so
   Word offers the straight/landscape toggle (landscape = upright on the
   label, straight = rotated 90° clockwise). User confirmed the direction.
+- **S0904980 to a 1:1 page** (14 Nov): `LW_102.2x159.9` replaces
+  `LW_104x159` — the page is the reachable strip (102.2 of 104.2 mm
+  across, from the measured top edge 0.08 down), feed numbers untouched
+  (`pitch=162 gap=3`), portrait-authored with the orientation toggle.
+- **measure plumb --rail**: on 1:1 pages the box middle is no longer the
+  cut groove, so the rail is now passable explicitly (`plumb 23 25 --name
+  LW_23x25 --rail 10.5`); tests moved to the current PPD reality.
 - **AM99012 to a 1:1 page** (14 Nov): `LW_33x88.5` (`top=0 bottom=0
   left=0 right=0`) replaces `LW_36x89` — the page is the reachable strip
   (33 of 36 mm across, 88.5 of 89 mm deep; the top 0.5 mm of the label is
