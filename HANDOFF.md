@@ -11,7 +11,7 @@ this file only carries **where we are and what the next step is**.
 | repo | https://github.com/Gehaktbalbugger/lw650xl-label — **public** |
 | releases | **up to v1.9** (Latest): v1.0 AM11354, v1.1 AM99012, v1.2 `./measure`, v1.3 S0929120, v1.4/v1.5 square roll, v1.6 AM11353 2-up calibrated, v1.7 `./measure --markers`, v1.8 S0904980 + `plumb` + unknown-roll bugfix, v1.9 AM99017 + letterbox fit |
 | rolls | **6 installed**: AM11354 (57×32, 1:1 portrait page), AM99012 (36×89 portrait), S0929120 (square, 2 mm all around), AM11353 (2-up block, 1:1 portrait page `LW_23x25`), S0904980 (104×159 shipping label, max ink), **AM99017 (21.3×50, 1:1 printable-area page)** |
-| signed off | **AM99012, AM11354, AM11353 2-up, S0904980, AM99017** by the user (13 Nov); square roll installed with 2 mm margins; AM11353 as single 1:1 page signed off 14 Nov |
+| signed off | **AM11354, AM11353, S0929120, AM99017** as single 1:1 pages (14 Nov); AM99012 and S0904980 approved on their original pages |
 | iMac | filter + PPD installed and identical to the repo (`/usr/libexec/cups/filter/lw650xl.py`, `/etc/cups/ppd/LW650XL_Labels.ppd`) |
 | tests | `python3 test_filter.py`, `test_measure.py`, `test_label.py` — all green |
 | **Word route** | **tested end to end on 12 Nov and working** (S0904980 via the CUPS queue: frame + text + circle landed on the printable area) |
