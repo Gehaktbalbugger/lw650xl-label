@@ -30,7 +30,7 @@
 
 *OpenUI *PageSize/Media Size: PickOne
 *OrderDependency: 10 AnySetup *PageSize
-*DefaultPageSize: LW_57x32
+*DefaultPageSize: LW_33x88.5
 *PageSize LW_102.2x159.9/S0904980 159x104 Verzendetiket (159.8x102.2): "<</PageSize[289.70 453.26]/ImagingBBox null>>setpagedevice"
 *PageSize LW_33x88.5/AM99012 89x36 Adres staand (88.5x33): "<</PageSize[93.54 250.87]/ImagingBBox null>>setpagedevice"
 *PageSize LW_23.5x25.5/S0929120 25.5x25.5 Vierkant (25.5x23.5): "<</PageSize[66.61 72.28]/ImagingBBox null>>setpagedevice"
@@ -41,7 +41,7 @@
 
 *OpenUI *PageRegion/Media Size: PickOne
 *OrderDependency: 10 AnySetup *PageRegion
-*DefaultPageRegion: LW_57x32
+*DefaultPageRegion: LW_33x88.5
 *PageRegion LW_102.2x159.9/S0904980 159x104 Verzendetiket (159.8x102.2): "<</PageSize[289.70 453.26]/ImagingBBox null>>setpagedevice"
 *PageRegion LW_33x88.5/AM99012 89x36 Adres staand (88.5x33): "<</PageSize[93.54 250.87]/ImagingBBox null>>setpagedevice"
 *PageRegion LW_23.5x25.5/S0929120 25.5x25.5 Vierkant (25.5x23.5): "<</PageSize[66.61 72.28]/ImagingBBox null>>setpagedevice"
@@ -50,7 +50,7 @@
 *PageRegion LW_19.3x49.8/AM99017 50x21.3 Hangmap (49.8x19.3): "<</PageSize[54.71 141.17]/ImagingBBox null>>setpagedevice"
 *CloseUI: *PageRegion
 
-*DefaultImageableArea: LW_57x32
+*DefaultImageableArea: LW_33x88.5
 *ImageableArea LW_102.2x159.9/S0904980 159x104 Verzendetiket (159.8x102.2): "0 0 289.70 453.26"
 *ImageableArea LW_33x88.5/AM99012 89x36 Adres staand (88.5x33): "0 0 93.54 250.87"
 *ImageableArea LW_23.5x25.5/S0929120 25.5x25.5 Vierkant (25.5x23.5): "0 0 66.61 72.28"
@@ -58,7 +58,7 @@
 *ImageableArea LW_31.3x54.2/AM11354 32x57 Etiket (31.3x54.2): "0 0 88.72 153.64"
 *ImageableArea LW_19.3x49.8/AM99017 50x21.3 Hangmap (49.8x19.3): "0 0 54.71 141.17"
 
-*DefaultPaperDimension: LW_57x32
+*DefaultPaperDimension: LW_33x88.5
 *PaperDimension LW_102.2x159.9/S0904980 159x104 Verzendetiket (159.8x102.2): "289.70 453.26"
 *PaperDimension LW_33x88.5/AM99012 89x36 Adres staand (88.5x33): "93.54 250.87"
 *PaperDimension LW_23.5x25.5/S0929120 25.5x25.5 Vierkant (25.5x23.5): "66.61 72.28"
