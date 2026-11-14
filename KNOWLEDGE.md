@@ -180,6 +180,15 @@ direction):
   upright** on the label, **Word straight = content rotated 90° clockwise**
   (reads sideways). `w=`/`h=` are also the clean fix for the square roll's
   0.5 mm `LW_26x25` mismatch.
+- **The Word landscape screen, mapped onto the label** (confirmed in print
+  by the user on AM99012, 14 Nov): the orient-swap rotates the landscape
+  raster 90° clockwise, so on the Word landscape screen **the feed
+  direction runs left → right** — the label's leading edge at the
+  screen-left margin, the trailing edge at the screen-right margin. The
+  across-head axis runs top → bottom: the **screen-top margin** is white
+  on the label's far side (away from the dead zone), the **screen-bottom
+  margin** sits on the dead-zone side (its white adds to the structural
+  dead zone). Word straight = everything as drawn, feed running down.
 - A `*PageSize` **description may not contain a colon**: the CUPS parser
   keeps such an entry, Word's strict parser silently drops it from the
   Paper Size menu. Write `(1-op-1)`, not `(1:1)`.

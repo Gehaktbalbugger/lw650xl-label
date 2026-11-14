@@ -315,6 +315,13 @@ The roll Labellife could already print — our task: turn the PPD size
   regression-tested (`test_filter.py` §9); the sideways direction is not
   yet user-confirmed — if it should read the other way, that is a
   `rotate=180` feature to add.
+- **Word landscape screen → label mapping** (confirmed in print on
+  AM99012, 14 Nov): in landscape the **feed runs left → right** on the
+  screen — leading edge at the screen-left margin, trailing edge at the
+  screen-right margin; the screen-top margin is white on the label's far
+  side, the screen-bottom margin on the dead-zone side (their white adds
+  to the structural dead zone). Word straight = as drawn, feed running
+  down. (AM99012 approved in landscape with top 1 mm / bottom 3 mm.)
 - Both AM99017 comparison variants (scaled `LW_21.3x50`, stretch
   `LW_21.3x50U`) were removed after testing — the fit=stretch mechanism
   remains in the filter.
