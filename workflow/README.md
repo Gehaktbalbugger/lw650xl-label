@@ -52,6 +52,11 @@ The second command prints one test label. If nothing comes out, see
 
 ## 2. Word: designing and printing a label
 
+**Ready-made templates** for every roll live in
+[`workflow/word/templates/`](word/templates/README.md) — one `.docx` per
+roll with the correct page size, orientation and design notes. Start from
+those instead of setting pages up by hand.
+
 ### 2.1 Match the page size to the label
 
 This is the most important step: **the page in Word must be exactly the size
