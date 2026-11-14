@@ -1,5 +1,17 @@
 # LW650XL PRO — label printing for macOS (terminal + Word)
 
+> **Looking for the driver?** This is the driver for the **LW650XL PRO**
+> label printer (sold by **123inkt**), also branded **Aimo 650** /
+> **AIMOmate** (Xiamen Aimo Technology) — and it prints the Dymo-compatible
+> rolls **30332, 11353, S0722400** and more. No vendor driver
+> (Labellife/Windows) needed: this repo contains a self-written macOS CUPS
+> driver with Word templates for six measured rolls. See
+> [Part 2](#part-2-cups-driver-for-word--friends) for the one-time install,
+> or download the
+> [installer package](https://github.com/Gehaktbalbugger/lw650xl-label/releases/latest).
+> Other systems: see
+> [Windows & other systems](#windows--other-systems) below.
+
 The LW650XL PRO is a rebranded **Aimo 650** (Xiamen Aimo Technology /
 AIMOmate) desktop label printer: 4-inch, 300 dpi, direct thermal.
 It speaks **TSPL** over raw TCP port 9100. The bitmap format was
@@ -286,6 +298,32 @@ macro) or a **CSV** (Excel: one label per row) into that folder; the iMac
 converts it to TSPL and prints it. Full Dutch guide:
 [`workflow/README.md`](workflow/README.md).
 
+## Windows & other systems
+
+There is no native Windows driver here, and building one is out of scope:
+the filter speaks macOS's CUPS raster format and the macOS filter API —
+Windows uses a completely different driver model. But **printing from
+Windows works without any driver on the Windows side**, in two ways:
+
+1. **Add the shared iMac queue via IPP** (Windows 10/11 speak IPP
+   natively): *Settings → Bluetooth & devices → Printers & scanners →
+   Add device → Add manually* → `http://iMac2020.local:631/printers/LW650XL_Labels`.
+   The iMac renders everything; the label sizes appear as known paper
+   sizes. The queue must exist and be shared (it is — `setup.sh` /
+   `install.sh` set `printer-is-shared=true`; if the iMac wakes only on
+   demand, disable sleep or use the inbox below).
+2. **The shared inbox**: drop a **PDF** (Word: the *Label_NaarPrinter*
+   macro) or a **CSV** (Excel, one label per row) into the SMB share
+   **Labelprinter** (`/Users/Shared/Labelprinter/inbox`) from any system —
+   Windows, phone, anything with network access. The watcher on the iMac
+   prints it.
+
+Linux: this repo's CUPS parts are macOS-specific (the `3SaR` raster comes
+from macOS's `cgpdftoraster`), but a Linux machine can print over IPP to
+the shared queue the same way as Windows, or run its own CUPS queue with a
+ported filter (the TSPL encoder in `cups/lw650xl.py` is pure Python and
+reusable).
+
 ## Files
 
 - `label` — the CLI (Python 3 + Pillow, both already on this Mac).
@@ -295,8 +333,8 @@ converts it to TSPL and prints it. Full Dutch guide:
   the four edge readings into an `add-size.sh` command.
 - `test_label.py` — end-to-end framing test against a fake TCP printer.
 - `test_measure.py` — print/solve round trip of `measure`.
-- `KNOWLEDGE.md` — alles wat gemeten is: BITMAP-opbouw, registratiemodel,
-  commando-matrix, rollen en hun getallen, veldvalleien.
+- `KNOWLEDGE.md` — everything measured: BITMAP layout, registration model,
+  command matrix, rolls and their numbers, field traps.
 - `HANDOFF.md` — status en de open punten voor de volgende sessie.
 - `test_filter.py` — CUPS raster parser test: multi-page rasters, Word's
   media/orientation options, bitmap decoding (no printer needed).
