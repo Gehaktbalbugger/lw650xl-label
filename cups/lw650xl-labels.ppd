@@ -30,10 +30,10 @@
 *OpenUI *PageSize/Media Size: PickOne
 *OrderDependency: 10 AnySetup *PageSize
 *DefaultPageSize: LW_57x32
+*PageSize LW_23x25/AM11353 25x25 Blok 2x 12.5 (25x23): "<</PageSize[65.20 70.87]/ImagingBBox null>>setpagedevice"
 *PageSize LW_31.3x54.2/AM11354 32x57 Etiket (31.3x54.2): "<</PageSize[88.72 153.64]/ImagingBBox null>>setpagedevice"
 *PageSize LW_19.3x49.8/AM99017 50x21.3 Hangmap (49.8x19.3): "<</PageSize[54.71 141.17]/ImagingBBox null>>setpagedevice"
 *PageSize LW_104x159/S0904980 159x104 Verzendetiket (159.3x102.2): "<</PageSize[295.37 453.26]/ImagingBBox null>>setpagedevice"
-*PageSize LW_25x25/AM11353 25x25 Blok 2x 12.5 (25x23): "<</PageSize[72.57 70.87]/ImagingBBox null>>setpagedevice"
 *PageSize LW_26x25/S0929120 25.5x25.5 Vierkant (21.5x21.5): "<</PageSize[73.70 70.87]/ImagingBBox null>>setpagedevice"
 *PageSize LW_36x89/AM99012 89x36 Adres staand (88.5x30): "<</PageSize[102.05 252.28]/ImagingBBox null>>setpagedevice"
 *CloseUI: *PageSize
@@ -41,27 +41,27 @@
 *OpenUI *PageRegion/Media Size: PickOne
 *OrderDependency: 10 AnySetup *PageRegion
 *DefaultPageRegion: LW_57x32
+*PageRegion LW_23x25/AM11353 25x25 Blok 2x 12.5 (25x23): "<</PageSize[65.20 70.87]/ImagingBBox null>>setpagedevice"
 *PageRegion LW_31.3x54.2/AM11354 32x57 Etiket (31.3x54.2): "<</PageSize[88.72 153.64]/ImagingBBox null>>setpagedevice"
 *PageRegion LW_19.3x49.8/AM99017 50x21.3 Hangmap (49.8x19.3): "<</PageSize[54.71 141.17]/ImagingBBox null>>setpagedevice"
 *PageRegion LW_104x159/S0904980 159x104 Verzendetiket (159.3x102.2): "<</PageSize[295.37 453.26]/ImagingBBox null>>setpagedevice"
-*PageRegion LW_25x25/AM11353 25x25 Blok 2x 12.5 (25x23): "<</PageSize[72.57 70.87]/ImagingBBox null>>setpagedevice"
 *PageRegion LW_26x25/S0929120 25.5x25.5 Vierkant (21.5x21.5): "<</PageSize[73.70 70.87]/ImagingBBox null>>setpagedevice"
 *PageRegion LW_36x89/AM99012 89x36 Adres staand (88.5x30): "<</PageSize[102.05 252.28]/ImagingBBox null>>setpagedevice"
 *CloseUI: *PageRegion
 
 *DefaultImageableArea: LW_57x32
+*ImageableArea LW_23x25/AM11353 25x25 Blok 2x 12.5 (25x23): "0 0 65.20 70.87"
 *ImageableArea LW_31.3x54.2/AM11354 32x57 Etiket (31.3x54.2): "0 0 88.72 153.64"
 *ImageableArea LW_19.3x49.8/AM99017 50x21.3 Hangmap (49.8x19.3): "0 0 54.71 141.17"
 *ImageableArea LW_104x159/S0904980 159x104 Verzendetiket (159.3x102.2): "0 0 295.37 453.26"
-*ImageableArea LW_25x25/AM11353 25x25 Blok 2x 12.5 (25x23): "0 0 72.57 70.87"
 *ImageableArea LW_26x25/S0929120 25.5x25.5 Vierkant (21.5x21.5): "0 0 73.70 70.87"
 *ImageableArea LW_36x89/AM99012 89x36 Adres staand (88.5x30): "0 0 102.05 252.28"
 
 *DefaultPaperDimension: LW_57x32
+*PaperDimension LW_23x25/AM11353 25x25 Blok 2x 12.5 (25x23): "65.20 70.87"
 *PaperDimension LW_31.3x54.2/AM11354 32x57 Etiket (31.3x54.2): "88.72 153.64"
 *PaperDimension LW_19.3x49.8/AM99017 50x21.3 Hangmap (49.8x19.3): "54.71 141.17"
 *PaperDimension LW_104x159/S0904980 159x104 Verzendetiket (159.3x102.2): "295.37 453.26"
-*PaperDimension LW_25x25/AM11353 25x25 Blok 2x 12.5 (25x23): "72.57 70.87"
 *PaperDimension LW_26x25/S0929120 25.5x25.5 Vierkant (21.5x21.5): "73.70 70.87"
 *PaperDimension LW_36x89/AM99012 89x36 Adres staand (88.5x30): "102.05 252.28"
 
@@ -84,7 +84,7 @@
 *Font Courier: "(001.004)" Standard ROM
 *% lw-media LW_36x89 pitch=93 gap=4 left=3 right=3 top=-0.5 bottom=1
 *% lw-media LW_26x25 pitch=33.97 gap=3 rows=356 left=1.5 right=1.4 top=1.9 voffset=2.5 bottom=0 rotate=270
-*% lw-media LW_25x25 pitch=34 gap=3 rows=354 xoffset=-2 left=0 right=0 top=4.5 bottom=0
 *% lw-media LW_104x159 pitch=162 gap=3 left=0 right=2 top=0.6 bottom=0
 *% lw-media LW_19.3x49.8 pitch=54.5 gap=4.5 gapoff=0.5 left=0 right=0 top=1.08 bottom=0 fit=fit
 *% lw-media LW_31.3x54.2 pitch=38.6 gap=3 left=0 right=0 top=5.42 bottom=0 fit=fit w=54.2 h=31.3
+*% lw-media LW_23x25 pitch=34 gap=3 rows=354 left=0 right=0 top=4.5 bottom=0 fit=fit
