@@ -476,6 +476,7 @@ sudo ./uninstall.sh
 | `workflow/print-inbox.sh` | the watcher |
 | `workflow/pdfmedia.py` | page size → CUPS media |
 | `workflow/csv2labels.py` | CSV → one label per row |
+| `workflow/word/templates/` | Word templates per roll (+ README with page settings) |
 | `workflow/word/LabelPrinter.bas` | Word macros |
 | `workflow/excel/LabelPrinter.bas` | Excel macro (CSV) |
 | `workflow/com.benno.labelprinter.watcher.plist` | launchd template |
