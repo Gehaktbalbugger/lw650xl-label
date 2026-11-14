@@ -25,6 +25,16 @@ cp "$HERE/cups/lw650xl" "$HERE/cups/lw650xl.py" /usr/libexec/cups/filter/
 chown root:wheel /usr/libexec/cups/filter/lw650xl /usr/libexec/cups/filter/lw650xl.py
 chmod 755 /usr/libexec/cups/filter/lw650xl /usr/libexec/cups/filter/lw650xl.py
 
+# Printer icon (Word/macOS shows it for the queue; *APPrinterIconPath in the
+# PPD points here).
+if [ -f "$HERE/cups/LW650XL_Labels.icns" ]; then
+    echo "Installing printer icon ..."
+    mkdir -p /Library/Printers/Icons
+    cp "$HERE/cups/LW650XL_Labels.icns" /Library/Printers/Icons/
+    chown root:wheel /Library/Printers/Icons/LW650XL_Labels.icns
+    chmod 644 /Library/Printers/Icons/LW650XL_Labels.icns
+fi
+
 # Same search order as the filter wrapper: the queue is useless without a
 # Python 3 that actually runs (a bare CLT-less /usr/bin/python3 is only a
 # stub that pops up an installer dialog).

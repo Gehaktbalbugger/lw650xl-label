@@ -24,6 +24,7 @@
 *TTRasterizer: Type42
 *cupsVersion: 1.2
 *cupsManualCopies: True
+*APPrinterIconPath: "/Library/Printers/Icons/LW650XL_Labels.icns"
 *cupsFilter: "application/vnd.cups-raster 0 lw650xl"
 *cupsLanguages: "en"
 
