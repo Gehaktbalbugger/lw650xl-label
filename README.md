@@ -72,6 +72,16 @@ It contains three ways to print:
 
 ### One-time install
 
+**Easy route — the installer package** (recommended for other Macs):
+download **`LW650XL-driver-v1.10.pkg`** from the
+[releases page](https://github.com/Gehaktbalbugger/lw650xl-label/releases/latest),
+double-click → right-click → **Open** the first time (Gatekeeper), enter
+the admin password. Done: filter, PPD, printer icon and the queue
+`LW650XL_Labels` (socket://172.16.1.20:9100) are installed, and the Word
+templates land in `/Library/Printers/LW650XL/word-templates/`.
+
+**Git route:**
+
 ```
 cd label-printer
 sudo ./install.sh
