@@ -348,7 +348,9 @@ def cmd_plumb(lw, args):
     groove plus two reference dots on the lane centers. Reading: if the line
     deviates by d mm, positive toward A (left). New xoffset = old + d. One
     feed, one number — the lesson of the AM11353 (boxes gave 10 mm, the
-    plumb pinned 0.5)."""
+    plumb pinned 0.5). The line goes to the rail: xoffset + cw/2 on a
+    calibrated 2-up line, or an explicit --rail <mm> on a 1:1 page (the
+    page reframes the roll, so the middle is no longer the groove)."""
     geom, _ = resolve_geometry(lw, args)
     target_h = lw.canvas_rows(geom)
     ox, oy, cw, ch = lw.print_window(geom, target_h)
@@ -356,7 +358,12 @@ def cmd_plumb(lw, args):
     dpm = lw.DOTS_PER_MM
     img = Image.new("L", (cw, ch), 255)
     d = ImageDraw.Draw(img)
-    mid = cw // 2
+    if args.rail is not None:
+        rail_px = int(round(args.rail * dpm)) - ox      # rail in box coords
+    else:
+        rail_px = cw // 2                               # calibrated-2up default
+    rail_px = max(0, min(rail_px, cw - 2))
+    mid = rail_px
     d.rectangle((mid - 1, int(5 * dpm), mid + 1, ch - int(5 * dpm)), fill=0)
     for cx in (cw // 4, 3 * cw // 4):
         d.rectangle((cx - 6, ch // 2 - 6, cx + 6, ch // 2 + 6), fill=0)
@@ -669,6 +676,12 @@ def main():
     ap.add_argument("--report", type=float, default=None,
                     help="bij plumb: afwijking in mm (positief = lijn op A); "
                          "rekent direct de nieuwe xoffset uit")
+    ap.add_argument("--rail", type=float, default=None,
+                    help="bij plumb: de rail in bitmap mm. Default is het "
+                         "midden van het printvlak (xoffset + cw/2), wat op "
+                         "de gekalibreerde 2-up regel op de rail valt; op een "
+                         "1:1 pagina (xoffset=0) geef de rail expliciet, "
+                         "bijv. AM11353: --rail 10.5")
     ap.add_argument("--T", type=float, help="mm of white between frame and top edge (corner T)")
     ap.add_argument("--B", type=float, help="mm of white between frame and bottom edge (corner B)")
     ap.add_argument("--L", type=float, help="mm of white between frame and left edge (corner L)")

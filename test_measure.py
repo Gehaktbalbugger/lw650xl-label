@@ -114,8 +114,13 @@ def main():
           abs(fr.get("x1", 0) - 30.06) < 0.3 and fr.get("y0") is not None)
 
     # image == window: no distortion, the frame falls on the window edges
+    # (the square roll's geometry passed explicitly: LW_26x25 left the PPD
+    # on 14 Nov, but the 270 marker mapping stays a tested invariant)
     png = tempfile.mktemp(suffix=".png")
-    code, out = run("26", "25", "--markers", "--preview", png, "--state", mstate)
+    code, out = run("26", "25", "--markers", "--preview", png, "--state", mstate,
+                    "--pitch", "33.97", "--gap", "3", "--rows", "356",
+                    "--left", "1.5", "--right", "1.4", "--top", "1.9",
+                    "--voffset", "2.5", "--bottom", "0", "--rotate", "270")
     check("markers: rotated roll uses rotate from the PPD",
           json.load(open(mstate))["rotate"] == 270)
     from PIL import Image
@@ -152,17 +157,27 @@ def main():
           code != 0 and "--B" in out)
 
     # --- plumb: the cut plumb line as a fixed command ----------------------
-    code, out = run("plumb", "25", "25", "--dry-run")
+    # The AM11353 page is the 1:1 printable-area page LW_23x25 (xoffset=0),
+    # so the rail no longer sits at the box middle: pass it explicitly.
+    code, out = run("plumb", "23", "25", "--name", "LW_23x25",
+                    "--rail", "10.5", "--dry-run")
     check("plumb: exit 0", code == 0)
-    check("plumb: line tracks the calibrated roll's rail",
-          "plumb at x 10.4" in out or "plumb at x 10.5" in out)
-    code, out = run("plumb", "25", "25", "--report", "0.5")
+    check("plumb: line at the rail passed with --rail",
+          "plumb at x 10.5" in out or "plumb at x 10.50" in out)
+    code, out = run("plumb", "23", "25", "--name", "LW_23x25",
+                    "--rail", "10.5", "--report", "0.5")
     check("plumb: +0,5 mm op A verhogen xoffset met 0,5",
-          "-1.5" in out and "--xoffset -1.5" in out)
+          "0 -> 0.5" in out and "--xoffset 0.5" in out)
     check("plumb: report drukt niet (rekent alleen)", "DRY-RUN" not in out)
-    code, out = run("plumb", "25", "25", "--report", "-0.5")
+    code, out = run("plumb", "23", "25", "--name", "LW_23x25",
+                    "--rail", "10.5", "--report", "-0.5")
     check("plumb: deviation toward B lowers xoffset",
-          "-2.5" in out or "-2.50" in out)
+          "0 -> -0.5" in out or "0 -> -0.50" in out)
+    # without --rail the line falls to the box middle (the calibrated-2up
+    # default; on the 1:1 page that is 11.5, NOT the groove)
+    code, out = run("plumb", "23", "25", "--name", "LW_23x25", "--dry-run")
+    check("plumb: default line = box middle (11.5 on the 1:1 page)",
+          "plumb at x 11.5" in out)
 
     # --- onbekende rol met hoogte > breedte: NIET swappen (S0904980-bug) ---
     # (104x159 zit inmiddels in de PPD en find_media matcht tot 1 mm —
