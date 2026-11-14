@@ -33,6 +33,12 @@
   **portrait** as `LW_31.3x54.2` with `w=54.2 h=31.3` in the roll line, so
   Word offers the straight/landscape toggle (landscape = upright on the
   label, straight = rotated 90° clockwise). User confirmed the direction.
+- **AM11353 as a single Word page** (14 Nov): the user no longer uses the
+  built-in 2-up composition — they design both 12.5 × 25 labels on one
+  page. New printable-area portrait page `LW_23x25` (23 mm = the reachable
+  strip; cut groove at page-x 10.5) replaces `LW_25x25`; `top` converged
+  4.5 → 3.7 → 4.1 by print iteration (the leading-edge offset is
+  seating-dependent). `./label --two` still composes 2-up on its own.
 - Post-testing cleanup: both comparison variants (`LW_21.3x50` scaled,
   `LW_21.3x50U` stretch) were removed from the queue; the user kept only
   the 1:1 page. The fit=stretch mechanism stays in the filter for future
